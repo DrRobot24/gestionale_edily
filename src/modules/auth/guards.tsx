@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Navigate, useLocation } from 'react-router'
 import { useSession } from './SessionProvider'
+import { Card } from '../../ui'
 import type { Permission } from './session'
 
 /**
@@ -62,13 +63,26 @@ export function RequirePermission({
   return <>{children}</>
 }
 
+/**
+ * Il cartello che compare al posto della pagina. Senza titolo (il caso
+ * "sto caricando") resta volutamente anonimo: non e' un errore, non
+ * merita una card che urla.
+ */
 function Schermo({ titolo, testo }: { titolo?: string; testo: string }) {
-  return (
-    <div style={{ display: 'grid', placeItems: 'center', minHeight: '60vh', padding: 24 }}>
-      <div style={{ maxWidth: 420, textAlign: 'center' }}>
-        {titolo && <h2 style={{ margin: '0 0 8px', fontSize: 18 }}>{titolo}</h2>}
-        <p style={{ margin: 0, color: '#555', lineHeight: 1.5 }}>{testo}</p>
+  if (!titolo) {
+    return (
+      <div className="grid min-h-[60vh] place-items-center p-6">
+        <p className="text-sm font-bold text-gray-600">{testo}</p>
       </div>
+    )
+  }
+
+  return (
+    <div className="grid min-h-[60vh] place-items-center p-6">
+      <Card className="max-w-md p-6 text-center">
+        <h2 className="mb-2 text-lg font-extrabold text-black">{titolo}</h2>
+        <p className="text-sm font-semibold leading-relaxed text-gray-600">{testo}</p>
+      </Card>
     </div>
   )
 }

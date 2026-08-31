@@ -149,6 +149,11 @@ In `src/lib/supabase.ts` il client è configurato con
 `storageKey: 'encreade-auth'`. Il valore **deve coincidere** con quello di
 wbs-office perché chi è autenticato su una app lo sia anche sull'altra.
 
+> ⚠️ **Oggi non coincide.** wbs-office chiama `createClient(url, key)` senza
+> opzioni e usa quindi la storageKey di default (`sb-<ref>-auth-token`). La
+> sessione condivisa **non funziona**: si risolve togliendo la riga da qui.
+> Vedi [`STATO_LAVORI.md`](STATO_LAVORI.md).
+
 Attenzione al limite: `localStorage` è per-origine. La sessione è condivisa
 solo se le due app stanno sullo **stesso dominio** (es. `/wbs` e `/gestionale`
 sullo stesso host). Su sottodomini distinti (`wbs.encreade.it` e
@@ -180,8 +185,16 @@ supabase gen types typescript --linked > src/lib/database.types.ts
 - [x] **B** — Ponte WBS: sincronizzazione ricorsiva jsonb di progetti e task
 - [x] **C** — Dati di prova e verifica RLS: impersonazione, macchina a stati dei rapportini
 - [x] **D1** — Impalcatura Vite, moduli auth, schermata di login
-- [ ] **D2** — Primo login e verifica della catena Auth → JWT → RLS dal browser
-- [ ] **E** — Prima verticale funzionale
+- [x] **D2** — Catena Auth → JWT → RLS verificata dal browser e da client headless
+- [x] **D3** — Design system neo-brutalista (Tailwind 4, `src/ui/`), portato da wbs-office
+- [x] **E** — Verticale rapportini completa: compilazione, invio, validazione, rifiuto,
+      correzione, contabilizzazione
+- [x] **F1** — Anagrafiche clienti e operai, cantieri con assegnazione della squadra
+- [ ] **F2** — Anagrafiche mezzi, fornitori, materiali
+- [ ] **G** — Economia, paghe, WBS agganciata al cantiere
+
+> Lo stato di dettaglio, i fatti verificati sul database e i difetti noti stanno
+> in [`STATO_LAVORI.md`](STATO_LAVORI.md). **Leggilo prima di toccare le policy.**
 
 ---
 

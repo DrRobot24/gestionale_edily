@@ -123,7 +123,7 @@ export async function fetchAppSession(userId: string, email: string | null): Pro
 
   const orgs: Organizzazione[] = []
   for (const m of data ?? []) {
-    const org = primo(m.organizations as any)
+    const org = primo(m.organizations)
     if (!org) continue
     const ruolo = m.ruolo as OrgRole
     orgs.push({
