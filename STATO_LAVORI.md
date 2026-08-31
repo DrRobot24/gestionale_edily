@@ -199,6 +199,73 @@ Da fare **prima** di toccare le policy.
    della fase C con membership e assegnazione.
 5. Chiudere i due difetti di lint in `SessionProvider.tsx` (fast refresh rotto e
    dipendenza instabile di `useMemo`).
+6. **Collazioni disallineate** — vedi la sezione qui sotto.
+7. Passare in rassegna gli **Advisors** del pannello Supabase (pallino giallo
+   nella barra laterale): sono i controlli automatici su sicurezza e prestazioni,
+   la stessa famiglia di verifiche fatte a mano qui ma automatizzata. In
+   particolare cercare viste senza `security_invoker` e tabelle senza RLS.
+8. Passaggio al piano **Pro**, che è ciò che abilita i backup automatici.
+
+---
+
+## Manutenzione: `collation version mismatch`
+
+Nei log del database compare in continuazione:
+
+```
+database "postgres" has a collation version mismatch
+```
+
+**Cos'è.** Postgres registra la versione della libreria di sistema (glibc) usata
+alla creazione del database, perché è quella che decide l'ordinamento del testo.
+Quando Supabase aggiorna l'immagine sottostante la libreria cambia e il numero
+registrato non combacia più. Il messaggio esce **a ogni nuova connessione** — per
+questo se ne vedono decine allo stesso secondo quando gira uno script.
+
+**Perché conta.** Non è un errore, ma se le regole di ordinamento sono cambiate
+gli indici sui campi di testo sono ordinati con le regole vecchie mentre le query
+confrontano con quelle nuove. Nel caso peggiore un indice non trova una riga che
+esiste, o un vincolo di unicità lascia passare un duplicato. Qui i campi di testo
+sotto vincolo ci sono: `cantieri.codice`, `clienti.partita_iva`,
+`organizations.slug`, `permissions.code`.
+
+**Come si risolve.** Il database ha poche decine di righe, quindi è istantaneo:
+
+```sql
+-- 1. vedere quanto sono distanti le due versioni
+select datname, datcollate, datcollversion as registrata,
+       pg_database_collation_actual_version(oid) as reale
+from pg_database
+where datname = current_database();
+
+-- 2. ricostruire gli indici con le regole NUOVE
+reindex database postgres;
+
+-- 3. solo adesso registrare la versione aggiornata
+alter database postgres refresh collation version;
+```
+
+**L'ordine non è negoziabile.** Il passo 3 da solo fa sparire il messaggio ma
+lascia gli indici ordinati come prima: spegne la spia senza togliere il guasto.
+
+Se restano collazioni fuori posto:
+
+```sql
+select collname, collversion, pg_collation_actual_version(oid)
+from pg_collation
+where collversion is not null
+  and collversion <> pg_collation_actual_version(oid);
+-- poi, per ognuna:  alter collation "<nome>" refresh version;
+```
+
+`reindex database` non gira dentro una transazione: se l'editor SQL lo rifiuta
+con *«cannot run inside a transaction block»*, usare `psql` con la stringa di
+connessione, oppure `reindex table <nome>;` tabella per tabella.
+
+> ⚠️ **Un upgrade di Postgres non è la cura, è più facilmente la causa.** Una
+> nuova immagine porta una nuova glibc e può rigenerare il disallineamento. Dopo
+> ogni upgrade dell'infrastruttura vanno ricontrollati i log e, se il messaggio
+> torna, rilanciate le tre righe qui sopra.
 
 ---
 
