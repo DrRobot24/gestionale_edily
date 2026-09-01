@@ -17,7 +17,31 @@ export function RapportinoPage() {
 
   const puoValidare = usePermission('rapportini.validate')
   const puoRiaprire = usePermission('rapportini.reopen')
-  const puoContabilizzare = usePermission('economics.write')
+  const tieneIContabili = usePermission('economics.write')
+
+  /**
+   * Chi approva non registra.
+   *
+   * E' la separazione dei compiti che si usa in contabilita': il
+   * titolare valida il rapportino, l'amministrazione lo porta nei conti.
+   * Se le due cose le facesse la stessa persona, il controllo
+   * incrociato fra chi dice "questo lavoro e' stato fatto" e chi dice
+   * "questo lavoro e' costato tanto" sparirebbe.
+   *
+   * Non si poteva esprimere con un permesso: `owner` li ha tutti e
+   * sedici, quindi qualunque permesso avessimo scelto lui ce l'avrebbe.
+   * Si esprime con l'assenza: contabilizza chi tiene i conti e NON
+   * valida. Regge su tutti i ruoli - owner e admin validano e restano
+   * fuori, amministrazione ha economics.write senza validate ed entra,
+   * il tecnico non ha ne' l'uno ne' l'altro.
+   *
+   * ATTENZIONE: qui si nasconde un pulsante, non si nega un'azione. Il
+   * trigger del database lascia ancora fare la transizione a chiunque
+   * abbia i permessi giusti. Per renderla una regola vera servirebbe un
+   * permesso `rapportini.contabilizza` da non assegnare a owner e admin,
+   * piu' il controllo nel trigger.
+   */
+  const puoContabilizzare = tieneIContabili && !puoValidare
 
   const [motivo, setMotivo] = useState('')
   const [chiedoMotivo, setChiedoMotivo] = useState(false)
@@ -262,6 +286,7 @@ export function RapportinoPage() {
           stato={r.stato}
           mio={mio}
           puoValidare={puoValidare}
+          puoContabilizzare={puoContabilizzare}
           inAttesa={r.stato === 'inviato'}
         />
       </Card>
@@ -284,11 +309,13 @@ function Spiegazione({
   stato,
   mio,
   puoValidare,
+  puoContabilizzare,
   inAttesa,
 }: {
   stato: string
   mio: boolean
   puoValidare: boolean
+  puoContabilizzare: boolean
   inAttesa: boolean
 }) {
   let testo: string | null = null
@@ -300,6 +327,9 @@ function Spiegazione({
     testo = 'In attesa di validazione. Serve il permesso rapportini.validate per intervenire.'
   else if (stato === 'validato' && !puoValidare)
     testo = 'Validato. Da qui in poi lo muove solo chi si occupa della contabilità.'
+  else if (stato === 'validato' && !puoContabilizzare)
+    testo =
+      'Validato. Ora tocca all’amministrazione portarlo nei conti: chi approva un rapportino non lo registra anche in contabilità.'
   else if (stato === 'contabilizzato')
     testo = 'Contabilizzato: è entrato nei costi del cantiere.'
 

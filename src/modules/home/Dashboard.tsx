@@ -32,7 +32,12 @@ export function Dashboard() {
 
   const puoValidare = can('rapportini.validate')
   const puoCompilare = can('rapportini.create')
-  const vedeConti = can('economics.read')
+
+  // Stessa separazione dei compiti applicata al pulsante "Contabilizza"
+  // in RapportinoPage: chi approva non registra. Per il titolare la coda
+  // della contabilita' non e' un suo compito, e questa home mostra
+  // quello che aspetta te - non tutto quello che potresti guardare.
+  const vedeConti = can('economics.read') && !puoValidare
 
   const tutti = rapportini ?? []
   const miei = tutti.filter((r) => r.compilato_da === app?.userId)
