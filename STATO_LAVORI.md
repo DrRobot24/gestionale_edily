@@ -216,20 +216,37 @@ Nei log del database compare in continuazione:
 database "postgres" has a collation version mismatch
 ```
 
-**Cos'è.** Postgres registra la versione della libreria di sistema (glibc) usata
-alla creazione del database, perché è quella che decide l'ordinamento del testo.
-Quando Supabase aggiorna l'immagine sottostante la libreria cambia e il numero
-registrato non combacia più. Il messaggio esce **a ogni nuova connessione** — per
-questo se ne vedono decine allo stesso secondo quando gira uno script.
+**Cos'è.** Postgres registra la versione della libreria di sistema che decide
+l'ordinamento del testo — `glibc` oppure ICU, a seconda del provider con cui il
+database è stato creato. Quando Supabase aggiorna l'immagine sottostante la
+libreria cambia e il numero registrato non combacia più. Il messaggio esce **a
+ogni nuova connessione** — per questo se ne vedono decine allo stesso secondo
+quando gira uno script.
+
+**Quanto è distante, qui.** Nei log del 2026-09-01 lo scarto è `153.120` →
+`153.121`, su `postgres` e su `template1`. Il formato a tre cifre è quello delle
+versioni **ICU** (glibc userebbe `2.39`): lo conferma `datlocprovider`, letto dal
+blocco 1 dello script. È uno scarto di *patch* — un ritocco ai dati Unicode che
+riguarda caratteri rari, non una revisione delle regole di ordinamento. Vale
+comunque la pena chiuderlo, ma non è un incendio. `template1` è solo lo stampino
+da cui nascono i database nuovi: non lo usa nessuno qui, e non è toccabile da
+noi.
 
 **Perché conta.** Non è un errore, ma se le regole di ordinamento sono cambiate
 gli indici sui campi di testo sono ordinati con le regole vecchie mentre le query
 confrontano con quelle nuove. Nel caso peggiore un indice non trova una riga che
 esiste, o un vincolo di unicità lascia passare un duplicato. Qui i campi di testo
 sotto vincolo ci sono: `cantieri.codice`, `clienti.partita_iva`,
-`organizations.slug`, `permissions.code`.
+`organizations.slug`, `permissions.code` — tutti però ASCII, e sull'ASCII l'ordine
+non cambia mai fra due versioni della stessa libreria. I candidati veri sono i
+campi liberi con accenti, tipo `clienti.ragione_sociale`, e solo se indicizzati:
+il blocco 3 dello script tira fuori l'elenco esatto.
 
-**Come si risolve.** Il database ha poche decine di righe, quindi è istantaneo:
+**Come si risolve.** Le query pronte, commentate e in ordine, stanno in
+[`supabase/manutenzione/collazioni.sql`](supabase/manutenzione/collazioni.sql):
+diagnosi (blocchi 1-3), verifica del danno (4), riparazione (5), controllo
+finale (6). In sintesi — il database ha poche decine di righe, quindi è
+istantaneo:
 
 ```sql
 -- 1. vedere quanto sono distanti le due versioni
@@ -248,6 +265,16 @@ alter database postgres refresh collation version;
 **L'ordine non è negoziabile.** Il passo 3 da solo fa sparire il messaggio ma
 lascia gli indici ordinati come prima: spegne la spia senza togliere il guasto.
 
+**Se il passo 3 rimbalza.** `refresh collation version` vuole l'ownership del
+database e su Supabase il ruolo `postgres` non è superuser: può tornare *«must be
+owner of database postgres»*. In quel caso il refresh lo fa solo il supporto
+Supabase — ma il reindex del passo 2 ha già messo i dati in sicurezza, e quello
+che resta è soltanto il messaggio nei log.
+
+**Prima di intervenire, si può misurare.** L'estensione `amcheck` rilegge gli
+indici e verifica che l'ordinamento regga ancora: se non protesta, il
+disallineamento è rimasto teorico. È il blocco 4 dello script.
+
 Se restano collazioni fuori posto:
 
 ```sql
@@ -263,7 +290,8 @@ con *«cannot run inside a transaction block»*, usare `psql` con la stringa di
 connessione, oppure `reindex table <nome>;` tabella per tabella.
 
 > ⚠️ **Un upgrade di Postgres non è la cura, è più facilmente la causa.** Una
-> nuova immagine porta una nuova glibc e può rigenerare il disallineamento. Dopo
+> nuova immagine porta una nuova libreria di collazione e può rigenerare il
+> disallineamento. Dopo
 > ogni upgrade dell'infrastruttura vanno ricontrollati i log e, se il messaggio
 > torna, rilanciate le tre righe qui sopra.
 
