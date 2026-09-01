@@ -114,7 +114,11 @@ L'interfaccia si comporta **già** come se `inviato` fosse congelato
 non richiede modifiche al frontend. La via per le correzioni esiste già ed è
 `respingi → correggi → rimanda`.
 
-### 🔴 `clienti` non ha unicità su partita IVA e codice fiscale
+### ✅ `clienti` non aveva unicità su partita IVA e codice fiscale
+> **Risolto il 2026-09-01.** Creati `clienti_org_piva_uniq` e
+> `clienti_org_cf_uniq`. Che la creazione sia passata senza errori è anche la
+> prova che duplicati non ce n'erano: Postgres avrebbe rifiutato l'indice.
+
 Trovato il 2026-09-01 indagando le collazioni: la tabella ha **solo**
 `clienti_pkey` su `id` e `clienti_org_idx` su `org_id`. Nessun indice unico sugli
 identificativi fiscali, quindi due clienti con la stessa partita IVA nella stessa
