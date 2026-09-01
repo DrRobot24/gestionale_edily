@@ -262,6 +262,16 @@ poi quello che ne aggiunge.
    senza `security_invoker` e tabelle senza RLS.
 4. Correggere la policy dell'`inviato`, il difetto 🔴 rimasto: oggi l'autore può
    ancora modificare un rapportino che ha già mandato.
+5. **Rendere vera la separazione dei compiti sulla contabilizzazione.** Dal
+   2026-09-01 il pulsante «Contabilizza» non compare più a chi valida — owner e
+   admin — perché chi approva un rapportino non deve anche registrarlo nei conti.
+   Ma è una regola dell'interfaccia: il trigger del database lascia ancora fare
+   la transizione a chiunque abbia `economics.write`, owner compreso. Per farne
+   una regola vera serve un permesso nuovo `rapportini.contabilizza`, da **non**
+   assegnare a owner e admin, più il controllo dentro il trigger che oggi
+   verifica `rapportini.validate`. Non è stato fatto subito perché il flusso di
+   contabilizzazione va ancora definito: per ora il tecnico compila, l'owner
+   valida, e da lì i dati passano all'amministrazione.
 
 ### Costruire il resto
 
