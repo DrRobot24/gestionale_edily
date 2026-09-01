@@ -138,6 +138,30 @@ cliente. Lato applicazione la traduzione dell'errore `23505` è in
 [`clienti.ts`](src/modules/anagrafiche/clienti.ts): distingue i due vincoli e
 copre anche l'`update`, che prima lo lasciava passare grezzo.
 
+### 🔴 Il bucket `rapportini` era pubblico
+> **Rimedio pronto in
+> [`supabase/schema/storage-rapportini.sql`](supabase/schema/storage-rapportini.sql).**
+
+Trovato il 2026-09-01 preparando lo storage delle bolle. `storage.buckets`
+diceva `public = true` per `rapportini`: chiunque avesse l'URL leggeva il file
+**senza autenticazione e senza che la RLS venisse interpellata**. Su un
+gestionale multi-tenant significa che per quei file l'isolamento fra imprese non
+esisteva — e nelle foto di cantiere ci sono volti di operai, targhe, documenti
+fotografati.
+
+Su `storage.objects` non esisteva **nessuna** policy, quindi il bucket era
+leggibile da tutti e scrivibile da nessuno. `allowed_mime_types` era `null`: ci
+si poteva caricare qualsiasi cosa fino a 40 MB.
+
+Si ripara a costo zero perché `rapportino_foto` ha 0 righe: nessun file da
+spostare, nessun URL pubblico già in circolazione. Fra sei mesi sarebbe stata
+una migrazione.
+
+**Attenzione al database condiviso:** se wbs-office mostra quelle foto con
+`getPublicUrl()`, dopo la chiusura del bucket dovrà passare a
+`createSignedUrl()`. Il gestionale non è interessato, non ha una sola chiamata a
+`supabase.storage`.
+
 ### 🟡 `cantieri_write` è `FOR ALL`
 Le policy permissive si sommano in OR, quindi copre anche la SELECT: chi ha
 `cantieri.write` vede **tutti** i cantieri dell'azienda, scavalcando
