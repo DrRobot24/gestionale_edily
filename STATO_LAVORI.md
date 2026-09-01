@@ -219,7 +219,8 @@ Da fare **prima** di toccare le policy.
    della fase C con membership e assegnazione.
 5. Chiudere i due difetti di lint in `SessionProvider.tsx` (fast refresh rotto e
    dipendenza instabile di `useMemo`).
-6. **Collazioni disallineate** — vedi la sezione qui sotto.
+6. ✅ **Collazioni disallineate** — risolto il 2026-09-01 su `postgres`. Resta
+   `template1`, che non è nostro e non è azionabile: vedi la sezione qui sotto.
 7. Passare in rassegna gli **Advisors** del pannello Supabase (pallino giallo
    nella barra laterale): sono i controlli automatici su sicurezza e prestazioni,
    la stessa famiglia di verifiche fatte a mano qui ma automatizzata. In
@@ -229,6 +230,19 @@ Da fare **prima** di toccare le policy.
 ---
 
 ## Manutenzione: `collation version mismatch`
+
+> ✅ **Risolto il 2026-09-01 su `postgres`.** Reindicizzate le dieci tabelle con
+> indici su collazioni linguistiche, poi `refresh collation version`: registrata e
+> reale sono entrambe `153.121`. L'ownership del database c'era, quindi il refresh
+> non ha rimbalzato.
+>
+> **`template1` resta disallineato** e continuerà a comparire nei log: è di
+> `supabase_admin`, non lo possiamo toccare, ed è lo stampino per i database
+> nuovi — che su Supabase non creeremo mai. Se il rumore dà fastidio va aperto un
+> ticket, non c'è niente da fare da qui.
+>
+> Quanto segue resta valido come procedura: il disallineamento **si ripresenta a
+> ogni aggiornamento dell'infrastruttura**.
 
 Nei log del database compare in continuazione:
 
