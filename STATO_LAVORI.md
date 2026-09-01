@@ -223,10 +223,9 @@ libreria cambia e il numero registrato non combacia più. Il messaggio esce **a
 ogni nuova connessione** — per questo se ne vedono decine allo stesso secondo
 quando gira uno script.
 
-**Quanto è distante, qui.** Nei log del 2026-09-01 lo scarto è `153.120` →
-`153.121`, su `postgres` e su `template1`. Il formato a tre cifre è quello delle
-versioni **ICU** (glibc userebbe `2.39`): lo conferma `datlocprovider`, letto dal
-blocco 1 dello script. È uno scarto di *patch* — un ritocco ai dati Unicode che
+**Quanto è distante, qui.** Verificato sul database il 2026-09-01: provider
+**ICU**, `en_US.UTF-8`, scarto `153.120` → `153.121`, su `postgres` e su
+`template1`. È uno scarto di *patch* — un ritocco ai dati Unicode che
 riguarda caratteri rari, non una revisione delle regole di ordinamento. Vale
 comunque la pena chiuderlo, ma non è un incendio. `template1` è solo lo stampino
 da cui nascono i database nuovi: non lo usa nessuno qui, e non è toccabile da
@@ -271,9 +270,17 @@ owner of database postgres»*. In quel caso il refresh lo fa solo il supporto
 Supabase — ma il reindex del passo 2 ha già messo i dati in sicurezza, e quello
 che resta è soltanto il messaggio nei log.
 
-**Prima di intervenire, si può misurare.** L'estensione `amcheck` rilegge gli
-indici e verifica che l'ordinamento regga ancora: se non protesta, il
-disallineamento è rimasto teorico. È il blocco 4 dello script.
+**Misurare il danno, qui, non si può.** Lo strumento giusto sarebbe `amcheck`,
+che rilegge gli indici e verifica se l'ordinamento regge ancora, ma su Supabase
+non è abilitabile: *«permission denied to create extension amcheck — must be
+superuser»*, e superuser non lo diventeremo. Resta il ripiego del passo 5 dello
+script, che cerca i duplicati leggendo la tabella invece dell'indice — se un
+indice unico avesse lasciato passare un doppione, l'indice non lo vede ma una
+scansione sequenziale sì.
+
+Detto ciò: con un database di poche decine di righe **il reindex costa meno della
+diagnosi**. È istantaneo, non tocca i dati e risolve a prescindere da quanto sia
+grave. Ha senso saltare direttamente alla cura.
 
 Se restano collazioni fuori posto:
 
