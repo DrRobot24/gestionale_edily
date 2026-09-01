@@ -214,22 +214,52 @@ Da fare **prima** di toccare le policy.
 
 ## Prossimi passi
 
-1. Anagrafiche mancanti: **mezzi** (con scadenze revisione/assicurazione e
+> **Chiusi il 2026-09-01.** Disallineamento delle collazioni su `postgres`;
+> unicità degli identificativi dei clienti (database + traduzione dell'errore nel
+> form); residui del template React sostituiti dal marchio Edily; primo deploy su
+> Vercel, con le variabili `VITE_*` come **Config** e non Secret — hanno il
+> prefisso pubblico apposta, finiscono nel bundle per costruzione.
+
+L'ordine qui sotto non è casuale: prima quello che protegge il lavoro già fatto,
+poi quello che ne aggiunge.
+
+### Mettere al sicuro ciò che esiste
+
+1. **Dump dello schema.** 27 tabelle, 7 viste, 60+ policy e i trigger vivono in
+   un posto solo, senza storia e senza copia. Il 2026-09-01 ci abbiamo aggiunto
+   a mano due indici unici su `clienti`: la distanza fra quello che il database
+   contiene e quello che il repository sa continua a crescere, e nessuno la sta
+   misurando. Serve la password del database, vedi la sezione dedicata.
+2. **Piano Pro**, che è ciò che abilita i backup automatici. Finché restiamo su
+   Free, il punto 1 non è documentazione: è l'unica copia che abbiamo.
+3. **Advisors** del pannello Supabase (pallino giallo nella barra laterale):
+   controlli automatici su sicurezza e prestazioni, la stessa famiglia di
+   verifiche fatte a mano qui ma automatizzata. Cercare in particolare viste
+   senza `security_invoker` e tabelle senza RLS.
+4. Correggere la policy dell'`inviato`, il difetto 🔴 rimasto: oggi l'autore può
+   ancora modificare un rapportino che ha già mandato.
+
+### Costruire il resto
+
+5. Anagrafiche mancanti: **mezzi** (con scadenze revisione/assicurazione e
    storico costi), **fornitori**, **materiali**.
-2. Materiali e mezzi dentro il rapportino (`rapportino_materiali`,
+6. Materiali e mezzi dentro il rapportino (`rapportino_materiali`,
    `rapportino_mezzi`): le tabelle ci sono, il form no.
-3. Dump dello schema, poi correzione della policy dell'`inviato`.
-4. Ripulire l'utente di prova `Mario Rossi` (`lillo@lalli.com`), rimasto dal seed
+
+### Pulizia
+
+7. Ripulire l'utente di prova `Mario Rossi` (`lillo@lalli.com`), rimasto dal seed
    della fase C con membership e assegnazione.
-5. Chiudere i due difetti di lint in `SessionProvider.tsx` (fast refresh rotto e
+8. Chiudere i due difetti di lint in `SessionProvider.tsx` (fast refresh rotto e
    dipendenza instabile di `useMemo`).
-6. ✅ **Collazioni disallineate** — risolto il 2026-09-01 su `postgres`. Resta
-   `template1`, che non è nostro e non è azionabile: vedi la sezione qui sotto.
-7. Passare in rassegna gli **Advisors** del pannello Supabase (pallino giallo
-   nella barra laterale): sono i controlli automatici su sicurezza e prestazioni,
-   la stessa famiglia di verifiche fatte a mano qui ma automatizzata. In
-   particolare cercare viste senza `security_invoker` e tabelle senza RLS.
-8. Passaggio al piano **Pro**, che è ciò che abilita i backup automatici.
+9. **Verificare i deep link in produzione**: ricaricare con F5 una route interna
+   (es. `/cantieri`). Se torna 404 serve un `vercel.json` con il rewrite verso
+   `index.html` — react-router fa il routing lato client, e senza fallback il
+   server cerca un file che non esiste. Non ancora provato.
+10. Decidere di `src/assets/logo_new.jpeg`: è il file originale del logo, fuori
+    dal versionamento. Da tenere come sorgente ad alta risoluzione o da
+    cancellare, visto che in `src/assets/logo-edily.png` c'è già il ritaglio
+    pronto all'uso.
 
 ---
 
