@@ -275,22 +275,46 @@ poi quello che ne aggiunge.
 
 ### Costruire il resto
 
-5. Anagrafiche mancanti: **mezzi** (con scadenze revisione/assicurazione e
+5. **Foglio generale dei cantieri.** Chiesto il 2026-09-01. Una giornata solare
+   per volta, con tutti i cantieri di quel giorno insieme: chi c'era, su quale
+   cantiere, quante ore, più il totale della giornata. Serve a sapere cosa ha
+   fatto l'azienda il giorno X, cosa che oggi si può ricostruire solo aprendo i
+   rapportini uno per uno.
+
+   *Il mattone c'è già:* `v_ore_giornaliere` espone `data`, `cantiere`,
+   `dipendente`, ore ordinarie/straordinarie/trasferta/totali, `tipo_assenza` e
+   soprattutto `stato` — quindi il filtro «solo validati» è una condizione, non
+   una query nuova.
+
+   *Due nodi da sciogliere prima di scriverlo:*
+   - **«Visibile a tutti» è una deroga allo scope, non una svista da evitare.**
+     Oggi un tecnico vede solo i cantieri a cui è assegnato: è
+     `app.puo_vedere_cantiere()` a deciderlo, e una vista `SECURITY INVOKER`
+     eredita quella regola. Un foglio che mostri l'intera giornata dell'azienda
+     fa vedere al tecnico anche i cantieri che non sono suoi. È una scelta
+     legittima — il giornale dei lavori è un documento di squadra — ma va presa
+     esplicitamente, perché è la prima volta che si allarga lo scope.
+   - **Cosa contiene oltre alle ore.** Se deve essere "la summa della giornata",
+     vanno decisi materiali (`rapportino_materiali`) e mezzi
+     (`rapportino_mezzi`): ci sono le tabelle, e includerli cambia la forma
+     della pagina.
+
+6. Anagrafiche mancanti: **mezzi** (con scadenze revisione/assicurazione e
    storico costi), **fornitori**, **materiali**.
-6. Materiali e mezzi dentro il rapportino (`rapportino_materiali`,
+7. Materiali e mezzi dentro il rapportino (`rapportino_materiali`,
    `rapportino_mezzi`): le tabelle ci sono, il form no.
 
 ### Pulizia
 
-7. Ripulire l'utente di prova `Mario Rossi` (`lillo@lalli.com`), rimasto dal seed
+8. Ripulire l'utente di prova `Mario Rossi` (`lillo@lalli.com`), rimasto dal seed
    della fase C con membership e assegnazione.
-8. Chiudere i due difetti di lint in `SessionProvider.tsx` (fast refresh rotto e
+9. Chiudere i due difetti di lint in `SessionProvider.tsx` (fast refresh rotto e
    dipendenza instabile di `useMemo`).
-9. **Verificare i deep link in produzione**: ricaricare con F5 una route interna
+10. **Verificare i deep link in produzione**: ricaricare con F5 una route interna
    (es. `/cantieri`). Se torna 404 serve un `vercel.json` con il rewrite verso
    `index.html` — react-router fa il routing lato client, e senza fallback il
    server cerca un file che non esiste. Non ancora provato.
-10. Decidere di `src/assets/logo_new.jpeg`: è il file originale del logo, fuori
+11. Decidere di `src/assets/logo_new.jpeg`: è il file originale del logo, fuori
     dal versionamento. Da tenere come sorgente ad alta risoluzione o da
     cancellare, visto che in `src/assets/logo-edily.png` c'è già il ritaglio
     pronto all'uso.
