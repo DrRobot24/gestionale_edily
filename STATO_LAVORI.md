@@ -114,6 +114,26 @@ L'interfaccia si comporta **già** come se `inviato` fosse congelato
 non richiede modifiche al frontend. La via per le correzioni esiste già ed è
 `respingi → correggi → rimanda`.
 
+### 🔴 `clienti` non ha unicità su partita IVA e codice fiscale
+Trovato il 2026-09-01 indagando le collazioni: la tabella ha **solo**
+`clienti_pkey` su `id` e `clienti_org_idx` su `org_id`. Nessun indice unico sugli
+identificativi fiscali, quindi due clienti con la stessa partita IVA nella stessa
+impresa entrano senza che nulla protesti.
+
+Il form non copre il buco: [`ClienteForm.tsx`](src/modules/anagrafiche/ClienteForm.tsx)
+valida il *formato* (11 cifre) e pretende almeno un identificativo fra i due, ma
+l'unicità non la verifica. È marcato 🔴 perché a valle ci sono la fatturazione e
+l'aggancio ai cantieri: un'anagrafica sdoppiata non resta un problema estetico,
+si porta dietro i documenti.
+
+Rimedio pronto in
+[`supabase/manutenzione/clienti-unicita.sql`](supabase/manutenzione/clienti-unicita.sql):
+indici unici parziali su `(org_id, partita_iva)` e `(org_id, codice_fiscale)`. La
+chiave è per organizzazione — due imprese diverse possono avere lo stesso
+cliente. Lato applicazione la traduzione dell'errore `23505` è in
+[`clienti.ts`](src/modules/anagrafiche/clienti.ts): distingue i due vincoli e
+copre anche l'`update`, che prima lo lasciava passare grezzo.
+
 ### 🟡 `cantieri_write` è `FOR ALL`
 Le policy permissive si sommano in OR, quindi copre anche la SELECT: chi ha
 `cantieri.write` vede **tutti** i cantieri dell'azienda, scavalcando
@@ -235,11 +255,14 @@ noi.
 gli indici sui campi di testo sono ordinati con le regole vecchie mentre le query
 confrontano con quelle nuove. Nel caso peggiore un indice non trova una riga che
 esiste, o un vincolo di unicità lascia passare un duplicato. Qui i campi di testo
-sotto vincolo ci sono: `cantieri.codice`, `clienti.partita_iva`,
-`organizations.slug`, `permissions.code` — tutti però ASCII, e sull'ASCII l'ordine
-non cambia mai fra due versioni della stessa libreria. I candidati veri sono i
-campi liberi con accenti, tipo `clienti.ragione_sociale`, e solo se indicizzati:
-il blocco 3 dello script tira fuori l'elenco esatto.
+sotto vincolo ci sono: `cantieri.codice`, `organizations.slug`,
+`permissions.code` — tutti però ASCII, e sull'ASCII l'ordine non cambia mai fra
+due versioni della stessa libreria. I candidati veri sono i campi liberi con
+accenti, tipo `clienti.ragione_sociale`, e solo se indicizzati: il passo 3 dello
+script tira fuori l'elenco esatto.
+
+> Qui `clienti.partita_iva` **non** compare, e non è una svista: quel vincolo non
+> esiste. Vedi il difetto qui sotto.
 
 **Come si risolve.** Le query pronte, commentate e in ordine, stanno in
 [`supabase/manutenzione/collazioni.sql`](supabase/manutenzione/collazioni.sql):
