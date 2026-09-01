@@ -213,39 +213,54 @@ create policy ddt_riga_cantieri_write on public.ddt_riga_cantieri
 
 
 -- 7. STORAGE
--- Bucket PRIVATO chiamato `documenti`. Convenzione di path, non
--- negoziabile:
+-- Bucket PRIVATO chiamato `contabilita`, separato da `rapportini` che
+-- gia' esiste. Non e' pignoleria organizzativa: i due hanno permessi
+-- diversi - le foto dei rapportini stanno sotto `rapportini.*`, questi
+-- documenti sotto `economics.*`. Un bucket unico costringerebbe le
+-- policy a distinguere guardando il path, e sbagliare quel confronto
+-- significa mostrare le fatture a chi puo' solo compilare un rapportino.
+--
+-- Il nome e' `contabilita` e non `bolle` perche' ci finiranno anche le
+-- fatture di acquisto e, quando ci sara' il conto dei ricavi, quelle
+-- emesse ai clienti.
+--
+-- Convenzione di path, non negoziabile:
 --
 --     {org_id}/ddt/{ddt_id}.pdf
+--     {org_id}/fatture-acquisto/{id}.pdf
+--     {org_id}/fatture-vendita/{id}.pdf
 --
 -- Il primo segmento DEVE essere l'org_id: e' l'unica cosa su cui le
 -- policy possono filtrare, ed e' cio' che impedisce a un'impresa di
--- leggere le bolle di un'altra. Cambiarla dopo significa spostare i
+-- leggere i documenti di un'altra. Cambiarlo dopo significa spostare i
 -- file gia' caricati.
-insert into storage.buckets (id, name, public)
-values ('documenti', 'documenti', false)
+--
+-- 20 MB e solo PDF: una bolla scansionata sta in pochi MB, e un limite
+-- esplicito evita che il bucket diventi il posto dove finisce di tutto.
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('contabilita', 'contabilita', false, 20971520, array['application/pdf'])
 on conflict (id) do nothing;
 
 -- Il controllo sul formato prima del cast non e' pignoleria: un file
 -- con primo segmento non-uuid farebbe fallire il cast, e una policy che
 -- va in errore blocca ogni lettura del bucket, non solo quel file.
-create policy documenti_read on storage.objects
+create policy contabilita_read on storage.objects
   for select using (
-    bucket_id = 'documenti'
+    bucket_id = 'contabilita'
     and (storage.foldername(name))[1] ~ '^[0-9a-fA-F-]{36}$'
     and app.has_perm(((storage.foldername(name))[1])::uuid, 'economics.read')
   );
 
-create policy documenti_write on storage.objects
+create policy contabilita_write on storage.objects
   for insert with check (
-    bucket_id = 'documenti'
+    bucket_id = 'contabilita'
     and (storage.foldername(name))[1] ~ '^[0-9a-fA-F-]{36}$'
     and app.has_perm(((storage.foldername(name))[1])::uuid, 'economics.write')
   );
 
-create policy documenti_delete on storage.objects
+create policy contabilita_delete on storage.objects
   for delete using (
-    bucket_id = 'documenti'
+    bucket_id = 'contabilita'
     and (storage.foldername(name))[1] ~ '^[0-9a-fA-F-]{36}$'
     and app.has_perm(((storage.foldername(name))[1])::uuid, 'economics.write')
   );
