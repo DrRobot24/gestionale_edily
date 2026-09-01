@@ -12,6 +12,8 @@ import { ModificaRapportino } from './modules/rapportini/ModificaRapportino'
 import { DipendentiPage } from './modules/anagrafiche/DipendentiPage'
 import { ClientiPage } from './modules/anagrafiche/ClientiPage'
 import { ClienteForm } from './modules/anagrafiche/ClienteForm'
+import { FornitoriPage } from './modules/anagrafiche/FornitoriPage'
+import { FornitoreForm } from './modules/anagrafiche/FornitoreForm'
 import { DipendenteForm } from './modules/anagrafiche/DipendenteForm'
 import type { Permission } from './modules/auth/session'
 import { env } from './lib/env'
@@ -55,6 +57,12 @@ const VOCI: Voce[] = [
     etichetta: 'Clienti',
     perm: 'anagrafiche.read',
     elemento: <ClientiPage />,
+  },
+  {
+    to: '/anagrafiche/fornitori',
+    etichetta: 'Fornitori',
+    perm: 'anagrafiche.read',
+    elemento: <FornitoriPage />,
   },
   {
     to: '/anagrafiche/operai',
@@ -126,6 +134,14 @@ export default function App() {
               element={proteggi('anagrafiche.read', <ClienteForm />)}
             />
 
+            <Route
+              path="anagrafiche/fornitori/nuovo"
+              element={proteggi('anagrafiche.write', <FornitoreForm />)}
+            />
+            <Route
+              path="anagrafiche/fornitori/:id"
+              element={proteggi('anagrafiche.read', <FornitoreForm />)}
+            />
             <Route
               path="anagrafiche/operai/nuovo"
               element={proteggi('anagrafiche.write', <DipendenteForm />)}
