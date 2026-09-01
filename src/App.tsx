@@ -14,10 +14,11 @@ import { ClientiPage } from './modules/anagrafiche/ClientiPage'
 import { ClienteForm } from './modules/anagrafiche/ClienteForm'
 import { FornitoriPage } from './modules/anagrafiche/FornitoriPage'
 import { FornitoreForm } from './modules/anagrafiche/FornitoreForm'
+import { Dashboard } from './modules/home/Dashboard'
 import { DipendenteForm } from './modules/anagrafiche/DipendenteForm'
 import type { Permission } from './modules/auth/session'
 import { env } from './lib/env'
-import { Badge, Button, Card, cn } from './ui'
+import { Button, Card, cn } from './ui'
 
 /**
  * Una sola lista per il menu E per le rotte.
@@ -49,7 +50,7 @@ type Voce = {
  * cancello va sul pulsante "Nuovo", non sulla pagina.
  */
 const VOCI: Voce[] = [
-  { to: '/', etichetta: 'Home', elemento: <Home /> },
+  { to: '/', etichetta: 'Home', elemento: <Dashboard /> },
   { to: '/cantieri', etichetta: 'Cantieri', elemento: <CantieriPage /> },
   { to: '/rapportini', etichetta: 'Rapportini', elemento: <RapportiniPage /> },
   {
@@ -290,47 +291,6 @@ function classeVoce({ isActive }: { isActive: boolean }): string {
 /* ═══════════════════════════════════════════════════════════════════
    Pagine
    ═══════════════════════════════════════════════════════════════════ */
-
-function Home() {
-  const { app, org } = useSession()
-  const permessi = [...(org?.permessi ?? [])].sort()
-
-  return (
-    <div className="mx-auto grid max-w-4xl gap-6">
-      <div>
-        <h1 className="text-2xl font-extrabold text-black">{org?.ragioneSociale}</h1>
-        <p className="text-sm font-semibold text-gray-600">
-          Sei entrato come {app?.email}
-          {app?.isPlatformAdmin && ' — staff di piattaforma'}
-        </p>
-      </div>
-
-      <Card className="p-5">
-        <p className="mb-3 text-[10px] font-bold uppercase tracking-wider text-gray-600">
-          Il tuo ruolo
-        </p>
-        <Badge colore="primario">{org?.ruolo}</Badge>
-      </Card>
-
-      <Card className="p-5">
-        <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-gray-600">
-          Permessi attivi ({permessi.length})
-        </p>
-        <p className="mb-4 text-xs font-semibold text-gray-600">
-          Arrivano dalla tabella <code className="font-bold">role_permissions</code>, non dal
-          browser. Qui nascondono i pulsanti: a negare i dati è la RLS.
-        </p>
-        <ul className="flex flex-wrap gap-2">
-          {permessi.map((p) => (
-            <li key={p}>
-              <Badge className="lowercase">{p}</Badge>
-            </li>
-          ))}
-        </ul>
-      </Card>
-    </div>
-  )
-}
 
 function Segnaposto({ titolo }: { titolo: string }) {
   return (
