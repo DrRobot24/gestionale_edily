@@ -7,6 +7,7 @@ import { supabase } from '../../lib/supabase'
 import { env } from '../../lib/env'
 import { useSession } from './SessionProvider'
 import { Avviso, Button, Campo, Card } from '../../ui'
+import logoEdily from '../../assets/logo-edily.png'
 
 /**
  * Lo schema Zod e' l'unica definizione di "form valido". Da qui escono
@@ -63,11 +64,11 @@ export function LoginPage() {
   return (
     <div className="flex min-h-screen">
       {/* ═══ Pannello di marca — sparisce sotto i 1024px ═══ */}
-      <aside className="hidden border-r-2 border-black bg-amber-400 px-16 py-12 lg:flex lg:w-[55%] lg:flex-col lg:justify-center">
-        <div className="max-w-lg">
-          <Marchio dimensione="lg" />
+      <aside className="hidden border-r-2 border-black bg-amber-400 px-16 py-12 lg:flex lg:w-[55%] lg:flex-col">
+        <LogoEdily dimensione="lg" />
 
-          <h2 className="mb-6 mt-12 text-4xl font-extrabold leading-tight text-black">
+        <div className="flex max-w-lg flex-1 flex-col justify-center">
+          <h2 className="mb-6 text-4xl font-extrabold leading-tight text-black">
             Il cantiere, dal preventivo
             <br />
             <span className="border-2 border-black bg-white px-2">al consuntivo.</span>
@@ -96,7 +97,7 @@ export function LoginPage() {
       <div className="flex flex-1 items-center justify-center px-6 py-12">
         <div className="w-full max-w-md">
           <div className="mb-10 flex justify-center lg:hidden">
-            <Marchio dimensione="sm" />
+            <LogoEdily dimensione="sm" />
           </div>
 
           <Card rilievo="lg" className="p-8">
@@ -149,33 +150,22 @@ export function LoginPage() {
   )
 }
 
-function Marchio({ dimensione }: { dimensione: 'sm' | 'lg' }) {
-  const grande = dimensione === 'lg'
+/**
+ * Il marchio del cliente e' un'immagine su fondo bianco, non un SVG
+ * trasparente: la incorniciamo come una card neo-brutalista, cosi' il
+ * bianco diventa parte del disegno invece di stampare un rettangolo
+ * sopra il pannello ambra.
+ */
+function LogoEdily({ dimensione }: { dimensione: 'sm' | 'lg' }) {
   return (
-    <div className="flex items-center gap-4">
-      <div
-        className={
-          grande
-            ? 'flex h-14 w-14 items-center justify-center rounded-xl border-3 border-black bg-white shadow-neo'
-            : 'flex h-11 w-11 items-center justify-center rounded-xl border-2 border-black bg-amber-400 shadow-neo-sm'
-        }
-      >
-        <span className={grande ? 'text-xl font-extrabold' : 'text-sm font-extrabold'}>EG</span>
-      </div>
-      <div>
-        <p
-          className={
-            grande
-              ? 'text-3xl font-extrabold tracking-tight text-black'
-              : 'text-xl font-extrabold text-black'
-          }
-        >
-          {env.VITE_APP_NAME}
-        </p>
-        <p className="text-[11px] font-bold uppercase tracking-wider text-gray-600">
-          Gestione cantieri e commesse
-        </p>
-      </div>
-    </div>
+    <img
+      src={logoEdily}
+      alt="Edily - Your Building Solutions"
+      className={
+        dimensione === 'lg'
+          ? 'w-72 rounded-xl border-3 border-black bg-white p-4 shadow-neo'
+          : 'w-56 rounded-xl border-2 border-black bg-white p-3 shadow-neo-sm'
+      }
+    />
   )
 }
