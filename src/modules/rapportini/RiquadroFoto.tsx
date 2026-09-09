@@ -119,7 +119,10 @@ export function RiquadroFoto({ scheda, inAttesa, onCambia, modificabile = true }
           Nessuna foto su questa giornata.
         </p>
       ) : (
-        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        // Due colonne e basta: nel form questo riquadro vive nella
+        // colonna stretta di destra, e tre miniature la' dentro
+        // diventerebbero francobolli.
+        <ul className="grid grid-cols-2 gap-3">
           {(salvate ?? []).map((f) => (
             <Riquadrino
               key={f.id}

@@ -68,7 +68,7 @@ export function RapportinoPage() {
   const adesso = () => new Date().toISOString()
 
   return (
-    <div className="mx-auto grid max-w-3xl gap-4">
+    <div className="mx-auto grid max-w-7xl gap-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-extrabold text-black">
@@ -134,184 +134,201 @@ export function RapportinoPage() {
         )}
       </Card>
 
-      <Card className="grid gap-3 p-5">
-        <h2 className="text-lg font-extrabold text-black">Ore</h2>
-        {ore.length === 0 ? (
-          <Vuoto>Nessuna riga di ore su questo rapportino.</Vuoto>
-        ) : (
-          <Table>
-            <thead>
-              <tr>
-                <th>Matr.</th>
-                <th>Dipendente</th>
-                <th className="text-right">Ordinarie</th>
-                <th className="text-right">Straord.</th>
-                {conTrasferta && <th className="text-right">Trasferta</th>}
-                <th>Assenza</th>
-              </tr>
-            </thead>
-            <tbody>
-              {ore.map((o) => (
-                <tr key={o.id} className={o.tipo_assenza ? 'bg-gray-50 text-gray-500' : undefined}>
-                  <td className="numerico">{o.dipendenti?.matricola ?? '—'}</td>
-                  <td className="font-semibold">
-                    {o.dipendenti ? `${o.dipendenti.cognome} ${o.dipendenti.nome}` : '—'}
-                  </td>
-                  <Cifra>{fmtNumero(o.ore_ordinarie)}</Cifra>
-                  <Cifra className="text-gray-600">{fmtNumero(o.ore_straordinarie)}</Cifra>
-                  {conTrasferta && (
-                    <Cifra className="text-gray-600">{fmtNumero(o.ore_trasferta)}</Cifra>
-                  )}
-                  <td>{o.tipo_assenza ?? '—'}</td>
-                </tr>
-              ))}
-              <tr className="border-t-2 border-black bg-gray-50 font-bold">
-                <td colSpan={2}>Totale</td>
-                <Cifra colSpan={2}>{fmtNumero(totale)}</Cifra>
-                {conTrasferta && <Cifra>{fmtNumero(totaleTrasferta)}</Cifra>}
-                <td />
-              </tr>
-            </tbody>
-          </Table>
-        )}
-      </Card>
+      {/* Le stesse due colonne del form, e per lo stesso motivo.
 
-      <GalleriaFoto rapportinoId={r.id} />
+          A sinistra cio' che il titolare deve leggere per decidere: le
+          ore riga per riga e le foto. A destra, stretto e in alto, cio'
+          con cui decide — valida, respingi, riapri — che cosi' resta
+          davanti agli occhi mentre scorre le ore, invece di stare in
+          fondo alla pagina dopo una tabella lunga.
 
-      {/* ═══ Azioni: solo quelle che la macchina a stati ammette davvero ═══ */}
-      <Card className="grid gap-3 p-5">
-        <h2 className="text-lg font-extrabold text-black">Cosa puoi fare</h2>
+          I dati della scheda restano in testa a tutta larghezza: sono
+          la prima cosa da leggere, e sul telefono devono comparire per
+          prime. */}
+      <div className="grid gap-4 lg:grid-cols-3 lg:items-start">
+        <div className="grid gap-4 lg:col-span-2">
+          <Card className="grid gap-3 p-5">
+            <h2 className="text-lg font-extrabold text-black">Ore</h2>
+            {ore.length === 0 ? (
+              <Vuoto>Nessuna riga di ore su questo rapportino.</Vuoto>
+            ) : (
+              <Table>
+                <thead>
+                  <tr>
+                    <th>Matr.</th>
+                    <th>Dipendente</th>
+                    <th className="text-right">Ordinarie</th>
+                    <th className="text-right">Straord.</th>
+                    {conTrasferta && <th className="text-right">Trasferta</th>}
+                    <th>Assenza</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {ore.map((o) => (
+                    <tr key={o.id} className={o.tipo_assenza ? 'bg-gray-50 text-gray-500' : undefined}>
+                      <td className="numerico">{o.dipendenti?.matricola ?? '—'}</td>
+                      <td className="font-semibold">
+                        {o.dipendenti ? `${o.dipendenti.cognome} ${o.dipendenti.nome}` : '—'}
+                      </td>
+                      <Cifra>{fmtNumero(o.ore_ordinarie)}</Cifra>
+                      <Cifra className="text-gray-600">{fmtNumero(o.ore_straordinarie)}</Cifra>
+                      {conTrasferta && (
+                        <Cifra className="text-gray-600">{fmtNumero(o.ore_trasferta)}</Cifra>
+                      )}
+                      <td>{o.tipo_assenza ?? '—'}</td>
+                    </tr>
+                  ))}
+                  <tr className="border-t-2 border-black bg-gray-50 font-bold">
+                    <td colSpan={2}>Totale</td>
+                    <Cifra colSpan={2}>{fmtNumero(totale)}</Cifra>
+                    {conTrasferta && <Cifra>{fmtNumero(totaleTrasferta)}</Cifra>}
+                    <td />
+                  </tr>
+                </tbody>
+              </Table>
+            )}
+          </Card>
 
-        {chiedoMotivo ? (
-          <div className="grid gap-3">
-            <label className="grid gap-1.5">
-              <span className="text-xs font-bold uppercase">Perché lo respingi</span>
-              <textarea
-                autoFocus
-                value={motivo}
-                onChange={(e) => setMotivo(e.target.value)}
-                placeholder="Mancano le ore di Marino, l'orario non torna…"
-                className="min-h-20 w-full rounded-xl border-2 border-black bg-white px-4 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-amber-400"
-              />
-              <span className="text-[11px] font-semibold text-gray-500">
-                È l&rsquo;unica cosa che l&rsquo;autore leggerà per capire cosa correggere.
-              </span>
-            </label>
-            <div className="flex gap-2">
-              <Button
-                variante="danger"
-                disabled={motivo.trim().length < 3 || transizione.isPending}
-                onClick={() =>
-                  transizione.mutate(
-                    { id: r.id, stato: 'respinto', motivo_rifiuto: motivo.trim() },
-                    { onSuccess: () => setChiedoMotivo(false) },
-                  )
-                }
-              >
-                Respingi
-              </Button>
-              <Button onClick={() => setChiedoMotivo(false)}>Annulla</Button>
-            </div>
-          </div>
-        ) : (
-          <div className="flex flex-wrap gap-3">
-            {/* correzione e invio: solo l'autore, solo da bozza o
-                respinto. La modifica viene PRIMA dell'invio nell'ordine
-                dei pulsanti perche' e' quello che serve a chi ha appena
-                letto un motivo di rifiuto. */}
-            {mio && modificabile(r.stato) && (
-              <Button
-                onClick={() =>
-                  navigate(
-                    ritorno
-                      ? `/rapportini/${r.id}/modifica?ritorno=${ritorno}`
-                      : `/rapportini/${r.id}/modifica`,
-                  )
-                }
-              >
-                Modifica
-              </Button>
+          <GalleriaFoto rapportinoId={r.id} />
+        </div>
+
+        <div className="grid gap-4">
+          {/* ═══ Azioni: solo quelle che la macchina a stati ammette davvero ═══ */}
+          <Card className="grid gap-3 p-5">
+            <h2 className="text-lg font-extrabold text-black">Cosa puoi fare</h2>
+
+            {chiedoMotivo ? (
+              <div className="grid gap-3">
+                <label className="grid gap-1.5">
+                  <span className="text-xs font-bold uppercase">Perché lo respingi</span>
+                  <textarea
+                    autoFocus
+                    value={motivo}
+                    onChange={(e) => setMotivo(e.target.value)}
+                    placeholder="Mancano le ore di Marino, l'orario non torna…"
+                    className="min-h-20 w-full rounded-xl border-2 border-black bg-white px-4 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-amber-400"
+                  />
+                  <span className="text-[11px] font-semibold text-gray-500">
+                    È l&rsquo;unica cosa che l&rsquo;autore leggerà per capire cosa correggere.
+                  </span>
+                </label>
+                <div className="flex gap-2">
+                  <Button
+                    variante="danger"
+                    disabled={motivo.trim().length < 3 || transizione.isPending}
+                    onClick={() =>
+                      transizione.mutate(
+                        { id: r.id, stato: 'respinto', motivo_rifiuto: motivo.trim() },
+                        { onSuccess: () => setChiedoMotivo(false) },
+                      )
+                    }
+                  >
+                    Respingi
+                  </Button>
+                  <Button onClick={() => setChiedoMotivo(false)}>Annulla</Button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-3">
+                {/* correzione e invio: solo l'autore, solo da bozza o
+                    respinto. La modifica viene PRIMA dell'invio nell'ordine
+                    dei pulsanti perche' e' quello che serve a chi ha appena
+                    letto un motivo di rifiuto. */}
+                {mio && modificabile(r.stato) && (
+                  <Button
+                    onClick={() =>
+                      navigate(
+                        ritorno
+                          ? `/rapportini/${r.id}/modifica?ritorno=${ritorno}`
+                          : `/rapportini/${r.id}/modifica`,
+                      )
+                    }
+                  >
+                    Modifica
+                  </Button>
+                )}
+
+
+                {puoValidare && r.stato === 'inviato' && (
+                  <>
+                    <Button
+                      variante="primario"
+                      disabled={transizione.isPending}
+                      onClick={() =>
+                        transizione.mutate({
+                          id: r.id,
+                          stato: 'validato',
+                          validato_at: adesso(),
+                          validato_da: app!.userId,
+                        })
+                      }
+                    >
+                      Valida
+                    </Button>
+                    <Button variante="danger" onClick={() => setChiedoMotivo(true)}>
+                      Respingi
+                    </Button>
+                  </>
+                )}
+
+                {/* riapertura: da validato si torna in BOZZA, non in respinto
+                    — verificato, validato → respinto il trigger lo rifiuta. */}
+                {puoRiaprire && r.stato === 'validato' && (
+                  <Button
+                    disabled={transizione.isPending}
+                    onClick={() => {
+                      if (!confirm('Riaprire il rapportino? Torna compilabile e la giornata andrà rimandata.')) return
+                      transizione.mutate({
+                        id: r.id,
+                        stato: 'bozza',
+                        validato_at: null,
+                        validato_da: null,
+                        inviato_at: null,
+                      })
+                    }}
+                  >
+                    Riapri
+                  </Button>
+                )}
+
+                {puoContabilizzare && r.stato === 'validato' && (
+                  <Button
+                    disabled={transizione.isPending}
+                    onClick={() =>
+                      transizione.mutate({
+                        id: r.id,
+                        stato: 'contabilizzato',
+                        contabilizzato_at: adesso(),
+                      })
+                    }
+                  >
+                    Contabilizza
+                  </Button>
+                )}
+
+                {puoContabilizzare && r.stato === 'contabilizzato' && (
+                  <Button
+                    disabled={transizione.isPending}
+                    onClick={() =>
+                      transizione.mutate({ id: r.id, stato: 'validato', contabilizzato_at: null })
+                    }
+                  >
+                    Storna dalla contabilità
+                  </Button>
+                )}
+              </div>
             )}
 
-
-            {puoValidare && r.stato === 'inviato' && (
-              <>
-                <Button
-                  variante="primario"
-                  disabled={transizione.isPending}
-                  onClick={() =>
-                    transizione.mutate({
-                      id: r.id,
-                      stato: 'validato',
-                      validato_at: adesso(),
-                      validato_da: app!.userId,
-                    })
-                  }
-                >
-                  Valida
-                </Button>
-                <Button variante="danger" onClick={() => setChiedoMotivo(true)}>
-                  Respingi
-                </Button>
-              </>
-            )}
-
-            {/* riapertura: da validato si torna in BOZZA, non in respinto
-                — verificato, validato → respinto il trigger lo rifiuta. */}
-            {puoRiaprire && r.stato === 'validato' && (
-              <Button
-                disabled={transizione.isPending}
-                onClick={() => {
-                  if (!confirm('Riaprire il rapportino? Torna compilabile e la giornata andrà rimandata.')) return
-                  transizione.mutate({
-                    id: r.id,
-                    stato: 'bozza',
-                    validato_at: null,
-                    validato_da: null,
-                    inviato_at: null,
-                  })
-                }}
-              >
-                Riapri
-              </Button>
-            )}
-
-            {puoContabilizzare && r.stato === 'validato' && (
-              <Button
-                disabled={transizione.isPending}
-                onClick={() =>
-                  transizione.mutate({
-                    id: r.id,
-                    stato: 'contabilizzato',
-                    contabilizzato_at: adesso(),
-                  })
-                }
-              >
-                Contabilizza
-              </Button>
-            )}
-
-            {puoContabilizzare && r.stato === 'contabilizzato' && (
-              <Button
-                disabled={transizione.isPending}
-                onClick={() =>
-                  transizione.mutate({ id: r.id, stato: 'validato', contabilizzato_at: null })
-                }
-              >
-                Storna dalla contabilità
-              </Button>
-            )}
-          </div>
-        )}
-
-        <Spiegazione
-          stato={r.stato}
-          mio={mio}
-          puoValidare={puoValidare}
-          puoContabilizzare={puoContabilizzare}
-          inAttesa={r.stato === 'inviato'}
-        />
-      </Card>
+            <Spiegazione
+              stato={r.stato}
+              mio={mio}
+              puoValidare={puoValidare}
+              puoContabilizzare={puoContabilizzare}
+              inAttesa={r.stato === 'inviato'}
+            />
+          </Card>
+        </div>
+      </div>
     </div>
   )
 }

@@ -141,7 +141,7 @@ export function ModificaRapportino() {
   }
 
   return (
-    <div className="mx-auto grid max-w-3xl gap-4">
+    <div className="mx-auto grid max-w-7xl gap-4">
       <div>
         <h1 className="text-2xl font-extrabold text-black">
           Modifica rapportino {r.numero ? `n. ${r.numero}/${r.anno}` : ''}
