@@ -162,10 +162,15 @@ export function CantieriDelGiorno() {
                 : null
             }
             semaforo={semaforo}
+            // `ritorno` viaggia con l'indirizzo per tutto il giro:
+            // chi entra da una card deve ritrovarsi qui quando esce,
+            // non nell'elenco generale dei rapportini.
             onApri={() => {
-              if (!rapportino) navigate(`/rapportini/nuovo?cantiere=${cantiere.id}&data=${giorno}`)
-              else if (semaforo === 'giallo') navigate(`/rapportini/${rapportino.id}/modifica`)
-              else navigate(`/rapportini/${rapportino.id}`)
+              if (!rapportino)
+                navigate(`/rapportini/nuovo?cantiere=${cantiere.id}&data=${giorno}&ritorno=/`)
+              else if (semaforo === 'giallo')
+                navigate(`/rapportini/${rapportino.id}/modifica?ritorno=/`)
+              else navigate(`/rapportini/${rapportino.id}?ritorno=/`)
             }}
           />
         ))}

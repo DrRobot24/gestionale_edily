@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate, useParams } from 'react-router'
+import { useNavigate, useParams, useSearchParams } from 'react-router'
 import { data as fmtData, numero as fmtNumero, ora } from '../../lib/formato'
 import { Avviso, Button, Card, Cifra, Table, Vuoto } from '../../ui'
 import { useSession } from '../auth/SessionProvider'
@@ -11,6 +11,8 @@ import { StatoRapportino } from './stato'
 export function RapportinoPage() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const [params] = useSearchParams()
+  const ritorno = params.get('ritorno')
   const { app } = useSession()
   const { data: r, isPending, error } = useRapportino(id)
   const transizione = useTransizione()
@@ -75,7 +77,9 @@ export function RapportinoPage() {
             <StatoRapportino stato={r.stato} />
           </div>
         </div>
-        <Button onClick={() => navigate('/rapportini')}>Torna all&rsquo;elenco</Button>
+        <Button onClick={() => navigate(ritorno ?? '/rapportini')}>
+          {ritorno === '/' ? 'Torna alla giornata' : <>Torna all&rsquo;elenco</>}
+        </Button>
       </div>
 
       {transizione.isError && (
@@ -190,7 +194,15 @@ export function RapportinoPage() {
                 dei pulsanti perche' e' quello che serve a chi ha appena
                 letto un motivo di rifiuto. */}
             {mio && modificabile(r.stato) && (
-              <Button onClick={() => navigate(`/rapportini/${r.id}/modifica`)}>
+              <Button
+                onClick={() =>
+                  navigate(
+                    ritorno
+                      ? `/rapportini/${r.id}/modifica?ritorno=${ritorno}`
+                      : `/rapportini/${r.id}/modifica`,
+                  )
+                }
+              >
                 Modifica
               </Button>
             )}

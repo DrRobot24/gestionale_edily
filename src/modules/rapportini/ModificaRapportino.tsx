@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useNavigate, useParams } from 'react-router'
+import { useNavigate, useParams, useSearchParams } from 'react-router'
 import { supabase } from '../../lib/supabase'
 import { Avviso } from '../../ui'
 import { useSession } from '../auth/SessionProvider'
@@ -13,6 +13,8 @@ import type { CampiRapportino } from './campiRapportino'
 export function ModificaRapportino() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const [params] = useSearchParams()
+  const ritorno = params.get('ritorno')
   const { org, app } = useSession()
   const qc = useQueryClient()
 
@@ -93,7 +95,7 @@ export function ModificaRapportino() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['rapportino', id] })
       qc.invalidateQueries({ queryKey: ['rapportini'] })
-      navigate(`/rapportini/${id}`)
+      navigate(ritorno ?? `/rapportini/${id}`)
     },
   })
 
@@ -161,7 +163,9 @@ export function ModificaRapportino() {
         inCorso={salva.isPending}
         errore={salva.isError ? (salva.error as Error).message : undefined}
         onSalva={(c) => salva.mutate(c)}
-        onAnnulla={() => navigate(`/rapportini/${id}`)}
+        onAnnulla={() =>
+          navigate(ritorno ? `/rapportini/${id}?ritorno=${ritorno}` : `/rapportini/${id}`)
+        }
       />
     </div>
   )

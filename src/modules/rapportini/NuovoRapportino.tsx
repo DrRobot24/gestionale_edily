@@ -19,6 +19,7 @@ export function NuovoRapportino() {
   // riselezionare cio' che si e' appena cliccato.
   const cantiereScelto = params.get('cantiere')
   const giornoScelto = params.get('data')
+  const ritorno = params.get('ritorno')
 
   const { data: cantieri, isPending: caricoCantieri } = useCantieri()
   const { data: dipendenti, isPending: caricoDipendenti } = useDipendenti()
@@ -70,7 +71,9 @@ export function NuovoRapportino() {
     },
     onSuccess: (id) => {
       qc.invalidateQueries({ queryKey: ['rapportini'] })
-      navigate(`/rapportini/${id}`)
+      // Chi arriva da una card vuole vedere quella card diventare
+      // verde, non finire dentro la scheda che ha appena scritto.
+      navigate(ritorno ?? `/rapportini/${id}`)
     },
   })
 
@@ -130,7 +133,7 @@ export function NuovoRapportino() {
         inCorso={salva.isPending}
         errore={salva.isError ? (salva.error as Error).message : undefined}
         onSalva={(c) => salva.mutate(c)}
-        onAnnulla={() => navigate('/rapportini')}
+        onAnnulla={() => navigate(ritorno ?? '/rapportini')}
       />
     </div>
   )
