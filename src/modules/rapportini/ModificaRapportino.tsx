@@ -34,6 +34,7 @@ export function ModificaRapportino() {
           // riscriverlo a null qui cancellerebbe quello che c'e' scritto
           // sulle schede vecchie.
           note: campi.note || null,
+          annotazioni: campi.annotazioni || null,
           nessuna_attivita: campi.nessuna_attivita,
           /**
            * Una scheda respinta che viene corretta non e' piu'
@@ -134,6 +135,7 @@ export function ModificaRapportino() {
     ora_inizio: r.ora_inizio?.slice(0, 5) ?? '',
     ora_fine: r.ora_fine?.slice(0, 5) ?? '',
     note: r.note ?? '',
+    annotazioni: r.annotazioni ?? '',
     nessuna_attivita: r.nessuna_attivita ?? false,
     ore: righeUnite(r.rapportino_ore ?? [], dipendenti ?? []),
   }

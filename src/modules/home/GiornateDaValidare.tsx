@@ -131,6 +131,11 @@ function RigaScheda({ scheda: s, onApri }: { scheda: SchedaDaValidare; onApri: (
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
+          {/* Il tecnico ha scritto qualcosa apposta per lui: dirglielo
+              qui evita che se ne accorga solo entrando, o mai. */}
+          {s.annotazioni && (
+            <Badge className="bg-amber-200 px-2 py-0.5 text-[10px]">nota</Badge>
+          )}
           {s.nessuna_attivita && (
             <Badge className="px-2 py-0.5 text-[10px]">ferma</Badge>
           )}

@@ -1075,6 +1075,7 @@ export type Database = {
       }
       rapportini: {
         Row: {
+          annotazioni: string | null
           anno: number
           cantiere_id: string
           compilato_da: string
@@ -1098,6 +1099,7 @@ export type Database = {
           validato_da: string | null
         }
         Insert: {
+          annotazioni?: string | null
           anno?: number
           cantiere_id: string
           compilato_da: string
@@ -1121,6 +1123,7 @@ export type Database = {
           validato_da?: string | null
         }
         Update: {
+          annotazioni?: string | null
           anno?: number
           cantiere_id?: string
           compilato_da?: string

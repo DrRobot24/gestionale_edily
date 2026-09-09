@@ -48,6 +48,11 @@ export const schemaRapportino = z
      *  "Descrizione attivita'": e' quello che il tecnico ci scrive, ed e'
      *  la parte che il titolare legge davvero. */
     note: z.string(),
+    /** Il taccuino: quello che il tecnico vuole DIRE al titolare e che
+     *  non e' lavoro svolto. Sta in una colonna sua perche' la
+     *  descrizione e' un documento e questa e' un messaggio: mescolarli
+     *  vuol dire non poter piu' stampare la prima senza la seconda. */
+    annotazioni: z.string(),
     ore: z.array(rigaOre),
   })
   // Un orario di fine precedente all'inizio non e' un refuso innocuo:

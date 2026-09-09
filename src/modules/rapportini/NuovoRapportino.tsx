@@ -39,6 +39,7 @@ export function NuovoRapportino() {
           ora_inizio: campi.ora_inizio || null,
           ora_fine: campi.ora_fine || null,
           note: campi.note || null,
+          annotazioni: campi.annotazioni || null,
           nessuna_attivita: campi.nessuna_attivita,
         })
         .select('id')
@@ -109,6 +110,7 @@ export function NuovoRapportino() {
     ora_inizio: '',
     ora_fine: '',
     note: '',
+    annotazioni: '',
     nessuna_attivita: false,
     ore: (dipendenti ?? []).map((d) => ({
       rigaId: '',

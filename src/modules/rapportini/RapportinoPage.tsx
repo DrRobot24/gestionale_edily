@@ -117,6 +117,20 @@ export function RapportinoPage() {
             <p className="whitespace-pre-wrap text-sm font-semibold">{r.note}</p>
           </div>
         )}
+
+        {/* Le note al titolare hanno il fondo giallo perche' non sono
+            parte del racconto della giornata: sono una cosa che il
+            tecnico ha chiesto di leggere. In mezzo al resto, in grigio,
+            passerebbero inosservate ed e' esattamente cio' che non deve
+            succedere. */}
+        {r.annotazioni && (
+          <div className="rounded-xl border-2 border-black bg-amber-100 p-3 sm:col-span-4">
+            <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-black">
+              Note per il titolare
+            </p>
+            <p className="whitespace-pre-wrap text-sm font-semibold text-black">{r.annotazioni}</p>
+          </div>
+        )}
       </Card>
 
       <Card className="grid gap-3 p-5">

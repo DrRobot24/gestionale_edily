@@ -390,6 +390,21 @@ export function FormRapportino({
         )}
       </Card>
 
+      {/* Il taccuino sta per conto suo, in fondo.
+          Dentro il riquadro della squadra sembrerebbe una nota sulle
+          persone, e in cima verrebbe scambiato per la descrizione. Qui
+          e' la casella dell'"altro": la si legge dopo aver visto i
+          fatti, che e' anche l'ordine in cui il titolare guarda. */}
+      <Card className="grid gap-3 p-5">
+        <CampoArea
+          etichetta="Note per il titolare"
+          placeholder="Manca il cemento, il cliente si è lamentato, lunedì serve la gru…"
+          suggerimento="Quello che vuoi dire e che non è lavoro svolto. Facoltativo."
+          errore={errors.annotazioni?.message}
+          {...register('annotazioni')}
+        />
+      </Card>
+
       <div className="flex gap-3">
         <Button type="submit" variante="primario" disabled={isSubmitting || inCorso}>
           {inCorso ? 'Salvo…' : etichettaSalva}

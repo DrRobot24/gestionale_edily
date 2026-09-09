@@ -23,7 +23,7 @@ export function useDaValidare() {
       const { data, error } = await supabase
         .from('rapportini')
         .select(
-          'id, data, numero, anno, stato, nessuna_attivita, note, ora_inizio, ora_fine, meteo, compilato_da, inviato_at, cantieri ( codice, denominazione ), rapportino_ore ( ore_ordinarie, ore_straordinarie, ore_trasferta, tipo_assenza )',
+          'id, data, numero, anno, stato, nessuna_attivita, note, annotazioni, ora_inizio, ora_fine, meteo, compilato_da, inviato_at, cantieri ( codice, denominazione ), rapportino_ore ( ore_ordinarie, ore_straordinarie, ore_trasferta, tipo_assenza )',
         )
         .eq('org_id', org!.id)
         .eq('stato', 'inviato')
