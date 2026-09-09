@@ -37,13 +37,32 @@ type Voce = {
 }
 
 /**
- * Cantieri e Rapportini non hanno `perm` di proposito.
+ * Le anagrafiche stanno in menu a chi le tiene, non a chi le legge.
  *
- * Per i cantieri non esiste un permesso "puoi vederli": esiste solo lo
- * SCOPE, cioe' a quali sei assegnato. Mettere un cancello qui sarebbe
- * inventare una regola che il database non ha.
+ * Operai, Cantieri e Fornitori sono registri che alla Edily compila
+ * l'amministrazione. Il tecnico non ci mette mano: i cantieri li trova
+ * come card in home, gia' filtrati sui suoi, e gli operai li sceglie
+ * dalla tendina dentro il rapportino. Lasciargli in menu tre elenchi
+ * che puo' solo guardare vuol dire fargli cercare la voce giusta fra
+ * sei invece che fra tre.
  *
- * Per i rapportini era peggio: la voce era protetta da
+ * I cancelli sono quelli che dicono la stessa cosa nel linguaggio dei
+ * permessi, non il nome di un ruolo:
+ *
+ *   Cantieri              cantieri.read_all — la pagina mostra TUTTI i
+ *                         cantieri dell'impresa, quindi la vede chi
+ *                         puo' vederli tutti. Al tecnico la RLS ne
+ *                         mostrerebbe comunque solo i suoi, che sono
+ *                         gia' in home.
+ *   Operai, Fornitori     anagrafiche.write — chi tiene il registro
+ *
+ * ATTENZIONE a cosa NON e' questa riga: non e' sicurezza. Chi non ha il
+ * permesso non vede la voce e non apre la rotta, ma cio' che protegge
+ * davvero i dati resta la RLS. Se un domani si volesse far vedere al
+ * tecnico l'elenco cantieri, si rimette il cancello e non cambia niente
+ * di cio' che puo' leggere.
+ *
+ * Rapportini invece non ha `perm` di proposito. La voce era protetta da
  * `rapportini.create`, e quindi `amministrazione` — che ha
  * `rapportini.read_all` proprio per leggerli — restava chiusa fuori
  * dalla lista. Il permesso di CREARE non e' il permesso di LEGGERE: il
@@ -51,7 +70,12 @@ type Voce = {
  */
 const VOCI: Voce[] = [
   { to: '/', etichetta: 'Home', elemento: <Dashboard /> },
-  { to: '/cantieri', etichetta: 'Cantieri', elemento: <CantieriPage /> },
+  {
+    to: '/cantieri',
+    etichetta: 'Cantieri',
+    perm: 'cantieri.read_all',
+    elemento: <CantieriPage />,
+  },
   { to: '/rapportini', etichetta: 'Rapportini', elemento: <RapportiniPage /> },
   {
     to: '/anagrafiche/clienti',
@@ -62,13 +86,13 @@ const VOCI: Voce[] = [
   {
     to: '/anagrafiche/fornitori',
     etichetta: 'Fornitori',
-    perm: 'anagrafiche.read',
+    perm: 'anagrafiche.write',
     elemento: <FornitoriPage />,
   },
   {
     to: '/anagrafiche/operai',
     etichetta: 'Operai',
-    perm: 'anagrafiche.read',
+    perm: 'anagrafiche.write',
     elemento: <DipendentiPage />,
   },
   {
