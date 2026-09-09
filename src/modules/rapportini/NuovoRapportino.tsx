@@ -89,11 +89,16 @@ export function NuovoRapportino() {
   }
 
   /**
-   * Il rapportino piu' veloce e' quello dove tocchi solo cio' che e'
-   * diverso dal solito. Quindi: squadra al completo, otto ore a testa,
-   * e il compilatore toglie chi non c'era invece di aggiungere chi c'era.
-   * E se il cantiere e' uno solo — il caso di quasi ogni tecnico — e'
-   * gia' scelto.
+   * La squadra parte vuota e la si compone scegliendo chi c'era.
+   *
+   * Prima partiva al completo con otto ore a testa, e si toglieva chi
+   * mancava: aveva senso quando il rapportino era uno solo al giorno.
+   * Adesso ogni cantiere attivo ne vuole uno, e lo stesso operaio non
+   * puo' essere su sette cantieri contemporaneamente — precompilare
+   * tutti significherebbe cancellarne sei su sette, sette volte.
+   *
+   * Il cantiere invece resta preselezionato quando ce n'e' uno solo:
+   * quello e' un default che non puo' essere sbagliato.
    */
   const valoriIniziali: CampiRapportino = {
     cantiere_id: cantiereScelto ?? (cantieri.length === 1 ? cantieri[0].id : ''),
@@ -109,8 +114,8 @@ export function NuovoRapportino() {
       rigaId: '',
       dipendente_id: d.id,
       nominativo: `${d.cognome} ${d.nome}`,
-      presente: true,
-      ore_ordinarie: 8,
+      presente: false,
+      ore_ordinarie: 0,
       ore_straordinarie: 0,
       ore_trasferta: 0,
       tipo_assenza: '',

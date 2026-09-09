@@ -84,6 +84,50 @@ export function FormRapportino({
     0,
   )
 
+  /**
+   * La squadra si costruisce aggiungendo chi c'era, non togliendo chi
+   * non c'era.
+   *
+   * Finche' il rapportino era uno solo al giorno funzionava al
+   * contrario: partivano tutti presenti e il tecnico spuntava le
+   * eccezioni. Ma adesso ogni cantiere attivo vuole la sua scheda, e lo
+   * stesso operaio non puo' stare su sette cantieri: partire con tutti
+   * dentro vorrebbe dire toglierne sei su sette, ogni volta.
+   *
+   * L'elenco delle righe resta completo — c'e' un posto per ogni
+   * dipendente, sempre — e cambia solo quali si vedono. Il salvataggio
+   * scarta gia' da se' chi non e' ne' presente ne' assente giustificato,
+   * quindi sotto non cambia niente.
+   */
+  const conIndice = fields.map((campo, i) => {
+    const riga = righe?.[i] ?? valoriIniziali.ore[i]
+    return {
+      campo,
+      i,
+      presente: Boolean(riga?.presente),
+      scelto: Boolean(riga?.presente) || Boolean(riga?.tipo_assenza),
+    }
+  })
+  const inSquadra = conIndice.filter((r) => r.scelto)
+  const disponibili = conIndice.filter((r) => !r.scelto)
+
+  function aggiungi(i: number) {
+    setValue(`ore.${i}.presente`, true)
+    setValue(`ore.${i}.tipo_assenza`, '')
+    setValue(`ore.${i}.ore_ordinarie`, 8)
+  }
+
+  /** Toglierlo dalla scheda, non segnarlo assente: sono due cose
+   *  diverse. Chi non c'entra con questo cantiere sparisce e basta, chi
+   *  manca per ferie o malattia resta scritto con il suo motivo. */
+  function togli(i: number) {
+    setValue(`ore.${i}.presente`, false)
+    setValue(`ore.${i}.tipo_assenza`, '')
+    setValue(`ore.${i}.ore_ordinarie`, 0)
+    setValue(`ore.${i}.ore_straordinarie`, 0)
+    setValue(`ore.${i}.ore_trasferta`, 0)
+  }
+
   return (
     <form onSubmit={handleSubmit(onSalva)} className="grid gap-4" noValidate>
       {errore && <Avviso tono="errore">{errore}</Avviso>}
@@ -142,7 +186,7 @@ export function FormRapportino({
               }
               setMostraOrario((v) => !v)
             }}
-            className="neo-press w-fit cursor-pointer rounded-lg border-2 border-black bg-white px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-wide"
+            className="neo-press w-fit cursor-pointer justify-self-end rounded-lg border-2 border-black bg-white px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-wide"
           >
             {mostraOrario ? 'Niente orario' : '+ Orario di cantiere'}
           </button>
@@ -204,12 +248,10 @@ export function FormRapportino({
                 // chiedere all'utente di togliere le presenze a mano
                 // sarebbe farlo lavorare per compiacere un vincolo.
                 if (!e.target.checked) return
-                fields.forEach((_, i) => {
-                  setValue(`ore.${i}.presente`, false)
-                  setValue(`ore.${i}.ore_ordinarie`, 0)
-                  setValue(`ore.${i}.ore_straordinarie`, 0)
-                  setValue(`ore.${i}.ore_trasferta`, 0)
-                })
+                // Anche le assenze: una scheda "nessuna attivita" che si
+                // porta dietro righe di ferie non e' vuota, e il vincolo
+                // del database la rifiuterebbe.
+                fields.forEach((_, i) => togli(i))
               },
             })}
           />
@@ -224,79 +266,128 @@ export function FormRapportino({
           </span>
         </label>
 
-        {!nessunaAttivita && (
-          <p className="text-xs font-semibold text-gray-600">
-            Togli chi non c&rsquo;era e correggi solo le differenze.
-          </p>
-        )}
-
         {errors.ore?.message && <Avviso tono="errore">{errors.ore.message}</Avviso>}
 
-        <ul className={nessunaAttivita ? 'hidden' : 'grid gap-2'}>
-          {fields.map((f, i) => {
-            const presente = righe?.[i]?.presente ?? true
-            return (
-              <li
-                key={f.id}
-                className={
-                  presente
-                    ? 'rounded-xl border-2 border-black bg-white p-3'
-                    : 'rounded-xl border-2 border-black bg-gray-100 p-3'
-                }
-              >
-                <div className="flex flex-wrap items-center gap-3">
-                  <label className="flex flex-1 cursor-pointer items-center gap-2.5">
-                    <input
-                      type="checkbox"
-                      className="h-5 w-5 cursor-pointer accent-amber-400"
-                      {...register(`ore.${i}.presente`, {
-                        onChange: (e) => {
-                          // Toglierlo dalla squadra azzera le ore:
-                          // lasciarle a 8 salverebbe otto ore di un assente.
-                          if (!e.target.checked) {
-                            setValue(`ore.${i}.ore_ordinarie`, 0)
-                            setValue(`ore.${i}.ore_straordinarie`, 0)
-                            setValue(`ore.${i}.ore_trasferta`, 0)
-                          } else {
-                            setValue(`ore.${i}.ore_ordinarie`, 8)
-                            setValue(`ore.${i}.tipo_assenza`, '')
-                          }
-                        },
-                      })}
-                    />
-                    <span
-                      className={presente ? 'text-sm font-bold' : 'text-sm font-bold text-gray-500'}
-                    >
-                      {f.nominativo}
-                    </span>
-                  </label>
+        {!nessunaAttivita && (
+          <>
+            {inSquadra.length === 0 ? (
+              <p className="rounded-xl border-2 border-dashed border-gray-400 px-4 py-6 text-center text-sm font-semibold text-gray-500">
+                Ancora nessuno su questo cantiere. Scegli qui sotto chi c&rsquo;era.
+              </p>
+            ) : (
+              <ul className="grid gap-2">
+                {inSquadra.map(({ campo, i, presente }) => (
+                  <li
+                    key={campo.id}
+                    className={
+                      presente
+                        ? 'rounded-xl border-2 border-black bg-white p-3'
+                        : 'rounded-xl border-2 border-black bg-gray-100 p-3'
+                    }
+                  >
+                    <div className="flex flex-wrap items-center gap-3">
+                      <span
+                        className={
+                          presente
+                            ? 'flex-1 text-sm font-bold text-black'
+                            : 'flex-1 text-sm font-bold text-gray-500'
+                        }
+                      >
+                        {campo.nominativo}
+                      </span>
 
-                  {presente ? (
-                    <div className="flex items-center gap-2">
-                      <CampoOre etichetta="ord." {...register(`ore.${i}.ore_ordinarie`)} />
-                      <CampoOre etichetta="str." {...register(`ore.${i}.ore_straordinarie`)} />
-                      {mostraTrasferta && (
-                        <CampoOre etichetta="trasf." {...register(`ore.${i}.ore_trasferta`)} />
+                      {/* Una tendina al posto della spunta: dice in che
+                          veste la persona sta su questa scheda, e
+                          "assente per ferie" e "assente e basta" non
+                          sono la stessa cosa per chi fa le paghe. */}
+                      <select
+                        className="cursor-pointer rounded-lg border-2 border-black bg-white px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-amber-400"
+                        {...register(`ore.${i}.tipo_assenza`, {
+                          onChange: (e) => {
+                            const assente = e.target.value !== ''
+                            setValue(`ore.${i}.presente`, !assente)
+                            if (assente) {
+                              // Lasciargli otto ore mentre e' in ferie
+                              // gliele pagherebbe due volte.
+                              setValue(`ore.${i}.ore_ordinarie`, 0)
+                              setValue(`ore.${i}.ore_straordinarie`, 0)
+                              setValue(`ore.${i}.ore_trasferta`, 0)
+                            } else if (!Number(righe?.[i]?.ore_ordinarie)) {
+                              setValue(`ore.${i}.ore_ordinarie`, 8)
+                            }
+                          },
+                        })}
+                      >
+                        <option value="">In cantiere</option>
+                        {ASSENZE.map((a) => (
+                          <option key={a} value={a}>
+                            {a}
+                          </option>
+                        ))}
+                      </select>
+
+                      {presente && (
+                        <div className="flex items-center gap-2">
+                          <CampoOre etichetta="ord." {...register(`ore.${i}.ore_ordinarie`)} />
+                          <CampoOre etichetta="str." {...register(`ore.${i}.ore_straordinarie`)} />
+                          {mostraTrasferta && (
+                            <CampoOre etichetta="trasf." {...register(`ore.${i}.ore_trasferta`)} />
+                          )}
+                        </div>
                       )}
+
+                      <button
+                        type="button"
+                        onClick={() => togli(i)}
+                        aria-label={`Togli ${campo.nominativo} da questa scheda`}
+                        title="Togli da questa scheda"
+                        className="neo-press h-8 w-8 shrink-0 cursor-pointer rounded-lg border-2 border-black bg-white text-base font-extrabold leading-none hover:bg-rose-200"
+                      >
+                        ×
+                      </button>
                     </div>
-                  ) : (
-                    <select
-                      className="cursor-pointer rounded-lg border-2 border-black bg-white px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-amber-400"
-                      {...register(`ore.${i}.tipo_assenza`)}
-                    >
-                      <option value="">Assente — motivo?</option>
-                      {ASSENZE.map((a) => (
-                        <option key={a} value={a}>
-                          {a}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                </div>
-              </li>
-            )
-          })}
-        </ul>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {/* La tendina torna sempre sul segnaposto dopo la scelta:
+                serve ad aggiungere, non a ricordare l'ultimo scelto. */}
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                value=""
+                disabled={disponibili.length === 0}
+                onChange={(e) => {
+                  if (e.target.value !== '') aggiungi(Number(e.target.value))
+                }}
+                className="neo-press flex-1 cursor-pointer rounded-xl border-2 border-black bg-amber-50 px-4 py-2.5 text-sm font-bold disabled:cursor-default disabled:bg-gray-100 disabled:text-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-400"
+              >
+                <option value="">
+                  {disponibili.length === 0
+                    ? 'Ci sono già tutti'
+                    : '+ Aggiungi chi c’era in cantiere'}
+                </option>
+                {disponibili.map(({ campo, i }) => (
+                  <option key={campo.id} value={i}>
+                    {campo.nominativo}
+                  </option>
+                ))}
+              </select>
+
+              {/* Quando la squadra e' tutta sullo stesso cantiere,
+                  sceglierli uno per uno e' lavoro inutile. */}
+              {disponibili.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => disponibili.forEach(({ i }) => aggiungi(i))}
+                  className="neo-press cursor-pointer rounded-xl border-2 border-black bg-white px-4 py-2.5 text-sm font-bold"
+                >
+                  Tutta la squadra
+                </button>
+              )}
+            </div>
+          </>
+        )}
       </Card>
 
       <div className="flex gap-3">

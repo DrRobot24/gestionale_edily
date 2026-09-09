@@ -61,7 +61,7 @@ export const schemaRapportino = z
   // cantiere fermo, e il tecnico doveva inventare una presenza o
   // lasciare la giornata a meta'.
   .refine((v) => v.nessuna_attivita || v.ore.some((o) => o.presente), {
-    message: 'Segna almeno una persona presente, oppure dichiara che non c’è stata attività',
+    message: 'Aggiungi almeno una persona, oppure dichiara che non c’è stata attività',
     path: ['ore'],
   })
   // Il database rifiuta una scheda marcata "nessuna attivita" che abbia
