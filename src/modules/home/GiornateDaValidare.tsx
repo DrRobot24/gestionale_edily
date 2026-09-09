@@ -6,7 +6,7 @@ import {
   presentiDi,
   type SchedaDaValidare,
 } from '../rapportini/useDaValidare'
-import { data as formattaData, numero as formattaNumero } from '../../lib/formato'
+import { dataEstesa, numero as formattaNumero } from '../../lib/formato'
 
 /* ══════════════════════════════════════════════════════════════════
    La coda del titolare, a volo d'uccello.
@@ -67,11 +67,14 @@ export function GiornateDaValidare() {
 
         return (
           <Card key={giorno} className="overflow-hidden">
+            {/* La data e' il titolo del riquadro, non una didascalia:
+                e' l'unita' di lettura del titolare da quando riceve
+                giornate intere invece di schede sciolte. */}
             <div className="flex flex-wrap items-baseline justify-between gap-2 border-b-2 border-black bg-yellow-300 px-5 py-3">
-              <h3 className="text-sm font-extrabold uppercase tracking-wide text-black">
-                {formattaData(giorno)}
+              <h3 className="text-xl font-extrabold capitalize leading-tight text-black">
+                {dataEstesa(giorno)}
               </h3>
-              <p className="text-xs font-bold text-black">
+              <p className="text-xs font-bold text-black/70">
                 {delGiorno.length} {delGiorno.length === 1 ? 'scheda' : 'schede'}
                 {' · '}
                 <span className="numerico">{formattaNumero(ore)}</span> ore

@@ -20,6 +20,15 @@ const DATA = new Intl.DateTimeFormat('it-IT', {
 
 const NUMERO = new Intl.NumberFormat('it-IT', { maximumFractionDigits: 2 })
 
+/** Per le intestazioni: "giovedi 9 settembre". Il giorno della settimana
+ *  non e' un vezzo — chi sfoglia le giornate arretrate ragiona per
+ *  "quel martedi", non per "il 09/09". */
+const DATA_ESTESA = new Intl.DateTimeFormat('it-IT', {
+  weekday: 'long',
+  day: 'numeric',
+  month: 'long',
+})
+
 /** `null` diventa una lineetta, non "€ 0,00": un importo assente e un
  *  importo pari a zero sono cose diverse e vanno lette diverse. */
 export function euro(v: number | null | undefined): string {
@@ -42,6 +51,15 @@ export function data(v: string | null | undefined): string {
   const [a, m, g] = v.slice(0, 10).split('-').map(Number)
   if (!a || !m || !g) return '—'
   return DATA.format(new Date(a, m - 1, g))
+}
+
+/** Come `data`, ma per esteso e con il giorno della settimana. Stessa
+ *  avvertenza sul fuso: la stringa si spezza a mano. */
+export function dataEstesa(v: string | null | undefined): string {
+  if (!v) return '—'
+  const [a, m, g] = v.slice(0, 10).split('-').map(Number)
+  if (!a || !m || !g) return '—'
+  return DATA_ESTESA.format(new Date(a, m - 1, g))
 }
 
 /** 'HH:MM:SS' → 'HH:MM'. In cantiere i secondi non servono a nessuno. */
