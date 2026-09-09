@@ -39,6 +39,7 @@ export function NuovoRapportino() {
           ora_fine: campi.ora_fine || null,
           meteo: campi.meteo || null,
           note: campi.note || null,
+          nessuna_attivita: campi.nessuna_attivita,
         })
         .select('id')
         .single()
@@ -99,6 +100,7 @@ export function NuovoRapportino() {
     ora_fine: '17:00',
     meteo: '',
     note: '',
+    nessuna_attivita: false,
     ore: (dipendenti ?? []).map((d) => ({
       rigaId: '',
       dipendente_id: d.id,

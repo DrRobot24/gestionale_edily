@@ -31,7 +31,7 @@ import type { RapportinoStato } from './regole'
  * prezzo dell'autocompletamento e degli errori a compile-time.
  */
 const SELECT =
-  'id, data, numero, anno, stato, note, meteo, ora_inizio, ora_fine, compilato_da, inviato_at, validato_at, validato_da, contabilizzato_at, motivo_rifiuto, cantiere_id, cantieri ( codice, denominazione ), rapportino_ore ( id, dipendente_id, ore_ordinarie, ore_straordinarie, ore_trasferta, tipo_assenza, mansione, note, dipendenti ( nome, cognome, matricola ) )' as const
+  'id, data, numero, anno, stato, note, meteo, nessuna_attivita, ora_inizio, ora_fine, compilato_da, inviato_at, validato_at, validato_da, contabilizzato_at, motivo_rifiuto, cantiere_id, cantieri ( codice, denominazione ), rapportino_ore ( id, dipendente_id, ore_ordinarie, ore_straordinarie, ore_trasferta, tipo_assenza, mansione, note, dipendenti ( nome, cognome, matricola ) )' as const
 
 export function useRapportino(id: string | undefined) {
   const { org } = useSession()

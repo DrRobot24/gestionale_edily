@@ -1,5 +1,8 @@
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router'
+import { supabase } from '../../lib/supabase'
 import { Avviso, Button, Card, cn } from '../../ui'
+import { useSession } from '../auth/SessionProvider'
 import { useCantieri } from '../cantieri/useCantieri'
 import { useRapportini, type Rapportino } from '../rapportini/useRapportini'
 import { oggi } from '../rapportini/campiRapportino'
@@ -18,9 +21,13 @@ import { data as formattaData } from '../../lib/formato'
    curiosita', dice quanto manca alla fine della giornata.
 
      rosso   nessuna scheda: e' qui che va il tecnico adesso
-     giallo  bozza aperta ma non inviata — l'errore piu' facile,
-             perche' sembra fatto e non lo e'
-     verde   inviata, la palla e' passata al titolare
+     giallo  respinta dal titolare, da rilavorare: e' l'unica cosa che
+             blocca la partenza quando le caselle sono tutte piene
+     verde   pronta — compilata, o dichiarata senza attivita'
+
+   Nota che una bozza e' VERDE. Da quando l'invio e' collettivo non e'
+   piu' lavoro lasciato a meta': e' una scheda finita che aspetta le
+   sorelle, e sara' il pulsante in fondo a farle partire tutte insieme.
 
    Guarda solo i cantieri `attivo`: uno sospeso o chiuso non chiede
    niente a nessuno, e tenerlo nell'elenco spegnerebbe il senso del
@@ -31,19 +38,54 @@ type Semaforo = 'rosso' | 'giallo' | 'verde'
 
 const ASPETTO: Record<Semaforo, { punto: string; fascia: string; testo: string }> = {
   rosso: { punto: 'bg-rose-500', fascia: 'bg-rose-300', testo: 'Da compilare' },
-  giallo: { punto: 'bg-yellow-400', fascia: 'bg-yellow-300', testo: 'Bozza da inviare' },
-  verde: { punto: 'bg-lime-500', fascia: 'bg-lime-300', testo: 'Inviata' },
+  giallo: { punto: 'bg-yellow-400', fascia: 'bg-yellow-300', testo: 'Respinta' },
+  verde: { punto: 'bg-lime-500', fascia: 'bg-lime-300', testo: 'Pronta' },
 }
 
+/**
+ * Una bozza compilata e' VERDE, non gialla.
+ *
+ * Da quando l'invio e' collettivo, la bozza non e' lavoro lasciato a
+ * meta': e' una scheda finita che aspetta le altre. Il giallo serve per
+ * cio' che il titolare ha rimandato indietro, che e' l'unica cosa che
+ * puo' bloccare la partenza del foglio quando le caselle sono piene.
+ */
 function semaforoDi(r: Rapportino | undefined): Semaforo {
   if (!r) return 'rosso'
-  if (r.stato === 'bozza' || r.stato === 'respinto') return 'giallo'
+  if (r.stato === 'respinto') return 'giallo'
   return 'verde'
 }
 
 export function CantieriDelGiorno() {
   const navigate = useNavigate()
+  const { org } = useSession()
+  const qc = useQueryClient()
   const giorno = oggi()
+
+  /**
+   * L'invio passa da una funzione del database, non da una serie di
+   * update dal browser. Due motivi: e' una cosa sola, o partono tutte le
+   * schede o nessuna; e la regola "solo quando sono tutte pronte" deve
+   * valere anche per chi chiama l'API direttamente, non solo per chi usa
+   * questo pulsante.
+   *
+   * Gli errori del database (P0001) sono gia' scritti in italiano e
+   * dicono quante schede mancano: li mostriamo com'e' invece di
+   * riscriverli peggio.
+   */
+  const invia = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.rpc('invia_foglio_giornata', {
+        p_org: org!.id,
+        p_giorno: giorno,
+      })
+      if (error) throw new Error(error.message)
+      return data
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['rapportini'] })
+    },
+  })
 
   const { data: cantieri, isPending: caricoCantieri, error: erroreCantieri } = useCantieri()
   const { data: rapportini, isPending: caricoRapportini } = useRapportini()
@@ -89,6 +131,9 @@ export function CantieriDelGiorno() {
 
   const fatte = schede.filter((s) => s.semaforo === 'verde').length
   const complete = fatte === schede.length
+  // Se sono tutte gia' partite non c'e' piu' niente da spedire: il
+  // pulsante resterebbe acceso a non fare nulla.
+  const daSpedire = schede.some((s) => s.rapportino?.stato === 'bozza')
 
   return (
     <div className="grid gap-4">
@@ -126,26 +171,44 @@ export function CantieriDelGiorno() {
         ))}
       </div>
 
-      {/* Il foglio di riepilogo non esiste ancora come documento: qui si
-          dice solo se la condizione per inviarlo e' soddisfatta, cosi'
-          il contatore ha un senso invece di essere un numero e basta. */}
+      {invia.isError && <Avviso tono="errore">{(invia.error as Error).message}</Avviso>}
+      {invia.isSuccess && (
+        <Avviso tono="successo">
+          Foglio della giornata inviato al titolare: {invia.data} schede.
+        </Avviso>
+      )}
+
       <Card
         className={cn(
           'flex flex-wrap items-center justify-between gap-3 p-4',
           complete ? 'bg-lime-100' : 'bg-white',
         )}
       >
-        <p className="text-sm font-bold text-black">
-          {complete
-            ? 'Tutte le schede sono inviate: la giornata è completa.'
-            : `Mancano ${schede.length - fatte} schede prima di poter chiudere la giornata.`}
-        </p>
-        <Button variante="primario" disabled title="Il foglio di riepilogo è in costruzione">
-          Invia il foglio della giornata
+        <p className="text-sm font-bold text-black">{riepilogo(schede.length, fatte, daSpedire)}</p>
+        <Button
+          variante="primario"
+          disabled={!complete || !daSpedire || invia.isPending}
+          onClick={() => invia.mutate()}
+        >
+          {invia.isPending ? 'Invio…' : 'Invia il foglio della giornata'}
         </Button>
       </Card>
     </div>
   )
+}
+
+/** Una riga sola che dice a che punto sei e, se sei fermo, cosa manca:
+ *  un contatore senza spiegazione lascia indovinare perche' il pulsante
+ *  non si accende. */
+function riepilogo(totale: number, fatte: number, daSpedire: boolean): string {
+  if (fatte < totale) {
+    const mancano = totale - fatte
+    return mancano === 1
+      ? 'Manca una scheda prima di poter mandare la giornata.'
+      : `Mancano ${mancano} schede prima di poter mandare la giornata.`
+  }
+  if (!daSpedire) return 'La giornata è già partita: tutte le schede sono dal titolare.'
+  return 'Tutte le schede sono pronte: la giornata può partire.'
 }
 
 /* ── pezzi ─────────────────────────────────────────────────────── */

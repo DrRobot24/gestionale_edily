@@ -1086,6 +1086,7 @@ export type Database = {
           inviato_at: string | null
           meteo: string | null
           motivo_rifiuto: string | null
+          nessuna_attivita: boolean
           note: string | null
           numero: number | null
           ora_fine: string | null
@@ -1108,6 +1109,7 @@ export type Database = {
           inviato_at?: string | null
           meteo?: string | null
           motivo_rifiuto?: string | null
+          nessuna_attivita?: boolean
           note?: string | null
           numero?: number | null
           ora_fine?: string | null
@@ -1130,6 +1132,7 @@ export type Database = {
           inviato_at?: string | null
           meteo?: string | null
           motivo_rifiuto?: string | null
+          nessuna_attivita?: boolean
           note?: string | null
           numero?: number | null
           ora_fine?: string | null
@@ -1901,6 +1904,10 @@ export type Database = {
           updated_at: string
           user_id: string
         }[]
+      }
+      invia_foglio_giornata: {
+        Args: { p_giorno: string; p_org: string }
+        Returns: number
       }
       is_admin: { Args: { uid: string }; Returns: boolean }
     }

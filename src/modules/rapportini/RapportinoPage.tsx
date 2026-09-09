@@ -195,22 +195,6 @@ export function RapportinoPage() {
               </Button>
             )}
 
-            {mio && (r.stato === 'bozza' || r.stato === 'respinto') && (
-              <Button
-                variante="primario"
-                disabled={transizione.isPending}
-                onClick={() =>
-                  transizione.mutate({
-                    id: r.id,
-                    stato: 'inviato',
-                    inviato_at: adesso(),
-                    motivo_rifiuto: null,
-                  })
-                }
-              >
-                Invia al titolare
-              </Button>
-            )}
 
             {puoValidare && r.stato === 'inviato' && (
               <>
@@ -320,7 +304,17 @@ function Spiegazione({
 }) {
   let testo: string | null = null
 
-  if (stato === 'bozza' && !mio) testo = 'È una bozza di un collega: solo chi l’ha scritta può inviarla.'
+  // Il primo caso e' il piu' importante da quando l'invio singolo non
+  // esiste piu': chi apre la propria bozza non trova il pulsante che
+  // c'era ieri, e senza una riga qui penserebbe a un guasto.
+
+  if (stato === 'bozza' && mio)
+    testo =
+      'In raccolta per il Foglio Riepilogativo di Giornata. Non si invia da sola: parte dalla home insieme a tutte le altre schede del giorno, quando sono complete.'
+  else if (stato === 'respinto' && mio)
+    testo =
+      'Respinta dal titolare. Correggila: finche’ resta cosi’, il foglio della giornata non riparte.'
+  else if (stato === 'bozza' && !mio) testo = 'È una bozza di un collega: solo chi l’ha scritta può inviarla.'
   else if (inAttesa && !puoValidare && mio)
     testo = 'È sul tavolo del titolare. Finché non lo valida o lo respinge, non si tocca più.'
   else if (inAttesa && !puoValidare)

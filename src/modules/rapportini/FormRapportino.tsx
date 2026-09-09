@@ -48,6 +48,7 @@ export function FormRapportino({
   // useWatch e non watch(): watch() rilegge a ogni render e il
   // compilatore React non puo' memoizzarlo.
   const righe = useWatch({ control, name: 'ore' })
+  const nessunaAttivita = useWatch({ control, name: 'nessuna_attivita' })
   const totale = (righe ?? []).reduce(
     (s, r) =>
       s + (r.presente ? Number(r.ore_ordinarie || 0) + Number(r.ore_straordinarie || 0) : 0),
@@ -117,18 +118,57 @@ export function FormRapportino({
       <Card className="grid gap-3 p-5">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="text-lg font-extrabold text-black">Squadra</h2>
-          <p className="text-xs font-bold text-gray-600">
-            totale <span className="numerico">{totale}</span> ore
-          </p>
+          {!nessunaAttivita && (
+            <p className="text-xs font-bold text-gray-600">
+              totale <span className="numerico">{totale}</span> ore
+            </p>
+          )}
         </div>
 
-        <p className="text-xs font-semibold text-gray-600">
-          Togli chi non c&rsquo;era e correggi solo le differenze.
-        </p>
+        {/* La giornata si chiude solo con TUTTE le schede compilate,
+            compresi i cantieri fermi. Senza questa spunta l'unico modo
+            di chiudere la scheda di un cantiere dove non si e' lavorato
+            sarebbe inventare una presenza. */}
+        <label className="neo-press flex cursor-pointer items-start gap-3 rounded-xl border-2 border-black bg-amber-50 p-3">
+          <input
+            type="checkbox"
+            className="mt-0.5 h-5 w-5 shrink-0 cursor-pointer accent-amber-400"
+            {...register('nessuna_attivita', {
+              onChange: (e) => {
+                // Spuntarla azzera la squadra: il database rifiuta una
+                // scheda "nessuna attivita" che abbia righe di ore, e
+                // chiedere all'utente di togliere le presenze a mano
+                // sarebbe farlo lavorare per compiacere un vincolo.
+                if (!e.target.checked) return
+                fields.forEach((_, i) => {
+                  setValue(`ore.${i}.presente`, false)
+                  setValue(`ore.${i}.ore_ordinarie`, 0)
+                  setValue(`ore.${i}.ore_straordinarie`, 0)
+                  setValue(`ore.${i}.ore_trasferta`, 0)
+                })
+              },
+            })}
+          />
+          <span>
+            <span className="block text-sm font-extrabold text-black">
+              Nessuna attività in questo cantiere
+            </span>
+            <span className="block text-xs font-semibold text-gray-600">
+              La scheda si chiude lo stesso e la giornata può partire. Resta scritto che sei
+              passato di qui e hai deciso, non che te ne sei dimenticato.
+            </span>
+          </span>
+        </label>
+
+        {!nessunaAttivita && (
+          <p className="text-xs font-semibold text-gray-600">
+            Togli chi non c&rsquo;era e correggi solo le differenze.
+          </p>
+        )}
 
         {errors.ore?.message && <Avviso tono="errore">{errors.ore.message}</Avviso>}
 
-        <ul className="grid gap-2">
+        <ul className={nessunaAttivita ? 'hidden' : 'grid gap-2'}>
           {fields.map((f, i) => {
             const presente = righe?.[i]?.presente ?? true
             return (

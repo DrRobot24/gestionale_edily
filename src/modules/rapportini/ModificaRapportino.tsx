@@ -30,6 +30,7 @@ export function ModificaRapportino() {
           ora_fine: campi.ora_fine || null,
           meteo: campi.meteo || null,
           note: campi.note || null,
+          nessuna_attivita: campi.nessuna_attivita,
         })
         .eq('id', id!)
         .eq('org_id', org!.id)
@@ -114,6 +115,7 @@ export function ModificaRapportino() {
     ora_fine: r.ora_fine?.slice(0, 5) ?? '',
     meteo: r.meteo ?? '',
     note: r.note ?? '',
+    nessuna_attivita: r.nessuna_attivita ?? false,
     ore: righeUnite(r.rapportino_ore ?? [], dipendenti ?? []),
   }
 

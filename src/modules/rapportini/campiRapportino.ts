@@ -35,6 +35,11 @@ export const schemaRapportino = z
   .object({
     cantiere_id: z.string().min(1, 'Scegli il cantiere'),
     data: z.string().min(1, 'Serve la data'),
+    /** Il tecnico ha aperto la scheda e ha dichiarato che qui, quel
+     *  giorno, non si e' lavorato. E' una scelta, non una dimenticanza:
+     *  serve perche' la giornata si chiude solo con TUTTE le schede
+     *  compilate, compresi i cantieri fermi. */
+    nessuna_attivita: z.boolean(),
     ora_inizio: z.string(),
     ora_fine: z.string(),
     meteo: z.string(),
@@ -47,8 +52,18 @@ export const schemaRapportino = z
     message: 'La fine deve venire dopo l’inizio',
     path: ['ora_fine'],
   })
-  .refine((v) => v.ore.some((o) => o.presente), {
-    message: 'Segna almeno una persona presente',
+  // Senza attivita' non ci sono presenti da segnare, ed e' il punto:
+  // prima questa regola rendeva impossibile chiudere la scheda di un
+  // cantiere fermo, e il tecnico doveva inventare una presenza o
+  // lasciare la giornata a meta'.
+  .refine((v) => v.nessuna_attivita || v.ore.some((o) => o.presente), {
+    message: 'Segna almeno una persona presente, oppure dichiara che non c’è stata attività',
+    path: ['ore'],
+  })
+  // Il database rifiuta una scheda marcata "nessuna attivita" che abbia
+  // righe di ore. Meglio dirlo qui che farsi rimbalzare dal trigger.
+  .refine((v) => !v.nessuna_attivita || !v.ore.some((o) => o.presente), {
+    message: 'Hai dichiarato nessuna attività: togli le presenze segnate',
     path: ['ore'],
   })
 
