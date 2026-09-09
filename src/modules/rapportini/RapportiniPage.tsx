@@ -62,7 +62,6 @@ export function RapportiniPage() {
               <th>N.</th>
               <th>Cantiere</th>
               <th>Orario</th>
-              <th>Meteo</th>
               <th>Stato</th>
               <th />
             </tr>
@@ -87,7 +86,6 @@ export function RapportiniPage() {
                 <td className="numerico text-gray-600">
                   {r.ora_inizio || r.ora_fine ? `${ora(r.ora_inizio)}–${ora(r.ora_fine)}` : '—'}
                 </td>
-                <td className="text-gray-600">{r.meteo ?? '—'}</td>
                 <td className="whitespace-nowrap">
                   <StatoRapportino stato={r.stato} />
                   {/* Il motivo del rifiuto e' la sola cosa che l'autore

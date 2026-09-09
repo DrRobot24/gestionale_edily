@@ -30,7 +30,9 @@ export function ModificaRapportino() {
           data: campi.data,
           ora_inizio: campi.ora_inizio || null,
           ora_fine: campi.ora_fine || null,
-          meteo: campi.meteo || null,
+          // `meteo` non si tocca piu': il campo e' sparito dal form, e
+          // riscriverlo a null qui cancellerebbe quello che c'e' scritto
+          // sulle schede vecchie.
           note: campi.note || null,
           nessuna_attivita: campi.nessuna_attivita,
           /**
@@ -131,7 +133,6 @@ export function ModificaRapportino() {
     data: r.data,
     ora_inizio: r.ora_inizio?.slice(0, 5) ?? '',
     ora_fine: r.ora_fine?.slice(0, 5) ?? '',
-    meteo: r.meteo ?? '',
     note: r.note ?? '',
     nessuna_attivita: r.nessuna_attivita ?? false,
     ore: righeUnite(r.rapportino_ore ?? [], dipendenti ?? []),

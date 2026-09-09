@@ -38,7 +38,6 @@ export function NuovoRapportino() {
           data: campi.data,
           ora_inizio: campi.ora_inizio || null,
           ora_fine: campi.ora_fine || null,
-          meteo: campi.meteo || null,
           note: campi.note || null,
           nessuna_attivita: campi.nessuna_attivita,
         })
@@ -101,7 +100,6 @@ export function NuovoRapportino() {
     data: giornoScelto ?? oggi(),
     ora_inizio: '08:00',
     ora_fine: '17:00',
-    meteo: '',
     note: '',
     nessuna_attivita: false,
     ore: (dipendenti ?? []).map((d) => ({

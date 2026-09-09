@@ -1,12 +1,8 @@
+import { useState } from 'react'
 import { useForm, useFieldArray, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Avviso, Button, Campo, CampoArea, CampoSelect, Card, Input } from '../../ui'
-import {
-  ASSENZE,
-  METEO,
-  schemaRapportino,
-  type CampiRapportino,
-} from './campiRapportino'
+import { Avviso, Button, CampoArea, Campo, CampoSelect, Card, Input } from '../../ui'
+import { ASSENZE, schemaRapportino, type CampiRapportino } from './campiRapportino'
 
 type Props = {
   valoriIniziali: CampiRapportino
@@ -44,6 +40,23 @@ export function FormRapportino({
   })
 
   const { fields } = useFieldArray({ control, name: 'ore' })
+
+  /**
+   * La trasferta parte nascosta.
+   *
+   * Alla Edily la squadra sta praticamente sempre in sede, quindi quella
+   * casella era una terza cifra da guardare e saltare per ogni operaio,
+   * ogni giorno, su ogni cantiere: rumore. Ma il giorno che si spostano
+   * davvero l'ora va scritta, e a stipendio si paga — quindi il campo
+   * resta, si apre a richiesta.
+   *
+   * Si apre da sola se la scheda ha gia' delle trasferte dentro: un
+   * valore salvato che non si vede e' un valore che nessuno puo' piu'
+   * correggere.
+   */
+  const [mostraTrasferta, setMostraTrasferta] = useState(() =>
+    valoriIniziali.ore.some((o) => Number(o.ore_trasferta) > 0),
+  )
 
   // useWatch e non watch(): watch() rilegge a ogni render e il
   // compilatore React non puo' memoizzarlo.
@@ -91,24 +104,13 @@ export function FormRapportino({
           />
         </div>
 
-        {/* datalist e non select: `meteo` e' testo libero nel database e
-            va bene che lo resti, ma i valori comuni devono stare a un
-            tocco di distanza invece che da digitare sotto la pioggia. */}
-        <Campo
-          etichetta="Meteo"
-          list="meteo-comuni"
-          placeholder="Sereno, pioggia…"
-          errore={errors.meteo?.message}
-          {...register('meteo')}
-        />
-        <datalist id="meteo-comuni">
-          {METEO.map((m) => (
-            <option key={m} value={m} />
-          ))}
-        </datalist>
-
+        {/* Il campo si chiama `note` nel database — condiviso con
+            wbs-office, non lo tocchiamo — ma qui si legge per quello che
+            e': la descrizione di cosa si e' fatto in quel cantiere. Era
+            l'ultima voce del riquadro e sembrava un ripensamento; e'
+            invece la parte che il titolare legge per prima. */}
         <CampoArea
-          etichetta="Note"
+          etichetta="Descrizione attività"
           placeholder="Lavorazioni svolte, imprevisti, visite in cantiere…"
           errore={errors.note?.message}
           {...register('note')}
@@ -116,12 +118,30 @@ export function FormRapportino({
       </Card>
 
       <Card className="grid gap-3 p-5">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-lg font-extrabold text-black">Squadra</h2>
           {!nessunaAttivita && (
-            <p className="text-xs font-bold text-gray-600">
-              totale <span className="numerico">{totale}</span> ore
-            </p>
+            <div className="flex items-center gap-3">
+              <p className="text-xs font-bold text-gray-600">
+                totale <span className="numerico">{totale}</span> ore
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  // Chiudendola si azzerano le ore di trasferta: un
+                  // valore che non si vede piu' ma che parte lo stesso
+                  // nel salvataggio e' il tipo di sorpresa che si scopre
+                  // in busta paga.
+                  if (mostraTrasferta) {
+                    fields.forEach((_, i) => setValue(`ore.${i}.ore_trasferta`, 0))
+                  }
+                  setMostraTrasferta((v) => !v)
+                }}
+                className="neo-press cursor-pointer rounded-lg border-2 border-black bg-white px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-wide"
+              >
+                {mostraTrasferta ? 'Niente trasferta' : '+ Trasferta'}
+              </button>
+            </div>
           )}
         </div>
 
@@ -211,7 +231,9 @@ export function FormRapportino({
                     <div className="flex items-center gap-2">
                       <CampoOre etichetta="ord." {...register(`ore.${i}.ore_ordinarie`)} />
                       <CampoOre etichetta="str." {...register(`ore.${i}.ore_straordinarie`)} />
-                      <CampoOre etichetta="trasf." {...register(`ore.${i}.ore_trasferta`)} />
+                      {mostraTrasferta && (
+                        <CampoOre etichetta="trasf." {...register(`ore.${i}.ore_trasferta`)} />
+                      )}
                     </div>
                   ) : (
                     <select

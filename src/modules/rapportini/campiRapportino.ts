@@ -15,8 +15,6 @@ import { z } from 'zod'
  */
 export const ASSENZE = ['Ferie', 'Permesso', 'Malattia', 'Infortunio', 'Congedo'] as const
 
-export const METEO = ['Sereno', 'Nuvoloso', 'Pioggia', 'Vento forte', 'Neve', 'Nebbia']
-
 const rigaOre = z.object({
   /** Vuoto per una riga nuova, valorizzato per una che esiste gia' nel
    *  database: e' quel che permette alla modifica di distinguere fra
@@ -27,6 +25,9 @@ const rigaOre = z.object({
   presente: z.boolean(),
   ore_ordinarie: z.coerce.number().min(0, 'Mai negativo').max(24, 'Al massimo 24'),
   ore_straordinarie: z.coerce.number().min(0, 'Mai negativo').max(24, 'Al massimo 24'),
+  /** Resta nel modello anche se il form la tiene nascosta: alla Edily la
+   *  squadra lavora quasi sempre in sede, ma il giorno che si sposta
+   *  davvero l'ora di trasferta va scritta, e a stipendio si paga. */
   ore_trasferta: z.coerce.number().min(0, 'Mai negativo').max(24, 'Al massimo 24'),
   tipo_assenza: z.string(),
 })
@@ -42,7 +43,10 @@ export const schemaRapportino = z
     nessuna_attivita: z.boolean(),
     ora_inizio: z.string(),
     ora_fine: z.string(),
-    meteo: z.string(),
+    /** Nel database la colonna si chiama `note` — non la rinominiamo,
+     *  perche' il database e' condiviso con wbs-office. Nel form si legge
+     *  "Descrizione attivita'": e' quello che il tecnico ci scrive, ed e'
+     *  la parte che il titolare legge davvero. */
     note: z.string(),
     ore: z.array(rigaOre),
   })

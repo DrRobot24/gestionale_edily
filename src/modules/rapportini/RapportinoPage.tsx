@@ -59,6 +59,10 @@ export function RapportinoPage() {
     0,
   )
   const totaleTrasferta = ore.reduce((s, o) => s + Number(o.ore_trasferta), 0)
+  // La colonna trasferta compare solo se qualcuno e' andato in trasferta
+  // davvero: alla Edily e' l'eccezione, e una colonna di zeri toglie
+  // spazio alle due che contano.
+  const conTrasferta = totaleTrasferta > 0
 
   const adesso = () => new Date().toISOString()
 
@@ -99,13 +103,16 @@ export function RapportinoPage() {
         <Dato etichetta="Orario">
           {r.ora_inizio || r.ora_fine ? `${ora(r.ora_inizio)}–${ora(r.ora_fine)}` : '—'}
         </Dato>
-        <Dato etichetta="Meteo">{r.meteo ?? '—'}</Dato>
         <Dato etichetta="Inviato">{r.inviato_at ? fmtData(r.inviato_at) : '—'}</Dato>
         <Dato etichetta="Validato">{r.validato_at ? fmtData(r.validato_at) : '—'}</Dato>
+        {/* Il meteo non si compila piu', ma le schede vecchie ce l'hanno
+            scritto: si mostra solo dove c'e', invece di lasciare in
+            pianta stabile una casella che dira' sempre "—". */}
+        {r.meteo && <Dato etichetta="Meteo">{r.meteo}</Dato>}
         {r.note && (
           <div className="sm:col-span-4">
             <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-gray-600">
-              Note
+              Descrizione attività
             </p>
             <p className="whitespace-pre-wrap text-sm font-semibold">{r.note}</p>
           </div>
@@ -124,7 +131,7 @@ export function RapportinoPage() {
                 <th>Dipendente</th>
                 <th className="text-right">Ordinarie</th>
                 <th className="text-right">Straord.</th>
-                <th className="text-right">Trasferta</th>
+                {conTrasferta && <th className="text-right">Trasferta</th>}
                 <th>Assenza</th>
               </tr>
             </thead>
@@ -137,14 +144,16 @@ export function RapportinoPage() {
                   </td>
                   <Cifra>{fmtNumero(o.ore_ordinarie)}</Cifra>
                   <Cifra className="text-gray-600">{fmtNumero(o.ore_straordinarie)}</Cifra>
-                  <Cifra className="text-gray-600">{fmtNumero(o.ore_trasferta)}</Cifra>
+                  {conTrasferta && (
+                    <Cifra className="text-gray-600">{fmtNumero(o.ore_trasferta)}</Cifra>
+                  )}
                   <td>{o.tipo_assenza ?? '—'}</td>
                 </tr>
               ))}
               <tr className="border-t-2 border-black bg-gray-50 font-bold">
                 <td colSpan={2}>Totale</td>
                 <Cifra colSpan={2}>{fmtNumero(totale)}</Cifra>
-                <Cifra>{fmtNumero(totaleTrasferta)}</Cifra>
+                {conTrasferta && <Cifra>{fmtNumero(totaleTrasferta)}</Cifra>}
                 <td />
               </tr>
             </tbody>
