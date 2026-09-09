@@ -162,10 +162,13 @@ export function ModificaRapportino() {
         valoriIniziali={valoriIniziali}
         cantieri={cantieri ?? []}
         bloccaCantiere
+        // La scheda esiste: le foto scelte qui partono subito, senza
+        // aspettare il salvataggio.
+        scheda={{ rapportinoId: id!, orgId: org!.id, cantiereId: r.cantiere_id }}
         etichettaSalva="Salva modifiche"
         inCorso={salva.isPending}
         errore={salva.isError ? (salva.error as Error).message : undefined}
-        onSalva={(c) => salva.mutate(c)}
+        onSalva={(campi) => salva.mutate(campi)}
         onAnnulla={() =>
           navigate(ritorno ? `/rapportini/${id}?ritorno=${ritorno}` : `/rapportini/${id}`)
         }

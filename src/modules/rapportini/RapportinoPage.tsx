@@ -5,6 +5,7 @@ import { Avviso, Button, Card, Cifra, Table, Vuoto } from '../../ui'
 import { useSession } from '../auth/SessionProvider'
 import { usePermission } from '../auth/usePermission'
 import { useRapportino, useTransizione } from './rapportino'
+import { useFoto } from './useFoto'
 import { modificabile } from './regole'
 import { StatoRapportino } from './stato'
 
@@ -174,6 +175,8 @@ export function RapportinoPage() {
           </Table>
         )}
       </Card>
+
+      <GalleriaFoto rapportinoId={r.id} />
 
       {/* ═══ Azioni: solo quelle che la macchina a stati ammette davvero ═══ */}
       <Card className="grid gap-3 p-5">
@@ -364,4 +367,59 @@ function Spiegazione({
 
   if (!testo) return null
   return <p className="text-xs font-semibold text-gray-600">{testo}</p>
+}
+
+/**
+ * Le foto in sola lettura.
+ *
+ * Il riquadro non compare se non ce ne sono: su una scheda senza foto
+ * una cornice vuota direbbe che manca qualcosa, mentre quasi sempre non
+ * mancava niente.
+ *
+ * Le immagini si aprono a tutta pagina in una scheda nuova. Non e' una
+ * finezza: il titolare valida guardando una crepa o un getto, e la
+ * miniatura serve a trovarla, non a giudicarla.
+ */
+function GalleriaFoto({ rapportinoId }: { rapportinoId: string }) {
+  const { data: foto, isPending, error } = useFoto(rapportinoId)
+
+  if (isPending || error) return null
+  if (!foto || foto.length === 0) return null
+
+  return (
+    <Card className="grid gap-3 p-5">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="text-lg font-extrabold text-black">Foto del cantiere</h2>
+        <p className="text-xs font-bold text-gray-600">
+          {foto.length} {foto.length === 1 ? 'scatto' : 'scatti'}
+        </p>
+      </div>
+
+      <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {foto.map((f) => (
+          <li key={f.id}>
+            {f.url ? (
+              <a
+                href={f.url}
+                target="_blank"
+                rel="noreferrer"
+                className="neo-press block aspect-square overflow-hidden rounded-xl border-2 border-black bg-gray-100"
+              >
+                <img
+                  src={f.url}
+                  alt="Foto del cantiere"
+                  loading="lazy"
+                  className="h-full w-full object-cover"
+                />
+              </a>
+            ) : (
+              <div className="flex aspect-square items-center justify-center rounded-xl border-2 border-black bg-gray-100 px-2 text-center text-[11px] font-bold text-gray-500">
+                Anteprima non disponibile
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+    </Card>
+  )
 }

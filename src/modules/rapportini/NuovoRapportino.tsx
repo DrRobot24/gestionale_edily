@@ -1,11 +1,12 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useSearchParams } from 'react-router'
 import { supabase } from '../../lib/supabase'
-import { Avviso } from '../../ui'
+import { Avviso, Button, Card } from '../../ui'
 import { useSession } from '../auth/SessionProvider'
 import { useCantieri } from '../cantieri/useCantieri'
 import { useDipendenti } from '../anagrafiche/dipendenti'
 import { FormRapportino } from './FormRapportino'
+import { caricaFoto } from './useFoto'
 import { oggi, type CampiRapportino } from './campiRapportino'
 
 export function NuovoRapportino() {
@@ -25,7 +26,7 @@ export function NuovoRapportino() {
   const { data: dipendenti, isPending: caricoDipendenti } = useDipendenti()
 
   const salva = useMutation({
-    mutationFn: async (campi: CampiRapportino) => {
+    mutationFn: async ({ campi, foto }: { campi: CampiRapportino; foto: File[] }) => {
       // Numero e anno NON si passano: li assegna il database con
       // document_counters. Verificato: il primo inserimento e' uscito
       // numerato 1/2026 senza che nessuno glielo chiedesse.
@@ -67,10 +68,42 @@ export function NuovoRapportino() {
         if (erroreOre) throw new Error(`Rapportino creato, ma le ore no: ${erroreOre.message}`)
       }
 
-      return rapportino.id
+      /**
+       * Le foto salgono per ultime, quando il rapportino ha finalmente
+       * un id a cui appartenere. Una alla volta di proposito: sulla
+       * connessione di un cantiere cinque caricamenti in parallelo si
+       * intralciano, e se una fallisce si sa quale.
+       *
+       * Una foto che non sale NON fa fallire il salvataggio, e non e'
+       * indulgenza: a questo punto il rapportino esiste gia'. Se
+       * rilanciassimo l'errore, l'utente riproverebbe a salvare e si
+       * ritroverebbe due schede per lo stesso cantiere e lo stesso
+       * giorno. Quindi si raccoglie cos'e' rimasto a terra e lo si dice
+       * dopo, che e' l'unico modo di non perdere ne' la scheda ne' la
+       * verita'.
+       */
+      const fallite: string[] = []
+      for (const file of foto) {
+        try {
+          await caricaFoto({
+            file,
+            orgId: org!.id,
+            cantiereId: campi.cantiere_id,
+            rapportinoId: rapportino.id,
+          })
+        } catch {
+          fallite.push(file.name)
+        }
+      }
+
+      return { id: rapportino.id, fallite }
     },
-    onSuccess: (id) => {
+    onSuccess: ({ id, fallite }) => {
       qc.invalidateQueries({ queryKey: ['rapportini'] })
+      // Se qualche foto e' rimasta a terra ci si ferma qui a dirlo.
+      // Andarsene lasciando credere che sia partito tutto e' peggio di
+      // un secondo di attesa in piu'.
+      if (fallite.length > 0) return
       // Chi arriva da una card vuole vedere quella card diventare
       // verde, non finire dentro la scheda che ha appena scritto.
       navigate(ritorno ?? `/rapportini/${id}`)
@@ -134,15 +167,41 @@ export function NuovoRapportino() {
         </p>
       </div>
 
+      {/* La scheda c'e', le foto no. Al posto del form si mette la via
+          d'uscita: risalvare da qui creerebbe un secondo rapportino
+          sullo stesso cantiere e lo stesso giorno. */}
+      {salva.isSuccess && salva.data.fallite.length > 0 ? (
+        <Card className="grid gap-3 p-5">
+          <Avviso tono="errore">
+            La scheda è salvata, ma{' '}
+            {salva.data.fallite.length === 1
+              ? 'una foto non è partita'
+              : `${salva.data.fallite.length} foto non sono partite`}
+            : {salva.data.fallite.join(', ')}. Aprila e riprova ad aggiungerle da lì.
+          </Avviso>
+          <div className="flex flex-wrap gap-3">
+            <Button
+              variante="primario"
+              onClick={() => navigate(`/rapportini/${salva.data.id}/modifica`)}
+            >
+              Apri la scheda e rimetti le foto
+            </Button>
+            <Button onClick={() => navigate(ritorno ?? `/rapportini/${salva.data.id}`)}>
+              Lascia stare, vai avanti
+            </Button>
+          </div>
+        </Card>
+      ) : (
       <FormRapportino
         valoriIniziali={valoriIniziali}
         cantieri={cantieri}
         etichettaSalva="Segna come compilata"
         inCorso={salva.isPending}
         errore={salva.isError ? (salva.error as Error).message : undefined}
-        onSalva={(c) => salva.mutate(c)}
+        onSalva={(campi, foto) => salva.mutate({ campi, foto })}
         onAnnulla={() => navigate(ritorno ?? '/rapportini')}
       />
+      )}
     </div>
   )
 }

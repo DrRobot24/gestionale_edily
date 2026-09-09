@@ -81,13 +81,30 @@ create policy rapportini_write on storage.objects
     and app.puo_vedere_cantiere(((storage.foldername(name))[2])::uuid)
   );
 
--- Cancellare una foto e' un'azione da chi valida, non da chi compila:
--- un rapportino inviato non deve poter perdere le sue prove.
+-- Cancellare una foto da un rapportino gia' partito e' un'azione da chi
+-- valida: le prove di una giornata inviata non devono poter sparire.
+--
+-- Ma finche' la scheda e' in mano al tecnico - bozza o respinta - deve
+-- poter togliere la foto storta o quella sbagliata che ha appena
+-- caricato. Negarglielo non protegge niente e lo costringe a mandare al
+-- titolare una scheda che sa di avere un errore dentro.
 create policy rapportini_delete on storage.objects
   for delete using (
     bucket_id = 'rapportini'
     and (storage.foldername(name))[1] ~ '^[0-9a-fA-F-]{36}$'
-    and app.has_perm(((storage.foldername(name))[1])::uuid, 'rapportini.validate')
+    and (
+      app.has_perm(((storage.foldername(name))[1])::uuid, 'rapportini.validate')
+      or (
+        (storage.foldername(name))[3] ~ '^[0-9a-fA-F-]{36}$'
+        and exists (
+          select 1
+          from public.rapportini r
+          where r.id = ((storage.foldername(name))[3])::uuid
+            and r.compilato_da = auth.uid()
+            and r.stato in ('bozza', 'respinto')
+        )
+      )
+    )
   );
 
 

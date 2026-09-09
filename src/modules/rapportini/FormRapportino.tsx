@@ -3,6 +3,7 @@ import { useForm, useFieldArray, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Avviso, Button, CampoArea, Campo, CampoSelect, Card, Input } from '../../ui'
 import { ASSENZE, schemaRapportino, type CampiRapportino } from './campiRapportino'
+import { RiquadroFoto } from './RiquadroFoto'
 
 type Props = {
   valoriIniziali: CampiRapportino
@@ -11,10 +12,14 @@ type Props = {
    *  rapportino sotto un'altra visibilita' e ne falserebbe la
    *  numerazione. Se e' quello sbagliato, la bozza si cancella. */
   bloccaCantiere?: boolean
+  /** Assente su una scheda nuova: non esiste ancora niente a cui
+   *  attaccare una foto. Le scelte restano in attesa e le carica chi
+   *  salva, subito dopo aver creato il rapportino. */
+  scheda?: { rapportinoId: string; orgId: string; cantiereId: string }
   etichettaSalva: string
   inCorso: boolean
   errore?: string
-  onSalva: (campi: CampiRapportino) => void
+  onSalva: (campi: CampiRapportino, foto: File[]) => void
   onAnnulla: () => void
 }
 
@@ -22,12 +27,14 @@ export function FormRapportino({
   valoriIniziali,
   cantieri,
   bloccaCantiere = false,
+  scheda,
   etichettaSalva,
   inCorso,
   errore,
   onSalva,
   onAnnulla,
 }: Props) {
+  const [foto, setFoto] = useState<File[]>([])
   const {
     register,
     control,
@@ -129,7 +136,11 @@ export function FormRapportino({
   }
 
   return (
-    <form onSubmit={handleSubmit(onSalva)} className="grid gap-4" noValidate>
+    <form
+      onSubmit={handleSubmit((campi) => onSalva(campi, foto))}
+      className="grid gap-4"
+      noValidate
+    >
       {errore && <Avviso tono="errore">{errore}</Avviso>}
 
       <Card className="grid gap-4 p-5">
@@ -389,6 +400,10 @@ export function FormRapportino({
           </>
         )}
       </Card>
+
+      {/* Le foto stanno fra la squadra e il taccuino: sono i fatti della
+          giornata, come le ore, e vengono prima dei commenti. */}
+      <RiquadroFoto scheda={scheda} inAttesa={foto} onCambia={setFoto} />
 
       {/* Il taccuino sta per conto suo, in fondo.
           Dentro il riquadro della squadra sembrerebbe una nota sulle

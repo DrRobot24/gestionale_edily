@@ -140,7 +140,13 @@ copre anche l'`update`, che prima lo lasciava passare grezzo.
 
 ### 🔴 Il bucket `rapportini` era pubblico
 > **Rimedio pronto in
-> [`supabase/schema/storage-rapportini.sql`](supabase/schema/storage-rapportini.sql).**
+> [`supabase/schema/storage-rapportini.sql`](supabase/schema/storage-rapportini.sql),
+> da eseguire seguito da
+> [`supabase/schema/rapportino-foto.sql`](supabase/schema/rapportino-foto.sql).**
+>
+> Il caricamento delle foto dal gestionale è scritto e non funziona finché
+> questi due non girano: senza policy su `storage.objects` il bucket resta
+> scrivibile da nessuno.
 
 Trovato il 2026-09-01 preparando lo storage delle bolle. `storage.buckets`
 diceva `public = true` per `rapportini`: chiunque avesse l'URL leggeva il file
