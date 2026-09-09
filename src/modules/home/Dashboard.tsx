@@ -6,6 +6,7 @@ import { useRapportini, type Rapportino } from '../rapportini/useRapportini'
 import { StatoRapportino } from '../rapportini/stato'
 import { data as formattaData } from '../../lib/formato'
 import { CantieriDelGiorno } from './CantieriDelGiorno'
+import { GiornateDaValidare } from './GiornateDaValidare'
 
 /* ══════════════════════════════════════════════════════════════════
    La home mostra cosa aspetta TE, non cosa sai fare.
@@ -43,12 +44,6 @@ export function Dashboard() {
   const tutti = rapportini ?? []
   const miei = tutti.filter((r) => r.compilato_da === app?.userId)
 
-  // In attesa da piu' tempo per primi: la coda di chi valida si legge
-  // dal piu' vecchio, non dal piu' recente.
-  const daValidare = tutti
-    .filter((r) => r.stato === 'inviato')
-    .sort((a, b) => (a.inviato_at ?? '').localeCompare(b.inviato_at ?? ''))
-
   const daCorreggere = miei.filter((r) => r.stato === 'respinto')
   const bozze = miei.filter((r) => r.stato === 'bozza')
   const esitoRecente = miei
@@ -74,28 +69,8 @@ export function Dashboard() {
 
       {!isPending && !error && (
         <div className="grid gap-6">
-          {/* ── Chi valida: la coda in attesa ── */}
-          {puoValidare && (
-            <Riquadro
-              titolo="Rapportini da validare"
-              conteggio={daValidare.length}
-              tono={daValidare.length > 0 ? 'attesa' : 'successo'}
-              vuoto="Nessun rapportino in attesa. La coda è pulita."
-              azione={{ etichetta: 'Tutti i rapportini', a: '/rapportini' }}
-            >
-              {daValidare.map((r) => (
-                <Riga
-                  key={r.id}
-                  rapportino={r}
-                  dettaglio={
-                    r.inviato_at
-                      ? `inviato il ${formattaData(r.inviato_at)}`
-                      : 'in attesa'
-                  }
-                />
-              ))}
-            </Riquadro>
-          )}
+          {/* ── Chi valida: le giornate, non le schede sciolte ── */}
+          {puoValidare && <GiornateDaValidare />}
 
           {/* ── Chi compila: prima la giornata di oggi, poi le code ── */}
           {puoCompilare && (
