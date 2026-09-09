@@ -100,14 +100,14 @@ export function RapportinoPage() {
       )}
 
       <Card className="grid gap-4 p-5 sm:grid-cols-4">
-        <Dato etichetta="Orario">
-          {r.ora_inizio || r.ora_fine ? `${ora(r.ora_inizio)}–${ora(r.ora_fine)}` : '—'}
-        </Dato>
+        {/* Orario e meteo si vedono solo dove qualcuno li ha scritti:
+            adesso sono campi facoltativi, e una casella fissa che dice
+            sempre "—" fa sembrare incompleta una scheda che non lo e'. */}
+        {(r.ora_inizio || r.ora_fine) && (
+          <Dato etichetta="Orario">{`${ora(r.ora_inizio)}–${ora(r.ora_fine)}`}</Dato>
+        )}
         <Dato etichetta="Inviato">{r.inviato_at ? fmtData(r.inviato_at) : '—'}</Dato>
         <Dato etichetta="Validato">{r.validato_at ? fmtData(r.validato_at) : '—'}</Dato>
-        {/* Il meteo non si compila piu', ma le schede vecchie ce l'hanno
-            scritto: si mostra solo dove c'e', invece di lasciare in
-            pianta stabile una casella che dira' sempre "—". */}
         {r.meteo && <Dato etichetta="Meteo">{r.meteo}</Dato>}
         {r.note && (
           <div className="sm:col-span-4">

@@ -58,6 +58,22 @@ export function FormRapportino({
     valoriIniziali.ore.some((o) => Number(o.ore_trasferta) > 0),
   )
 
+  /**
+   * Stessa storia per l'orario di cantiere, con un'aggravante: era
+   * precompilato 08:00–17:00. Un campo che nessuno guarda ma che si
+   * riempie da solo non e' un campo inutile, e' un campo che scrive una
+   * cosa non vera su ogni rapportino — e il giorno che serve davvero,
+   * per una mezza giornata o una contestazione, quel dato non varrebbe
+   * niente perche' c'e' su tutti uguale.
+   *
+   * Quindi: nascosto e vuoto. Chi ha bisogno di scrivere l'orario lo
+   * apre, e allora quello che c'e' scritto vuol dire qualcosa. Le ore di
+   * ogni operaio restano dove sono sempre state, nella squadra.
+   */
+  const [mostraOrario, setMostraOrario] = useState(
+    () => Boolean(valoriIniziali.ora_inizio) || Boolean(valoriIniziali.ora_fine),
+  )
+
   // useWatch e non watch(): watch() rilegge a ogni render e il
   // compilatore React non puo' memoizzarlo.
   const righe = useWatch({ control, name: 'ore' })
@@ -88,20 +104,48 @@ export function FormRapportino({
           ))}
         </CampoSelect>
 
-        <div className="grid gap-4 sm:grid-cols-3">
-          <Campo etichetta="Data" type="date" errore={errors.data?.message} {...register('data')} />
-          <Campo
-            etichetta="Inizio"
-            type="time"
-            errore={errors.ora_inizio?.message}
-            {...register('ora_inizio')}
-          />
-          <Campo
-            etichetta="Fine"
-            type="time"
-            errore={errors.ora_fine?.message}
-            {...register('ora_fine')}
-          />
+        <div className="grid gap-2">
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Campo
+              etichetta="Data"
+              type="date"
+              errore={errors.data?.message}
+              {...register('data')}
+            />
+            {mostraOrario && (
+              <>
+                <Campo
+                  etichetta="Inizio"
+                  type="time"
+                  errore={errors.ora_inizio?.message}
+                  {...register('ora_inizio')}
+                />
+                <Campo
+                  etichetta="Fine"
+                  type="time"
+                  errore={errors.ora_fine?.message}
+                  {...register('ora_fine')}
+                />
+              </>
+            )}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              // Chiuderlo svuota gli orari, come per la trasferta: un
+              // 08:00–17:00 che non si vede piu' ma che parte lo stesso
+              // e' peggio di non averlo.
+              if (mostraOrario) {
+                setValue('ora_inizio', '')
+                setValue('ora_fine', '')
+              }
+              setMostraOrario((v) => !v)
+            }}
+            className="neo-press w-fit cursor-pointer rounded-lg border-2 border-black bg-white px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-wide"
+          >
+            {mostraOrario ? 'Niente orario' : '+ Orario di cantiere'}
+          </button>
         </div>
 
         {/* Il campo si chiama `note` nel database — condiviso con

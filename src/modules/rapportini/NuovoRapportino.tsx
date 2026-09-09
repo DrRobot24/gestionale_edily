@@ -98,8 +98,11 @@ export function NuovoRapportino() {
   const valoriIniziali: CampiRapportino = {
     cantiere_id: cantiereScelto ?? (cantieri.length === 1 ? cantieri[0].id : ''),
     data: giornoScelto ?? oggi(),
-    ora_inizio: '08:00',
-    ora_fine: '17:00',
+    // Vuoti, non 08:00–17:00: un orario precompilato finiva identico su
+    // ogni rapportino, e un dato che c'e' sempre uguale non dice niente
+    // il giorno che qualcuno lo va a leggere.
+    ora_inizio: '',
+    ora_fine: '',
     note: '',
     nessuna_attivita: false,
     ore: (dipendenti ?? []).map((d) => ({
