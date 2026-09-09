@@ -39,12 +39,15 @@ type Voce = {
 /**
  * Le anagrafiche stanno in menu a chi le tiene, non a chi le legge.
  *
- * Operai, Cantieri e Fornitori sono registri che alla Edily compila
- * l'amministrazione. Il tecnico non ci mette mano: i cantieri li trova
- * come card in home, gia' filtrati sui suoi, e gli operai li sceglie
- * dalla tendina dentro il rapportino. Lasciargli in menu tre elenchi
- * che puo' solo guardare vuol dire fargli cercare la voce giusta fra
- * sei invece che fra tre.
+ * Clienti, Operai, Cantieri e Fornitori sono registri che alla Edily
+ * compila l'amministrazione. Il tecnico non ci mette mano: i cantieri li
+ * trova come card in home, gia' filtrati sui suoi, e gli operai li
+ * sceglie dalla tendina dentro il rapportino. Lasciargli in menu quattro
+ * elenchi che puo' solo guardare vuol dire fargli cercare la voce giusta
+ * fra sette invece che fra quattro.
+ *
+ * Al tecnico restano Home, Rapportini, Documenti e Subappalti: le
+ * quattro cose che fa davvero.
  *
  * I cancelli sono quelli che dicono la stessa cosa nel linguaggio dei
  * permessi, non il nome di un ruolo:
@@ -54,7 +57,8 @@ type Voce = {
  *                         puo' vederli tutti. Al tecnico la RLS ne
  *                         mostrerebbe comunque solo i suoi, che sono
  *                         gia' in home.
- *   Operai, Fornitori     anagrafiche.write — chi tiene il registro
+ *   Clienti, Operai,      anagrafiche.write — chi tiene il registro
+ *   Fornitori
  *
  * ATTENZIONE a cosa NON e' questa riga: non e' sicurezza. Chi non ha il
  * permesso non vede la voce e non apre la rotta, ma cio' che protegge
@@ -77,10 +81,36 @@ const VOCI: Voce[] = [
     elemento: <CantieriPage />,
   },
   { to: '/rapportini', etichetta: 'Rapportini', elemento: <RapportiniPage /> },
+
+  /* Le due voci del tecnico che restano da costruire. Senza `perm` di
+     proposito e non per fretta: finche' non esistono non c'e' niente da
+     proteggere, e il cancello va scelto quando si sa chi ci lavora
+     dentro. Metterne uno adesso vorrebbe dire indovinare. */
+  {
+    to: '/documenti',
+    etichetta: 'Documenti',
+    elemento: (
+      <Segnaposto
+        titolo="Documenti"
+        nota="Qui arriveranno i documenti di cantiere, presi dallo storage. Lo spazio non è ancora stato creato."
+      />
+    ),
+  },
+  {
+    to: '/subappalti',
+    etichetta: 'Subappalti',
+    elemento: (
+      <Segnaposto
+        titolo="Subappalti"
+        nota="Le imprese in subappalto e cosa fanno su ogni cantiere. Da costruire."
+      />
+    ),
+  },
+
   {
     to: '/anagrafiche/clienti',
     etichetta: 'Clienti',
-    perm: 'anagrafiche.read',
+    perm: 'anagrafiche.write',
     elemento: <ClientiPage />,
   },
   {
@@ -316,13 +346,13 @@ function classeVoce({ isActive }: { isActive: boolean }): string {
    Pagine
    ═══════════════════════════════════════════════════════════════════ */
 
-function Segnaposto({ titolo }: { titolo: string }) {
+function Segnaposto({ titolo, nota }: { titolo: string; nota?: string }) {
   return (
     <div className="mx-auto grid max-w-4xl gap-6">
       <h1 className="text-2xl font-extrabold text-black">{titolo}</h1>
       <Card className="p-5">
         <p className="text-sm font-semibold text-gray-600">
-          Sezione non ancora costruita. Il permesso c&rsquo;è, i dati arrivano dopo.
+          {nota ?? 'Sezione non ancora costruita. Il permesso c’è, i dati arrivano dopo.'}
         </p>
       </Card>
     </div>

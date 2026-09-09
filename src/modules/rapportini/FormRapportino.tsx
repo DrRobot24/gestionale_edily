@@ -401,6 +401,23 @@ export function FormRapportino({
         )}
       </Card>
 
+      {/* Subappalto: sta subito sotto la squadra perche' risponde alla
+          stessa domanda — chi ha lavorato oggi qui — solo per le
+          imprese che non sono la nostra.
+
+          Per ora e' un posto riservato e basta: non ha campi e non
+          salva niente. Inventarsi adesso le colonne (ragione sociale?
+          fornitore collegato? ore? importo?) vorrebbe dire scegliere al
+          posto di chi lo usera', e poi migrare dati veri per
+          correggersi. */}
+      <Card className="grid gap-2 border-dashed p-5">
+        <h2 className="text-lg font-extrabold text-gray-500">Subappalto</h2>
+        <p className="text-sm font-semibold text-gray-500">
+          Le imprese esterne che hanno lavorato in questo cantiere oggi. Sezione ancora da
+          costruire: per adesso non si compila e non salva nulla.
+        </p>
+      </Card>
+
       {/* Le foto stanno fra la squadra e il taccuino: sono i fatti della
           giornata, come le ore, e vengono prima dei commenti. */}
       <RiquadroFoto scheda={scheda} inAttesa={foto} onCambia={setFoto} />
