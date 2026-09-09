@@ -106,10 +106,15 @@ begin
         and r.data = p_giorno
     );
 
+  -- Il messaggio lo legge il tecnico, non un log: "Mancano 1 schede"
+  -- e' esattamente il genere di sciatteria che fa sembrare rotto un
+  -- programma che funziona.
   if mancanti > 0 then
-    raise exception
-      'Mancano % schede. La giornata si invia solo quando ogni cantiere attivo ha la sua, anche quelli fermi.',
-      mancanti
+    raise exception '%',
+      case when mancanti = 1
+        then 'Manca una scheda. La giornata si invia solo quando ogni cantiere attivo ha la sua, anche quelli fermi.'
+        else format('Mancano %s schede. La giornata si invia solo quando ogni cantiere attivo ha la sua, anche quelli fermi.', mancanti)
+      end
       using errcode = 'P0001';
   end if;
 
@@ -124,9 +129,11 @@ begin
     and r.stato = 'respinto';
 
   if da_correggere > 0 then
-    raise exception
-      '% schede sono state respinte: vanno corrette prima di rimandare la giornata.',
-      da_correggere
+    raise exception '%',
+      case when da_correggere = 1
+        then 'Una scheda e'' stata respinta: va corretta prima di rimandare la giornata.'
+        else format('%s schede sono state respinte: vanno corrette prima di rimandare la giornata.', da_correggere)
+      end
       using errcode = 'P0001';
   end if;
 
