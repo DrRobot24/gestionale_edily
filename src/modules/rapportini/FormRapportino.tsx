@@ -63,7 +63,7 @@ export function FormRapportino({
         <CampoSelect
           etichetta="Cantiere"
           disabled={bloccaCantiere}
-          suggerimento={bloccaCantiere ? 'Non si cambia: se è sbagliato, elimina la bozza' : undefined}
+          suggerimento={bloccaCantiere ? 'Non si cambia: se è sbagliato, elimina la scheda' : undefined}
           errore={errors.cantiere_id?.message}
           {...register('cantiere_id')}
         >

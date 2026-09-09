@@ -5,7 +5,8 @@ import type { RapportinoStato } from './regole'
  * Gli stati del rapportino, col colore che ne racconta il significato
  * operativo invece che l'ordine cronologico:
  *
- *   bozza          non ancora partito, nessuno lo aspetta   → neutro
+ *   bozza          compilata, aspetta le altre schede della
+ *                  giornata per partire                     → neutro
  *   inviato        e' sul tavolo del titolare, si attende   → giallo
  *   respinto       torna indietro, c'e' da rifare           → rosso
  *   validato       accettato                                → verde
@@ -20,7 +21,7 @@ const STATI: Record<
   RapportinoStato,
   { etichetta: string; colore: Parameters<typeof Badge>[0]['colore'] }
 > = {
-  bozza: { etichetta: 'Bozza', colore: 'neutro' },
+  bozza: { etichetta: 'Compilata', colore: 'neutro' },
   inviato: { etichetta: 'Inviato', colore: 'attesa' },
   respinto: { etichetta: 'Respinto', colore: 'errore' },
   validato: { etichetta: 'Validato', colore: 'successo' },

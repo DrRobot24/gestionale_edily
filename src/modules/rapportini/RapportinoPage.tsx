@@ -224,7 +224,7 @@ export function RapportinoPage() {
               <Button
                 disabled={transizione.isPending}
                 onClick={() => {
-                  if (!confirm('Riaprire il rapportino? Torna in bozza e andrà rinviato.')) return
+                  if (!confirm('Riaprire il rapportino? Torna compilabile e la giornata andrà rimandata.')) return
                   transizione.mutate({
                     id: r.id,
                     stato: 'bozza',

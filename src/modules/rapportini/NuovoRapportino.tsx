@@ -118,14 +118,15 @@ export function NuovoRapportino() {
       <div>
         <h1 className="text-2xl font-extrabold text-black">Nuovo rapportino</h1>
         <p className="text-sm font-semibold text-gray-600">
-          Si salva come bozza. L&rsquo;invio al titolare è un secondo passaggio.
+          Quando la salvi la scheda risulta compilata. Al titolare parte tutta la giornata
+          insieme, dalla home, quando ogni cantiere ha la sua.
         </p>
       </div>
 
       <FormRapportino
         valoriIniziali={valoriIniziali}
         cantieri={cantieri}
-        etichettaSalva="Salva bozza"
+        etichettaSalva="Segna come compilata"
         inCorso={salva.isPending}
         errore={salva.isError ? (salva.error as Error).message : undefined}
         onSalva={(c) => salva.mutate(c)}

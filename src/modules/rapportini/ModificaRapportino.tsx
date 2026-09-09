@@ -31,6 +31,22 @@ export function ModificaRapportino() {
           meteo: campi.meteo || null,
           note: campi.note || null,
           nessuna_attivita: campi.nessuna_attivita,
+          /**
+           * Una scheda respinta che viene corretta non e' piu'
+           * respinta.
+           *
+           * Finche' l'invio era singolo ci pensava il pulsante "Invia
+           * al titolare" a rimetterla in riga. Da quando parte la
+           * giornata intera quel pulsante non c'e' piu', e senza questa
+           * riga la scheda resterebbe respinta per sempre: gialla nella
+           * home, e il foglio bloccato senza una via d'uscita.
+           *
+           * `respinto -> bozza` e' una transizione ammessa e il trigger
+           * la lascia passare all'autore.
+           */
+          ...(r?.stato === 'respinto'
+            ? { stato: 'bozza' as const, motivo_rifiuto: null }
+            : {}),
         })
         .eq('id', id!)
         .eq('org_id', org!.id)
@@ -126,7 +142,8 @@ export function ModificaRapportino() {
           Modifica rapportino {r.numero ? `n. ${r.numero}/${r.anno}` : ''}
         </h1>
         <p className="text-sm font-semibold text-gray-600">
-          Resta una bozza finché non la reinvii.
+          Le modifiche restano nella scheda: al titolare parte tutta la giornata insieme,
+          dalla home.
         </p>
       </div>
 
