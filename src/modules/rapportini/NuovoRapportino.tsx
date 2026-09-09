@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from 'react-router'
+import { useNavigate, useSearchParams } from 'react-router'
 import { supabase } from '../../lib/supabase'
 import { Avviso } from '../../ui'
 import { useSession } from '../auth/SessionProvider'
@@ -12,6 +12,13 @@ export function NuovoRapportino() {
   const { org, app } = useSession()
   const navigate = useNavigate()
   const qc = useQueryClient()
+  const [params] = useSearchParams()
+
+  // Si arriva qui anche dalle card della home, che hanno gia' deciso
+  // quale cantiere e quale giorno: ripresentarli vuoti costringerebbe a
+  // riselezionare cio' che si e' appena cliccato.
+  const cantiereScelto = params.get('cantiere')
+  const giornoScelto = params.get('data')
 
   const { data: cantieri, isPending: caricoCantieri } = useCantieri()
   const { data: dipendenti, isPending: caricoDipendenti } = useDipendenti()
@@ -86,8 +93,8 @@ export function NuovoRapportino() {
    * gia' scelto.
    */
   const valoriIniziali: CampiRapportino = {
-    cantiere_id: cantieri.length === 1 ? cantieri[0].id : '',
-    data: oggi(),
+    cantiere_id: cantiereScelto ?? (cantieri.length === 1 ? cantieri[0].id : ''),
+    data: giornoScelto ?? oggi(),
     ora_inizio: '08:00',
     ora_fine: '17:00',
     meteo: '',

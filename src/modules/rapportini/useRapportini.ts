@@ -24,7 +24,7 @@ export function useRapportini() {
       const { data, error } = await supabase
         .from('rapportini')
         .select(
-          'id, data, numero, anno, stato, note, ora_inizio, ora_fine, meteo, compilato_da, inviato_at, validato_at, motivo_rifiuto, cantieri ( codice, denominazione )',
+          'id, cantiere_id, data, numero, anno, stato, note, ora_inizio, ora_fine, meteo, compilato_da, inviato_at, validato_at, motivo_rifiuto, cantieri ( codice, denominazione )',
         )
         .eq('org_id', org!.id)
         .order('data', { ascending: false })

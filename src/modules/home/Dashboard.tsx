@@ -5,6 +5,7 @@ import { useSession } from '../auth/SessionProvider'
 import { useRapportini, type Rapportino } from '../rapportini/useRapportini'
 import { StatoRapportino } from '../rapportini/stato'
 import { data as formattaData } from '../../lib/formato'
+import { CantieriDelGiorno } from './CantieriDelGiorno'
 
 /* ══════════════════════════════════════════════════════════════════
    La home mostra cosa aspetta TE, non cosa sai fare.
@@ -96,9 +97,11 @@ export function Dashboard() {
             </Riquadro>
           )}
 
-          {/* ── Chi compila: cosa e' tornato indietro, e perche' ── */}
+          {/* ── Chi compila: prima la giornata di oggi, poi le code ── */}
           {puoCompilare && (
             <>
+              <CantieriDelGiorno />
+
               <Riquadro
                 titolo="Da correggere"
                 conteggio={daCorreggere.length}
