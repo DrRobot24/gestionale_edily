@@ -824,6 +824,66 @@ export type Database = {
           },
         ]
       }
+      note_contabili: {
+        Row: {
+          cantiere_id: string
+          completata_il: string | null
+          created_at: string
+          id: string
+          iniziata_il: string | null
+          lavorazione: string
+          note: string | null
+          org_id: string
+          scritta_da: string | null
+          stato: string
+          updated_at: string
+          wbs_task_id: string | null
+        }
+        Insert: {
+          cantiere_id: string
+          completata_il?: string | null
+          created_at?: string
+          id?: string
+          iniziata_il?: string | null
+          lavorazione: string
+          note?: string | null
+          org_id: string
+          scritta_da?: string | null
+          stato?: string
+          updated_at?: string
+          wbs_task_id?: string | null
+        }
+        Update: {
+          cantiere_id?: string
+          completata_il?: string | null
+          created_at?: string
+          id?: string
+          iniziata_il?: string | null
+          lavorazione?: string
+          note?: string | null
+          org_id?: string
+          scritta_da?: string | null
+          stato?: string
+          updated_at?: string
+          wbs_task_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "note_contabili_cantiere_id_fkey"
+            columns: ["cantiere_id"]
+            isOneToOne: false
+            referencedRelation: "cantieri"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "note_contabili_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organizations: {
         Row: {
           attiva: boolean

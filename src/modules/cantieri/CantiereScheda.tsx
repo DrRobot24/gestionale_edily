@@ -12,6 +12,7 @@ import {
 } from '../rapportini/useRapportini'
 import { assegnazioneInCorso, useAssegnazioni, useMembri } from './assegnazioni'
 import { useCantiere } from './cantieri'
+import { RiquadroNoteContabili } from './RiquadroNoteContabili'
 import { StatoCantiere } from './stato'
 
 /* ══════════════════════════════════════════════════════════════════
@@ -47,6 +48,10 @@ export function CantiereScheda() {
   const vedeElenco = usePermission('cantieri.read_all')
   const puoAssegnare = usePermission('cantieri.assign')
   const puoCompilare = usePermission('rapportini.create')
+  // Le note contabili le scrivono il tecnico sui cantieri suoi e il
+  // titolare ovunque. `rapportini.validate` e' il modo di dire "il
+  // titolare" in permessi: owner e admin ce l'hanno, amministrazione no.
+  const eIlTitolare = usePermission('rapportini.validate')
   const vedeSoldi = usePermission('economics.read')
 
   const { data: c, isPending, error } = useCantiere(id)
@@ -144,6 +149,13 @@ export function CantiereScheda() {
       <div className="grid gap-4 lg:grid-cols-3 lg:items-start">
         <div className="grid gap-4 lg:col-span-2">
           <SquadraAssegnata cantiereId={id!} puoAssegnare={puoAssegnare} />
+
+          {/* Sopra lo storico di proposito. Lo storico dice cosa e'
+              successo; questa dice dove sta il lavoro adesso, ed e' la
+              domanda che ci si fa aprendo la pagina. Il passato viene
+              dopo il presente. */}
+          <RiquadroNoteContabili cantiereId={id!} puoScrivere={puoCompilare || eIlTitolare} />
+
           <Storico righe={storico} caricando={caricoSchede} />
         </div>
 

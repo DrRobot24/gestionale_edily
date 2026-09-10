@@ -15,6 +15,7 @@
 | Cantieri — elenco, scheda, creazione, modifica | ✅ |
 | Cantieri — assegnazione della squadra | ✅ |
 | Cantieri — scheda di riepilogo, tappa prima del rapportino | ✅ |
+| Cantieri — note contabili (avanzamento delle lavorazioni) | ⏳ codice pronto, **SQL da eseguire** |
 | Clienti — elenco, scheda, CRUD, azienda/privato | ✅ |
 | Operai — elenco, scheda, CRUD, storico tariffe | ✅ |
 | Rapportini — elenco, scheda, creazione, modifica | ✅ |
@@ -48,7 +49,8 @@ di sola lettura e dice riga per riga cosa è FATTO e cosa è DA FARE.
 | [`storage-rapportini.sql`](supabase/schema/storage-rapportini.sql) | ✅ bucket chiuso, 3 policy su 3 |
 | [`rapportino-foto.sql`](supabase/schema/rapportino-foto.sql) | ✅ RLS attiva — ma le policy sono di wbs-office, vedi il difetto qui sotto |
 | [`ore-giornata.sql`](supabase/schema/ore-giornata.sql) | ✅ eseguito il 2026-09-10: colonna `ore_assenza` e funzione `ore_giornata()`, verificata `security definer` |
-| [`foglio-ore-tecnico.sql`](supabase/schema/foglio-ore-tecnico.sql) | ⏳ **da eseguire** — la giornata non parte senza le ore di chi la manda. Si può eseguire subito: non cambia niente finché il tecnico non viene collegato a un'anagrafica |
+| [`foglio-ore-tecnico.sql`](supabase/schema/foglio-ore-tecnico.sql) | ✅ eseguito il 2026-09-10 |
+| [`note-contabili.sql`](supabase/schema/note-contabili.sql) | ⏳ **da eseguire** — crea la tabella `note_contabili` con le sue policy. Senza, il riquadro nella scheda del cantiere non legge e non salva |
 
 Tutti e tre si possono rilanciare senza danno. Il primo usa `add column if not
 exists`; il terzo si ferma da solo se le policy ci sono già; il secondo dal
@@ -321,6 +323,21 @@ Da fare **prima** di toccare le policy.
 
 ## Prossimi passi
 
+> **Chiusi il 2026-09-10 (quinto giro).** Le **note contabili** dentro la scheda
+> del cantiere: a che punto sono le singole lavorazioni, che è la domanda a cui
+> il rapportino non risponde. Il rapportino dice chi c'era e quante ore; questa
+> dice che la posa del pavimento è finita e che i battiscopa cominciano
+> lunedì. Niente importi, per scelta: i soldi restano in `costi_cantiere` e
+> `ricavi_cantiere`, e una seconda fonte di verità sugli stessi numeri prima o
+> poi diverge da sola. La scrivono il tecnico sui cantieri suoi e il titolare
+> ovunque, perché se al tecnico sfugge qualcosa deve poterlo aiutare.
+>
+> *Perché non `wbs_tasks`, che sarebbe fatta apposta:* è uno **specchio** di
+> wbs-office, con `synced_at` e `project_id` non nullo, e le sue righe le
+> riscrive la sincronizzazione. Scriverci a mano vorrebbe dire perdere tutto al
+> primo sync. Resta `wbs_task_id` sulla tabella nuova, nullo e inutilizzato, per
+> il giorno che il ponte funziona.
+>
 > **Chiusi il 2026-09-10 (quarto giro).** Fascia di benvenuto in home: saluto
 > con il nome, data grande per esteso, verde. Prima la pagina si apriva con la
 > ragione sociale dell'impresa, che chi la legge ogni mattina conosce già.
