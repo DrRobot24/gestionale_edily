@@ -300,7 +300,16 @@ function Barra({ voci }: { voci: Voce[] }) {
       </nav>
 
       <div className="border-t-2 border-black px-5 py-4">
-        <p className="truncate text-xs font-bold text-white">{app?.email}</p>
+        {/* Il nome sopra, l'indirizzo sotto in piccolo. Chi lavora qui si
+            riconosce dal nome; l'email serve quando qualcosa non torna e
+            bisogna sapere con quale utenza si e' entrati, quindi resta
+            ma smette di essere la cosa piu' grossa del riquadro. */}
+        <p className="truncate text-xs font-bold text-white" title={app?.email ?? undefined}>
+          {app?.nome || app?.email}
+        </p>
+        {app?.nome && app?.email && (
+          <p className="truncate text-[10px] font-semibold text-gray-500">{app.email}</p>
+        )}
         <p className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-gray-500">
           {org?.ruolo}
         </p>

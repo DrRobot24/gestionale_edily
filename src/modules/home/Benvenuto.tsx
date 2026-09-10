@@ -25,12 +25,13 @@ import { oggi } from '../rapportini/campiRapportino'
 export function Benvenuto() {
   const { app, org } = useSession()
   const giorno = oggi()
+  const chiSei = nomeDi(app?.nome, app?.email)
 
   return (
     <Card className="bg-lime-200 p-5 sm:p-6">
       <p className="text-sm font-extrabold uppercase tracking-wide text-lime-900">
         {saluto()}
-        {nomeDi(app?.nome, app?.email) && `, ${nomeDi(app?.nome, app?.email)}`}
+        {chiSei && `, ${chiSei}`}
       </p>
 
       {/* `capitalize` perche' Intl in italiano scrive "giovedi 10
@@ -64,14 +65,20 @@ function saluto(adesso = new Date()): string {
 }
 
 /**
- * Il nome di battesimo, se c'e'. Altrimenti la parte dell'email prima
- * della chiocciola, che almeno e' una parola e non un indirizzo.
+ * Il nome scritto nel profilo, per intero: nome e cognome.
  *
- * Se non si ricava niente di decente si saluta e basta: «Buongiorno» da
- * solo funziona, «Buongiorno, tecnico@cassia.com» no.
+ * All'inizio prendeva solo il nome di battesimo. In un ufficio dove le
+ * persone si chiamano per nome e cognome, e dove dietro
+ * "amministrazione" c'e' una persona con un nome, accorciarlo la rende
+ * meno riconoscibile, non piu' familiare.
+ *
+ * Senza profilo compilato ripiega sulla parte dell'email prima della
+ * chiocciola: almeno e' una parola e non un indirizzo. Se non si ricava
+ * niente di decente si saluta e basta — «Buongiorno» da solo funziona,
+ * «Buongiorno, tecnico@cassia.com» no.
  */
 function nomeDi(nome: string | null | undefined, email: string | null | undefined): string {
-  if (nome) return nome.split(' ')[0]
+  if (nome) return nome
   const locale = email?.split('@')[0]
   if (!locale) return ''
   return locale.charAt(0).toUpperCase() + locale.slice(1)
