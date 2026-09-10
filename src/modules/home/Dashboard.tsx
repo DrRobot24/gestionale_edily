@@ -6,6 +6,7 @@ import { useRapportini, type Rapportino } from '../rapportini/useRapportini'
 import { StatoRapportino } from '../rapportini/stato'
 import { data as formattaData } from '../../lib/formato'
 import { CantieriDelGiorno } from './CantieriDelGiorno'
+import { GiornateAperte } from './GiornateAperte'
 import { GiornateDaValidare } from './GiornateDaValidare'
 
 /* ══════════════════════════════════════════════════════════════════
@@ -45,10 +46,6 @@ export function Dashboard() {
   const miei = tutti.filter((r) => r.compilato_da === app?.userId)
 
   const daCorreggere = miei.filter((r) => r.stato === 'respinto')
-  const bozze = miei.filter((r) => r.stato === 'bozza')
-  const esitoRecente = miei
-    .filter((r) => r.stato === 'validato' || r.stato === 'contabilizzato')
-    .slice(0, 3)
 
   const daContabilizzare = tutti.filter((r) => r.stato === 'validato')
 
@@ -77,11 +74,18 @@ export function Dashboard() {
             <>
               <CantieriDelGiorno />
 
+              {/* `vuoto` vuota di proposito: senza righe il riquadro
+                  sparisce del tutto. Un pannello verde permanente che
+                  dice "nessun rapportino respinto" occupa mezza
+                  schermata per annunciare che non e' successo niente, e
+                  insegna a saltare con l'occhio proprio la zona dove un
+                  giorno comparira' la cosa urgente. L'assenza del rosso
+                  e' gia' il messaggio. */}
               <Riquadro
                 titolo="Da correggere"
                 conteggio={daCorreggere.length}
-                tono={daCorreggere.length > 0 ? 'errore' : 'successo'}
-                vuoto="Nessun rapportino respinto."
+                tono="errore"
+                vuoto=""
               >
                 {daCorreggere.map((r) => (
                   <Riga
@@ -95,32 +99,13 @@ export function Dashboard() {
                 ))}
               </Riquadro>
 
-              {bozze.length > 0 && (
-                <Riquadro
-                  titolo="Bozze da inviare"
-                  conteggio={bozze.length}
-                  tono="neutro"
-                  vuoto=""
-                >
-                  {bozze.map((r) => (
-                    <Riga key={r.id} rapportino={r} dettaglio="non ancora inviato" />
-                  ))}
-                </Riquadro>
-              )}
-
-              {esitoRecente.length > 0 && daCorreggere.length === 0 && (
-                <Riquadro titolo="Ultimi esiti" conteggio={null} tono="successo" vuoto="">
-                  {esitoRecente.map((r) => (
-                    <Riga
-                      key={r.id}
-                      rapportino={r}
-                      dettaglio={
-                        r.validato_at ? `validato il ${formattaData(r.validato_at)}` : 'validato'
-                      }
-                    />
-                  ))}
-                </Riquadro>
-              )}
+              {/* Le giornate dei giorni scorsi rimaste a meta'. Ha
+                  preso il posto di "Bozze da inviare", che prometteva un
+                  invio singolo non piu' esistente, e di "Ultimi esiti",
+                  che mostrava al tecnico cose gia' andate bene: una
+                  bacheca dei complimenti, non qualcosa che aspetta lui.
+                  Questa home dice cosa devi fare adesso. */}
+              <GiornateAperte />
             </>
           )}
 

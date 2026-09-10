@@ -319,6 +319,15 @@ Da fare **prima** di toccare le policy.
 
 ## Prossimi passi
 
+> **Chiusi il 2026-09-10 (secondo giro).** Ripulita la home del tecnico. Via
+> «Ultimi esiti», che mostrava cose già andate bene e non chiedeva niente a
+> nessuno. Via «Bozze da inviare», il cui titolo era diventato falso: da quando
+> si manda il foglio di giornata, una scheda da sola non si invia più. Al loro
+> posto «Giornate rimaste aperte», che raggruppa per giorno e dice quante schede
+> mancano per chiudere quel giorno — che è il fatto vero che si nascondeva
+> dietro il titolo sbagliato. E «Da correggere» sparisce quando è vuota, invece
+> di occupare mezza schermata per annunciare che non è successo niente.
+>
 > **Chiusi il 2026-09-10.** La scheda del cantiere, che era la tappa mancante:
 > dalla card in home non si finisce piu' dritti nel form del rapportino, si
 > approda su una panoramica con squadra assegnata, giorni gia' lavorati, foto e
@@ -386,7 +395,74 @@ poi quello che ne aggiunge.
 > girano, note al titolare e foto di cantiere sono codice che non funziona, e il
 > bucket `rapportini` resta pubblico.
 
-1. **Subappalto dentro il rapportino.** Chiesto il 2026-09-09. Nella scheda c'è
+1. **Il controllo delle 8 ore per operaio, sulla giornata solare.** Chiesto il
+   2026-09-10, ed è la richiesta più grossa delle tre. Il metro sono le 8 ore
+   del contratto italiano, e il conto va fatto **sulla persona e sul giorno**,
+   non sul singolo rapportino: se Mario Rossi ha 4 ore sul cantiere X, 2 sul Y e
+   3 sul Z, il totale è 9 e va segnalato.
+
+   - Se le ordinarie superano 8, l'eccedenza è **straordinario**, e l'avviso
+     deve chiedere *in quale cantiere* è stato fatto: sposta ore da
+     `ore_ordinarie` a `ore_straordinarie` su una riga precisa.
+   - Se stanno sotto 8, va indicato il **motivo** della mancanza: permesso,
+     malattia, e così via.
+
+   *C'è già la materia prima nel database:* la vista **`v_ore_giornaliere`**
+   dà una riga per dipendente, cantiere e giorno, con ordinarie,
+   straordinarie, totali e `tipo_assenza`. Basta raggrupparla per persona e
+   data. **Da verificare prima:** che sia `security_invoker`, come impone la
+   regola sulle viste; una vista `security definer` scavalcherebbe la RLS.
+
+   ```sql
+   select c.relname, c.reloptions
+   from pg_class c join pg_namespace n on n.oid = c.relnamespace
+   where n.nspname = 'public' and c.relname like 'v_%';
+   ```
+
+   *Il nodo vero, e non è di interfaccia:* il conto ha bisogno di vedere
+   **tutti** i cantieri del giorno, anche quelli non assegnati a chi guarda. Con
+   il perimetro per assegnazione — che resta, è una decisione presa — un
+   tecnico non può leggere le ore messe da un collega su un cantiere suo, quindi
+   una somma fatta nel browser sarebbe incompleta per costruzione, e in silenzio.
+   La strada pulita è una funzione `security definer` che restituisce **solo
+   l'aggregato per persona** (totale ore del giorno), mai il dettaglio dei
+   cantieri fuori dal tuo perimetro: si viene a sapere che Mario ha 9 ore, non su
+   quali cantieri sono le altre 5. Il dettaglio si mostra solo per i cantieri
+   propri, e il resto si scrive «altri cantieri: 5 ore».
+
+   *Un buco nello schema da colmare prima:* oggi una persona è o presente con le
+   ore, o assente con un motivo e zero ore. Un **permesso di 2 ore** in mezzo a
+   una giornata lavorata non si può scrivere. Serve decidere: una colonna
+   `ore_assenza` su `rapportino_ore`, oppure due righe per la stessa persona
+   sullo stesso rapportino — e in quel caso va controllato se esiste un vincolo
+   di unicità su `(rapportino_id, dipendente_id)` che lo impedisce.
+
+   *Dove va l'avviso:* nella home, dentro la fascia della giornata, prima del
+   pulsante che manda il foglio. E la stessa regola andrà dentro
+   `invia_foglio_giornata`, perché un controllo che vive solo
+   nell'interfaccia lo aggira chiunque chiami l'API.
+
+2. **Le ore del tecnico.** Chiesto il 2026-09-10: anche chi compila lavora, e
+   deve poter segnare le proprie ore.
+
+   *Il ponte esiste già:* `dipendenti` ha una colonna **`user_id`** che lega
+   l'anagrafica all'utente di `auth.users`. Quindi la strada non è inventare un
+   posto nuovo: è dare al tecnico la sua riga in `dipendenti` con `user_id`
+   valorizzato, e da quel momento compare nella tendina della squadra come
+   chiunque altro, si divide le ore fra i cantieri della giornata, e il controllo
+   delle 8 ore vale anche per lui senza una riga di codice in più.
+
+   *Cosa manca davvero:* `DipendenteForm` non espone `user_id`, quindi oggi quel
+   collegamento non si può fare dall'applicazione. Va aggiunto — come una
+   tendina delle persone in `memberships` non ancora collegate, non come un campo
+   dove si incolla un UUID a mano. Resta lavoro di **amministrazione**, coerente
+   con la regola che le anagrafiche le tiene lei.
+
+   *Da decidere:* se il tecnico collegato debba comparire già in squadra quando
+   apre un rapportino nuovo. Sarebbe comodo, ma con più cantieri al giorno
+   ricadrebbe nello stesso errore del vecchio precompilato a otto ore.
+
+3. **Subappalto dentro il rapportino.** Chiesto il 2026-09-09. Nella scheda c'è
    un riquadro segnaposto sotto la squadra, che non ha campi e non salva niente:
    risponde alla stessa domanda della squadra — chi ha lavorato qui oggi — per le
    imprese che non sono la nostra.
@@ -397,13 +473,13 @@ poi quello che ne aggiunge.
    numero di persone, o solo la presenza? Entra nei costi del cantiere o resta
    cronaca della giornata? Serve allegare il contratto?
 
-2. **Documenti.** Chiesto il 2026-09-09. Voce di menu con pagina segnaposto: i
+4. **Documenti.** Chiesto il 2026-09-09. Voce di menu con pagina segnaposto: i
    documenti di cantiere presi dallo storage. Lo spazio non esiste ancora — il
    bucket `rapportini` è per le foto e ha `allowed_mime_types` solo immagini,
    quindi i PDF vogliono un bucket loro. Nessuna delle due voci nuove ha un
    `perm`: si sceglie quando si sa chi ci lavora dentro.
 
-3. **Foglio generale dei cantieri.** Chiesto il 2026-09-01. Una giornata solare
+5. **Foglio generale dei cantieri.** Chiesto il 2026-09-01. Una giornata solare
    per volta, con tutti i cantieri di quel giorno insieme: chi c'era, su quale
    cantiere, quante ore, più il totale della giornata. Serve a sapere cosa ha
    fatto l'azienda il giorno X, cosa che oggi si può ricostruire solo aprendo i
@@ -427,22 +503,22 @@ poi quello che ne aggiunge.
      (`rapportino_mezzi`): ci sono le tabelle, e includerli cambia la forma
      della pagina.
 
-4. Anagrafiche mancanti: **mezzi** (con scadenze revisione/assicurazione e
+6. Anagrafiche mancanti: **mezzi** (con scadenze revisione/assicurazione e
    storico costi), **fornitori**, **materiali**.
-5. Materiali e mezzi dentro il rapportino (`rapportino_materiali`,
+7. Materiali e mezzi dentro il rapportino (`rapportino_materiali`,
    `rapportino_mezzi`): le tabelle ci sono, il form no.
 
 ### Pulizia
 
-6. Ripulire l'utente di prova `Mario Rossi` (`lillo@lalli.com`), rimasto dal seed
+8. Ripulire l'utente di prova `Mario Rossi` (`lillo@lalli.com`), rimasto dal seed
    della fase C con membership e assegnazione.
-7. Chiudere i due difetti di lint in `SessionProvider.tsx` (fast refresh rotto e
+9. Chiudere i due difetti di lint in `SessionProvider.tsx` (fast refresh rotto e
    dipendenza instabile di `useMemo`).
-8. **Verificare i deep link in produzione**: ricaricare con F5 una route interna
+10. **Verificare i deep link in produzione**: ricaricare con F5 una route interna
    (es. `/cantieri`). Se torna 404 serve un `vercel.json` con il rewrite verso
    `index.html` — react-router fa il routing lato client, e senza fallback il
    server cerca un file che non esiste. Non ancora provato.
-9. Decidere di `src/assets/logo_new.jpeg`: è il file originale del logo, fuori
+11. Decidere di `src/assets/logo_new.jpeg`: è il file originale del logo, fuori
     dal versionamento. Da tenere come sorgente ad alta risoluzione o da
     cancellare, visto che in `src/assets/logo-edily.png` c'è già il ritaglio
     pronto all'uso.
