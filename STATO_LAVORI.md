@@ -21,8 +21,8 @@
 | Rapportini — invio, validazione, rifiuto, contabilizzazione | ✅ |
 | Rapportini — Foglio Riepilogativo di Giornata | ✅ |
 | Fornitori — elenco, scheda, CRUD | ✅ |
-| Rapportini — note al titolare | ⏳ codice pronto, **SQL da eseguire** |
-| Rapportini — foto di cantiere | ⏳ codice pronto, **SQL da eseguire** |
+| Rapportini — note al titolare | ✅ |
+| Rapportini — foto di cantiere | ✅ verificato sul database il 2026-09-10 |
 | Rapportini — subappalto | ❌ segnaposto, specifiche da definire |
 | Documenti (storage), Subappalti | ❌ voci di menu, pagine da costruire |
 | Materiali e mezzi | ❌ da fare |
@@ -30,40 +30,33 @@
 
 ---
 
-## SQL da eseguire, in quest'ordine
+## SQL: cosa è già girato
 
-Il codice di queste tre cose è già su `main` e non funziona finché i file non
-girano nel SQL Editor. Non sono migrazioni automatiche: qui non c'è ancora un
-sistema di migrazioni, vedi il punto 1 dei prossimi passi.
+Qui non c'è un sistema di migrazioni (vedi il punto 1 dei prossimi passi),
+quindi i file dello schema si eseguono a mano nel SQL Editor e fra una sessione
+e l'altra non resta traccia di chi ha lanciato cosa.
 
-**Prima di lanciarli, per sapere cosa c'è già:** incollare
-[`supabase/schema/verifica-stato.sql`](supabase/schema/verifica-stato.sql) nel
-SQL Editor. È di sola lettura e dice riga per riga cosa è FATTO e cosa è DA
-FARE. Serve perché questi file si eseguono a mano e fra una sessione e l'altra
-non resta traccia di chi ha lanciato cosa.
+**Per saperlo senza tirare a indovinare:** incollare
+[`supabase/schema/verifica-stato.sql`](supabase/schema/verifica-stato.sql). È
+di sola lettura e dice riga per riga cosa è FATTO e cosa è DA FARE.
 
-**Tutti e tre si possono rilanciare senza danno.** Il primo usa `add column if
-not exists`; il terzo si ferma da solo se le policy ci sono già; il secondo dal
+**Esito del 2026-09-10, letto sul database vero:**
+
+| File | Stato |
+|---|---|
+| [`rapportino-annotazioni.sql`](supabase/schema/rapportino-annotazioni.sql) | ✅ la colonna `annotazioni` c'è |
+| [`storage-rapportini.sql`](supabase/schema/storage-rapportini.sql) | ✅ bucket chiuso, 3 policy su 3 |
+| [`rapportino-foto.sql`](supabase/schema/rapportino-foto.sql) | ✅ RLS attiva — ma le policy sono di wbs-office, vedi il difetto qui sotto |
+
+Tutti e tre si possono rilanciare senza danno. Il primo usa `add column if not
+exists`; il terzo si ferma da solo se le policy ci sono già; il secondo dal
 2026-09-10 toglie ogni policy prima di rifarla, e prima invece si schiantava con
 un `42710` alla seconda esecuzione.
 
-| # | File | Cosa fa | Se non gira |
-|---|---|---|---|
-| 1 | [`supabase/schema/rapportino-annotazioni.sql`](supabase/schema/rapportino-annotazioni.sql) | Aggiunge `rapportini.annotazioni`, le note del tecnico al titolare | Il salvataggio del rapportino fallisce: la colonna non esiste |
-| 2 | [`supabase/schema/storage-rapportini.sql`](supabase/schema/storage-rapportini.sql) | Chiude il bucket `rapportini`, oggi **pubblico**, e crea le policy sui file | Le foto non si caricano, e il bucket resta leggibile da chiunque abbia l'URL |
-| 3 | [`supabase/schema/rapportino-foto.sql`](supabase/schema/rapportino-foto.sql) | Policy su `rapportino_foto`, la tabella che registra quali file esistono | Le foto non si registrano, o non si rileggono |
-
-Il 2 **prima** del 3: il terzo dà per scontato che il bucket sia chiuso e ne
-completa il lavoro sul lato database. Il 1 è indipendente e si può fare quando
-si vuole, ma è quello che oggi rompe il salvataggio, quindi sta in cima.
-
-Il 3 non tocca niente se `rapportino_foto` ha già delle policy sue di
-wbs-office: si ferma e lo dice, perché le policy permissive si sommano in OR e
-aggiungerne alla cieca allargherebbe l'accesso invece di stringerlo.
-
-Dopo tutti e tre: rigenerare i tipi con `supabase gen types typescript`.
+**Resta da fare:** rigenerare i tipi con `supabase gen types typescript`.
 `nessuna_attivita`, `annotazioni` e `invia_foglio_giornata` sono in
-`database.types.ts` scritti a mano.
+`database.types.ts` scritti a mano, e la distanza fra quello che il database
+contiene e quello che il repository crede continua a crescere.
 
 ---
 
@@ -146,6 +139,45 @@ cantieri servirà un livello di scope che oggi non esiste.
 ---
 
 ## Difetti noti
+
+### 🟡 Le foto non sono legate allo stato della scheda
+
+`rapportino_foto` ha due policy, e **non le ha scritte il gestionale**: vengono
+da wbs-office, che condivide questo database.
+[`rapportino-foto.sql`](supabase/schema/rapportino-foto.sql) ne crea tre o
+nessuna, e si è fermato da solo trovandole.
+
+| Policy | Comando | Condizione |
+|---|---|---|
+| `rapportino_foto_select` | SELECT | chi vede il cantiere |
+| `rapportino_foto_write` | **ALL** | chi vede il cantiere, ed è l'autore della scheda oppure ha `rapportini.validate` |
+
+**Funziona:** `FOR ALL` copre insert, update e delete, e la select è coperta
+due volte (le policy permissive si sommano in OR). Le foto si caricano, si
+vedono e si tolgono.
+
+**Il difetto è che manca il controllo sullo STATO.** L'autore può aggiungere e
+togliere foto anche dopo aver inviato il rapportino, e anche dopo che il
+titolare l'ha validato. Un rapportino inviato è un documento consegnato: le
+prove di una giornata già sul tavolo del titolare non devono poter cambiare
+senza che lui se ne accorga. È la stessa famiglia del difetto qui sopra, e
+conviene chiuderli insieme.
+
+**C'è anche un disallineamento con i file.** Le policy su `storage.objects`,
+quelle scritte da noi, lo stato lo controllano: `rapportini_delete` lascia
+cancellare all'autore solo in `bozza` o `respinto`. Quindi su una scheda
+validata l'autore riuscirebbe a cancellare la **riga** ma non il **file**.
+`eliminaFoto()` cancella prima la riga e poi il file, e non guarda l'esito del
+secondo passo: resterebbe un file orfano, che occupa spazio e che nessuna query
+trova più. Oggi non succede perché l'interfaccia il pulsante non lo mostra, ma
+la regola vera è la RLS.
+
+**Il rimedio è già scritto** in
+[`supabase/schema/rapportino-foto-stato.sql`](supabase/schema/rapportino-foto-stato.sql):
+sostituisce il `FOR ALL` con tre policy, una per comando, ognuna con la sua
+regola. **Non è stato eseguito di proposito:** tocca policy di wbs-office, e va
+prima verificato che di là non ci sia una funzione che aggiunge allegati a una
+scheda già inviata. Il file contiene anche la query per controllarlo.
 
 ### 🔴 `inviato` è modificabile dall'autore
 `rapportini_update` ammette `stato = ANY(ARRAY['bozza','respinto','inviato'])`.
