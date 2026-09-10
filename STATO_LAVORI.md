@@ -320,6 +320,15 @@ Da fare **prima** di toccare le policy.
 
 ## Prossimi passi
 
+> **Chiusi il 2026-09-10 (terzo giro).** Il controllo delle 8 ore per persona e
+> per giornata solare, con la colonna `ore_assenza` che finalmente permette di
+> scrivere un permesso di mezza giornata. E la regola «sapere sempre dove si
+> è»: il componente `Percorso` in `src/ui`, una freccia ambra col nome VERO
+> della destinazione più il percorso fino alla pagina aperta, su tutte le
+> schede e tutti i moduli. Prima c'era un link grigio «Torna alla giornata»,
+> che era il nome di una sezione dentro la home e non il nome della home: si
+> tornava in un posto che non si chiamava così.
+>
 > **Chiusi il 2026-09-10 (secondo giro).** Ripulita la home del tecnico. Via
 > «Ultimi esiti», che mostrava cose già andate bene e non chiedeva niente a
 > nessuno. Via «Bozze da inviare», il cui titolo era diventato falso: da quando

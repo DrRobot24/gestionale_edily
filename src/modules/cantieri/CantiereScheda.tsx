@@ -1,5 +1,5 @@
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
-import { Avviso, Badge, Button, Card, Vuoto, cn } from '../../ui'
+import { useNavigate, useParams, useSearchParams } from 'react-router'
+import { Avviso, Badge, Button, Card, Percorso, Vuoto, cn } from '../../ui'
 import { data as fmtData, dataEstesa, euro, numero } from '../../lib/formato'
 import { usePermission } from '../auth/usePermission'
 import { useSession } from '../auth/SessionProvider'
@@ -43,6 +43,8 @@ export function CantiereScheda() {
   const { app } = useSession()
 
   const puoModificare = usePermission('cantieri.write')
+  // Chi ha l'elenco dei cantieri in menu ci e' passato per arrivare qui.
+  const vedeElenco = usePermission('cantieri.read_all')
   const puoAssegnare = usePermission('cantieri.assign')
   const puoCompilare = usePermission('rapportini.create')
   const vedeSoldi = usePermission('economics.read')
@@ -89,13 +91,21 @@ export function CantiereScheda() {
       {/* ── testa ─────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <Link
-            to="/"
-            className="text-xs font-bold text-gray-600 underline underline-offset-2 hover:text-black"
-          >
-            ← Torna alla giornata
-          </Link>
-          <div className="mt-1 flex flex-wrap items-center gap-3">
+          {/* Il passo indietro dipende da COME ci sei arrivato, che qui
+              coincide con chi sei. Il tecnico entra dalle card della
+              home e li' deve tornare; chi tiene l'anagrafica entra
+              dall'elenco dei cantieri, e mandarlo in home sarebbe un
+              passo indietro in un posto dove non era. */}
+          <Percorso
+            indietro={
+              vedeElenco ? { etichetta: 'Cantieri', a: '/cantieri' } : { etichetta: 'Home', a: '/' }
+            }
+            qui={[
+              { etichetta: 'Cantieri', a: vedeElenco ? '/cantieri' : undefined },
+              { etichetta: c.codice },
+            ]}
+          />
+          <div className="mt-2 flex flex-wrap items-center gap-3">
             <h1 className="text-2xl font-extrabold leading-tight text-black">
               {c.denominazione}
             </h1>

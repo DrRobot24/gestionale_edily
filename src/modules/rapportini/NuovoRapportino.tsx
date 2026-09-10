@@ -1,7 +1,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useSearchParams } from 'react-router'
 import { supabase } from '../../lib/supabase'
-import { Avviso, Button, Card } from '../../ui'
+import { Avviso, Button, Card, Percorso } from '../../ui'
+import { risali, strada } from './percorso'
 import { useSession } from '../auth/SessionProvider'
 import { useCantieri } from '../cantieri/useCantieri'
 import { useDipendenti } from '../anagrafiche/dipendenti'
@@ -167,6 +168,8 @@ export function NuovoRapportino() {
 
   return (
     <div className="mx-auto grid max-w-7xl gap-4">
+      <Percorso indietro={risali(ritorno)} qui={strada(ritorno, { etichetta: 'Nuovo' })} />
+
       <div>
         <h1 className="text-2xl font-extrabold text-black">Nuovo rapportino</h1>
         <p className="text-sm font-semibold text-gray-600">

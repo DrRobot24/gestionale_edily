@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useNavigate, useParams, useSearchParams } from 'react-router'
 import { z } from 'zod'
-import { Avviso, Button, Campo, CampoArea, CampoSelect, Card } from '../../ui'
+import { Avviso, Button, Campo, CampoArea, CampoSelect, Card, Percorso } from '../../ui'
 import { Link } from 'react-router'
 import { usePermission } from '../auth/usePermission'
 import { useClienti } from '../anagrafiche/clienti'
@@ -146,6 +146,23 @@ export function CantiereForm() {
 
   return (
     <div className="mx-auto grid max-w-3xl gap-4">
+      {/* Da un modulo si torna alla scheda che si stava guardando, non
+          all'elenco: si e' entrati da li'. Su un cantiere nuovo la
+          scheda non esiste ancora, e allora l'elenco e' il posto vero. */}
+      <Percorso
+        indietro={
+          nuovo
+            ? { etichetta: 'Cantieri', a: '/cantieri' }
+            : { etichetta: 'Scheda', a: `/cantieri/${id}` }
+        }
+        qui={[
+          { etichetta: 'Cantieri', a: '/cantieri' },
+          ...(nuovo
+            ? [{ etichetta: 'Nuovo' }]
+            : [{ etichetta: cantiere?.codice ?? '—', a: `/cantieri/${id}` }, { etichetta: 'Anagrafica' }]),
+        ]}
+      />
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-extrabold text-black">
@@ -161,12 +178,6 @@ export function CantiereForm() {
               )}
             </div>
           )}
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {!nuovo && (
-            <Button onClick={() => navigate(`/cantieri/${id}`)}>Vedi la scheda</Button>
-          )}
-          <Button onClick={() => navigate('/cantieri')}>Torna all&rsquo;elenco</Button>
         </div>
       </div>
 

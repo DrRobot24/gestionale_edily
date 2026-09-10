@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router'
 import { data as fmtData, numero as fmtNumero, ora } from '../../lib/formato'
-import { Avviso, Button, Card, Cifra, Table, Vuoto } from '../../ui'
+import { Avviso, Button, Card, Cifra, Percorso, Table, Vuoto } from '../../ui'
+import { foglio, risali, strada } from './percorso'
 import { useSession } from '../auth/SessionProvider'
 import { usePermission } from '../auth/usePermission'
 import { useRapportino, useTransizione } from './rapportino'
@@ -72,6 +73,12 @@ export function RapportinoPage() {
 
   return (
     <div className="mx-auto grid max-w-7xl gap-4">
+      {/* `ritorno` sa da dove sei entrato, e il percorso lo racconta:
+          dalle card della home, dalla scheda di un cantiere, o
+          dall'elenco. Scriverlo sempre "elenco" manderebbe indietro nel
+          posto giusto con il nome sbagliato. */}
+      <Percorso indietro={risali(ritorno)} qui={strada(ritorno, foglio(r.numero, r.anno))} />
+
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-extrabold text-black">
@@ -85,13 +92,6 @@ export function RapportinoPage() {
             <StatoRapportino stato={r.stato} />
           </div>
         </div>
-        <Button onClick={() => navigate(ritorno ?? '/rapportini')}>
-          {ritorno === '/'
-            ? 'Torna alla giornata'
-            : ritorno?.startsWith('/cantieri/')
-              ? 'Torna al cantiere'
-              : <>Torna all&rsquo;elenco</>}
-        </Button>
       </div>
 
       {transizione.isError && (

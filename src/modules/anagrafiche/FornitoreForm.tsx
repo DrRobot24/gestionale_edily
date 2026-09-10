@@ -3,7 +3,7 @@ import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useNavigate, useParams } from 'react-router'
 import { z } from 'zod'
-import { Avviso, Badge, Button, Campo, CampoArea, Card } from '../../ui'
+import { Avviso, Badge, Button, Campo, CampoArea, Card, Percorso } from '../../ui'
 import { usePermission } from '../auth/usePermission'
 import {
   useArchiviaFornitore,
@@ -142,6 +142,14 @@ export function FornitoreForm() {
 
   return (
     <div className="mx-auto grid max-w-3xl gap-4">
+      <Percorso
+        indietro={{ etichetta: 'Fornitori', a: '/anagrafiche/fornitori' }}
+        qui={[
+          { etichetta: 'Fornitori', a: '/anagrafiche/fornitori' },
+          { etichetta: nuovo ? 'Nuovo' : (fornitore?.ragione_sociale ?? '—') },
+        ]}
+      />
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-extrabold text-black">
@@ -151,7 +159,6 @@ export function FornitoreForm() {
             <Badge className="mt-1">archiviato — non compare nelle tendine</Badge>
           )}
         </div>
-        <Button onClick={() => navigate('/anagrafiche/fornitori')}>Torna all’elenco</Button>
       </div>
 
       {salva.isError && <Avviso tono="errore">{(salva.error as Error).message}</Avviso>}

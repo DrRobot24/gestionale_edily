@@ -3,7 +3,7 @@ import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useNavigate, useParams, useSearchParams } from 'react-router'
 import { z } from 'zod'
-import { Avviso, Badge, Button, Campo, CampoArea, Card, cn } from '../../ui'
+import { Avviso, Badge, Button, Campo, CampoArea, Card, Percorso, cn } from '../../ui'
 import { usePermission } from '../auth/usePermission'
 import { useArchiviaCliente, useCliente, useEliminaCliente, useSalvaCliente } from './clienti'
 
@@ -194,6 +194,21 @@ export function ClienteForm() {
 
   return (
     <div className="mx-auto grid max-w-3xl gap-4">
+      {/* Con `ritorno` si e' arrivati qui dal modulo di un cantiere, per
+          creare al volo il cliente che mancava: il passo indietro e'
+          quello, non l'elenco. */}
+      <Percorso
+        indietro={
+          ritorno
+            ? { etichetta: 'Cantiere', a: ritorno }
+            : { etichetta: 'Clienti', a: '/anagrafiche/clienti' }
+        }
+        qui={[
+          { etichetta: 'Clienti', a: '/anagrafiche/clienti' },
+          { etichetta: nuovo ? 'Nuovo' : (cliente?.ragione_sociale ?? '—') },
+        ]}
+      />
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-extrabold text-black">
@@ -208,9 +223,6 @@ export function ClienteForm() {
             </p>
           )}
         </div>
-        <Button onClick={() => navigate(ritorno ?? '/anagrafiche/clienti')}>
-          {ritorno ? 'Torna al cantiere' : 'Torna all’elenco'}
-        </Button>
       </div>
 
       {salva.isError && <Avviso tono="errore">{(salva.error as Error).message}</Avviso>}

@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useNavigate, useParams } from 'react-router'
 import { z } from 'zod'
 import { data as fmtData, euro } from '../../lib/formato'
-import { Avviso, Badge, Button, Campo, CampoSelect, Card, Cifra, Table } from '../../ui'
+import { Avviso, Badge, Button, Campo, CampoSelect, Card, Cifra, Percorso, Table } from '../../ui'
 import { usePermission } from '../auth/usePermission'
 import {
   tariffaVigente,
@@ -122,6 +122,16 @@ export function DipendenteForm() {
 
   return (
     <div className="mx-auto grid max-w-3xl gap-4">
+      <Percorso
+        indietro={{ etichetta: 'Operai', a: '/anagrafiche/operai' }}
+        qui={[
+          { etichetta: 'Operai', a: '/anagrafiche/operai' },
+          {
+            etichetta: nuovo ? 'Nuovo' : `${dipendente?.cognome ?? ''} ${dipendente?.nome ?? ''}`.trim() || '—',
+          },
+        ]}
+      />
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-extrabold text-black">
@@ -131,7 +141,6 @@ export function DipendenteForm() {
             <Badge className="mt-1">archiviato — non compare negli elenchi</Badge>
           )}
         </div>
-        <Button onClick={() => navigate('/anagrafiche/operai')}>Torna all&rsquo;elenco</Button>
       </div>
 
       {salva.isError && <Avviso tono="errore">{(salva.error as Error).message}</Avviso>}

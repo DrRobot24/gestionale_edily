@@ -1,7 +1,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearchParams } from 'react-router'
 import { supabase } from '../../lib/supabase'
-import { Avviso } from '../../ui'
+import { Avviso, Percorso } from '../../ui'
+import { foglio, strada } from './percorso'
 import { useSession } from '../auth/SessionProvider'
 import { useCantieri } from '../cantieri/useCantieri'
 import { useDipendenti } from '../anagrafiche/dipendenti'
@@ -146,6 +147,17 @@ export function ModificaRapportino() {
 
   return (
     <div className="mx-auto grid max-w-7xl gap-4">
+      {/* Da un modulo si torna alla scheda che si stava correggendo,
+          sempre: e' da li' che si e' entrati, qualunque sia il `ritorno`
+          piu' a monte. Quello resta scritto nel percorso, che continua a
+          dire da dove viene tutto il giro. */}
+      <Percorso
+        indietro={{ etichetta: 'Scheda', a: `/rapportini/${id}` }}
+        qui={strada(ritorno, { ...foglio(r.numero, r.anno), a: `/rapportini/${id}` }, {
+          etichetta: 'Modifica',
+        })}
+      />
+
       <div>
         <h1 className="text-2xl font-extrabold text-black">
           Modifica rapportino {r.numero ? `n. ${r.numero}/${r.anno}` : ''}
