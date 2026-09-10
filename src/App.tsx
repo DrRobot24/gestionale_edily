@@ -5,6 +5,7 @@ import { RequireAuth, RequirePermission } from './modules/auth/guards'
 import { LoginPage } from './modules/auth/LoginPage'
 import { CantieriPage } from './modules/cantieri/CantieriPage'
 import { CantiereForm } from './modules/cantieri/CantiereForm'
+import { CantiereScheda } from './modules/cantieri/CantiereScheda'
 import { RapportiniPage } from './modules/rapportini/RapportiniPage'
 import { NuovoRapportino } from './modules/rapportini/NuovoRapportino'
 import { RapportinoPage } from './modules/rapportini/RapportinoPage'
@@ -164,7 +165,21 @@ export default function App() {
                 `rapportini.create` ci sta — e' l'azione, non la
                 lettura. */}
             <Route path="cantieri/nuovo" element={proteggi('cantieri.write', <CantiereForm />)} />
-            <Route path="cantieri/:id" element={<CantiereForm />} />
+
+            {/* Aprire un cantiere vuol dire GUARDARLO, non modificarlo.
+                Prima `/cantieri/:id` apriva il modulo dell'anagrafica: a
+                chi non ha `cantieri.write` — cioe' al tecnico, che e'
+                quello che ci entra ogni giorno — arrivavano quindici
+                campi grigi e spenti. Adesso la scheda e' la lettura, che
+                la RLS apre a chiunque abbia il cantiere fra i suoi, e il
+                modulo sta dietro il permesso di scrittura. E' la stessa
+                simmetria dei rapportini: la scheda si legge, `/modifica`
+                si scrive. */}
+            <Route path="cantieri/:id" element={<CantiereScheda />} />
+            <Route
+              path="cantieri/:id/modifica"
+              element={proteggi('cantieri.write', <CantiereForm />)}
+            />
 
             <Route
               path="rapportini/nuovo"

@@ -151,7 +151,7 @@ export function CantieriDelGiorno() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {schede.map(({ cantiere, rapportino, semaforo }) => (
+        {schede.map(({ cantiere, semaforo }) => (
           <SchedaCantiere
             key={cantiere.id}
             codice={cantiere.codice}
@@ -162,16 +162,13 @@ export function CantieriDelGiorno() {
                 : null
             }
             semaforo={semaforo}
-            // `ritorno` viaggia con l'indirizzo per tutto il giro:
-            // chi entra da una card deve ritrovarsi qui quando esce,
-            // non nell'elenco generale dei rapportini.
-            onApri={() => {
-              if (!rapportino)
-                navigate(`/rapportini/nuovo?cantiere=${cantiere.id}&data=${giorno}&ritorno=/`)
-              else if (semaforo === 'giallo')
-                navigate(`/rapportini/${rapportino.id}/modifica?ritorno=/`)
-              else navigate(`/rapportini/${rapportino.id}?ritorno=/`)
-            }}
+            /* La card porta al CANTIERE, non dritta al rapportino.
+               Prima saltava questa tappa e si finiva a compilare un
+               documento su un cantiere mai guardato: chi ci lavora
+               vuole prima vedere la squadra, i giorni gia' fatti e le
+               foto, e decidere dopo. Il giorno viaggia nell'indirizzo,
+               cosi' la scheda si apre gia' sulla giornata giusta. */
+            onApri={() => navigate(`/cantieri/${cantiere.id}?data=${giorno}`)}
           />
         ))}
       </div>
@@ -272,13 +269,17 @@ function SchedaCantiere({
           {luogo && <p className="truncate text-xs font-semibold text-gray-600">{luogo}</p>}
         </div>
 
+        {/* Un'etichetta sola per tutti e tre i colori: il bottone porta
+            sempre nello stesso posto, e scrivergli sopra «Compila»
+            prometterebbe un modulo mentre si apre una panoramica. Cosa
+            c'e' da fare lo dice gia' la fascia colorata qui sopra. */}
         <Button
           variante={semaforo === 'verde' ? undefined : 'primario'}
           dimensione="sm"
           onClick={onApri}
           className="w-full"
         >
-          {semaforo === 'rosso' ? 'Compila' : semaforo === 'giallo' ? 'Riprendi' : 'Vedi'}
+          Apri il cantiere
         </Button>
       </div>
     </Card>

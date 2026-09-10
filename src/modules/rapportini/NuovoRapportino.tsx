@@ -100,6 +100,7 @@ export function NuovoRapportino() {
     },
     onSuccess: ({ id, fallite }) => {
       qc.invalidateQueries({ queryKey: ['rapportini'] })
+      qc.invalidateQueries({ queryKey: ['foto'] })
       // Se qualche foto e' rimasta a terra ci si ferma qui a dirlo.
       // Andarsene lasciando credere che sia partito tutto e' peggio di
       // un secondo di attesa in piu'.

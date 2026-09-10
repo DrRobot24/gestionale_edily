@@ -83,7 +83,11 @@ export function RapportinoPage() {
           </div>
         </div>
         <Button onClick={() => navigate(ritorno ?? '/rapportini')}>
-          {ritorno === '/' ? 'Torna alla giornata' : <>Torna all&rsquo;elenco</>}
+          {ritorno === '/'
+            ? 'Torna alla giornata'
+            : ritorno?.startsWith('/cantieri/')
+              ? 'Torna al cantiere'
+              : <>Torna all&rsquo;elenco</>}
         </Button>
       </div>
 

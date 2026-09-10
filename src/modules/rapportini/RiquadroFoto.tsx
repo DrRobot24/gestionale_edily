@@ -53,12 +53,15 @@ export function RiquadroFoto({ scheda, inAttesa, onCambia, modificabile = true }
         })
       }
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['foto', scheda?.rapportinoId] }),
+    // Il prefisso, non la singola scheda: le stesse foto si vedono
+    // anche nella galleria del cantiere, che ha una chiave sua sotto
+    // ['foto']. Invalidare solo questa scheda la lascerebbe vecchia.
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['foto'] }),
   })
 
   const elimina = useMutation({
     mutationFn: eliminaFoto,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['foto', scheda?.rapportinoId] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['foto'] }),
   })
 
   /* Le anteprime locali sono indirizzi che il browser tiene in memoria

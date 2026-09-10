@@ -137,11 +137,11 @@ export function CantiereForm() {
         note: vuoto(c.note),
       },
     })
-    // Come per gli operai: dopo la creazione si resta sulla scheda,
-    // perche' la squadra si assegna solo quando il cantiere ha un id — e
-    // un cantiere senza nessuno assegnato non lo vede nemmeno chi ci
-    // deve lavorare.
-    if (nuovo) navigate(`/cantieri/${salvato}`, { replace: true })
+    // Dopo la creazione si resta nel MODULO, non si passa alla scheda:
+    // la squadra si assegna solo quando il cantiere ha un id, il
+    // riquadro per farlo sta qui in fondo, e un cantiere senza nessuno
+    // assegnato non lo vede nemmeno chi ci deve lavorare.
+    if (nuovo) navigate(`/cantieri/${salvato}/modifica`, { replace: true })
   }
 
   return (
@@ -162,14 +162,19 @@ export function CantiereForm() {
             </div>
           )}
         </div>
-        <Button onClick={() => navigate('/cantieri')}>Torna all&rsquo;elenco</Button>
+        <div className="flex flex-wrap gap-2">
+          {!nuovo && (
+            <Button onClick={() => navigate(`/cantieri/${id}`)}>Vedi la scheda</Button>
+          )}
+          <Button onClick={() => navigate('/cantieri')}>Torna all&rsquo;elenco</Button>
+        </div>
       </div>
 
       {clienti?.length === 0 && (
         <Avviso tono="errore">
           Non c’è nessun cliente in anagrafica, e un cantiere si apre sempre per qualcuno.{' '}
           <Link
-            to={`/anagrafiche/clienti/nuovo?ritorno=${encodeURIComponent(nuovo ? '/cantieri/nuovo' : `/cantieri/${id}`)}`}
+            to={`/anagrafiche/clienti/nuovo?ritorno=${encodeURIComponent(nuovo ? '/cantieri/nuovo' : `/cantieri/${id}/modifica`)}`}
             className="underline decoration-2 underline-offset-2"
           >
             Crea il primo cliente
@@ -217,7 +222,7 @@ export function CantiereForm() {
               </CampoSelect>
               {puoScrivere && (
                 <Link
-                  to={`/anagrafiche/clienti/nuovo?ritorno=${encodeURIComponent(nuovo ? '/cantieri/nuovo' : `/cantieri/${id}`)}`}
+                  to={`/anagrafiche/clienti/nuovo?ritorno=${encodeURIComponent(nuovo ? '/cantieri/nuovo' : `/cantieri/${id}/modifica`)}`}
                   className="text-[11px] font-bold text-gray-600 underline decoration-2 underline-offset-2"
                 >
                   Non c’è? Crea un cliente nuovo

@@ -179,3 +179,68 @@ export async function eliminaFoto(foto: { id: string; storage_path: string }): P
   if (error) throw error
   await supabase.storage.from(BUCKET).remove([foto.storage_path])
 }
+
+export type FotoCantiere = Foto & { rapportino_id: string; giorno: string | null }
+
+/**
+ * Le foto di un cantiere, prese da tutte le sue schede.
+ *
+ * Le foto appartengono al rapportino, non al cantiere: e' giusto cosi',
+ * perche' una foto senza il giorno in cui e' stata scattata vale poco.
+ * Ma chi apre la scheda del cantiere vuole vedere com'e' andato il
+ * lavoro nel tempo, non aprire quaranta rapportini. Da qui il giro
+ * all'indietro: si filtra `rapportino_foto` passando per il rapportino.
+ *
+ * `rapportini!inner` non e' un dettaglio di sintassi: senza `!inner` il
+ * filtro sul cantiere annidato non stringe niente e tornerebbero le foto
+ * di tutta l'impresa.
+ */
+export function useFotoCantiere(cantiereId: string | undefined, limite = 12) {
+  return useQuery({
+    // Sotto ['foto'] per lo stesso motivo delle schede: chi carica o
+    // toglie una foto invalida quel prefisso, e una chiave sorella
+    // resterebbe ferma sulla galleria vecchia.
+    queryKey: ['foto', 'cantiere', cantiereId, limite],
+    enabled: Boolean(cantiereId),
+    queryFn: async (): Promise<FotoCantiere[]> => {
+      const { data, error } = await supabase
+        .from('rapportino_foto')
+        .select(
+          'id, storage_path, didascalia, scattata_at, rapportino_id, rapportini!inner ( cantiere_id, data )',
+        )
+        .eq('rapportini.cantiere_id', cantiereId!)
+        .order('created_at', { ascending: false })
+        .limit(limite)
+
+      if (error) throw error
+      if (!data || data.length === 0) return []
+
+      const righe = data.map((f) => {
+        // PostgREST annida una relazione molti-a-uno come oggetto, ma i
+        // tipi generati la danno a volte come array: si normalizza qui
+        // invece di fidarsi, come si fa gia' altrove per `cantieri`.
+        const r = Array.isArray(f.rapportini) ? f.rapportini[0] : f.rapportini
+        return {
+          id: f.id,
+          storage_path: f.storage_path,
+          didascalia: f.didascalia,
+          scattata_at: f.scattata_at,
+          rapportino_id: f.rapportino_id,
+          giorno: r?.data ?? null,
+        }
+      })
+
+      const { data: firme, error: erroreFirme } = await supabase.storage
+        .from(BUCKET)
+        .createSignedUrls(
+          righe.map((f) => f.storage_path),
+          DURATA_FIRMA,
+        )
+
+      if (erroreFirme) return righe.map((f) => ({ ...f, url: null }))
+
+      const perPath = new Map((firme ?? []).map((f) => [f.path, f.signedUrl]))
+      return righe.map((f) => ({ ...f, url: perPath.get(f.storage_path) ?? null }))
+    },
+  })
+}
