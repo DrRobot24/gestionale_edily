@@ -7,6 +7,41 @@
 
 ---
 
+## Come ripartire
+
+Questa è la prima cosa da leggere aprendo il progetto, e vale sia per una chat
+nuova sia per chi ci torna dopo giorni.
+
+1. **Niente SQL in sospeso.** Al 2026-09-10 tutti i file di
+   `supabase/schema/` sono stati eseguiti. Per verificarlo senza fidarsi:
+   [`verifica-stato.sql`](supabase/schema/verifica-stato.sql), di sola lettura.
+2. **Il lavoro in corso è il flusso del tecnico**, non il backend: il database
+   è già quasi completo, il frontend no. Si procede **un settore per volta**,
+   con verifica in ufficio a ogni passaggio.
+3. **Il prossimo passo** è il punto 1 di «Costruire il resto»: dove si guardano
+   tutte le ore in economia insieme. Il ribaltamento al cliente lo specificherà
+   l'utente, non va anticipato.
+4. **Due cose aperte che aspettano l'utente** e non vanno indovinate: le
+   specifiche del **subappalto**, e come si **ribaltano al cliente** le ore in
+   economia.
+5. **Un difetto da chiudere prima o poi**, registrato fra i difetti noti: le
+   policy di `rapportino_foto` sono di wbs-office e non guardano lo stato della
+   scheda. Il rimedio è già scritto in
+   [`rapportino-foto-stato.sql`](supabase/schema/rapportino-foto-stato.sql) e
+   **non è stato eseguito di proposito**: tocca policy dell'altro frontend e va
+   concordato.
+
+**Le tre regole di questo progetto che non si deducono dal codice:**
+
+- I permessi si decidono su tre livelli (tenant / capability / scope) e li
+  applica **sempre la RLS**, mai il frontend.
+- Il database è **condiviso con wbs-office**: aggiungere colonne e tabelle è
+  sicuro, rinominare o restringere no.
+- Il tecnico vede **solo i cantieri assegnati a lui**. È una decisione presa il
+  2026-09-10 e vale per il prodotto, non solo per Edily.
+
+---
+
 ## Cosa funziona oggi
 
 | Area | Stato |
@@ -53,10 +88,12 @@ di sola lettura e dice riga per riga cosa è FATTO e cosa è DA FARE.
 | [`foglio-ore-tecnico.sql`](supabase/schema/foglio-ore-tecnico.sql) | ✅ eseguito il 2026-09-10 |
 | [`note-contabili.sql`](supabase/schema/note-contabili.sql) | ✅ eseguito il 2026-09-10, RLS verificata attiva |
 
-Tutti e tre si possono rilanciare senza danno. Il primo usa `add column if not
-exists`; il terzo si ferma da solo se le policy ci sono già; il secondo dal
-2026-09-10 toglie ogni policy prima di rifarla, e prima invece si schiantava con
-un `42710` alla seconda esecuzione.
+**Si possono rilanciare tutti senza danno**, ed è una proprietà voluta: questi
+file si eseguono a mano e fra una sessione e l'altra nessuno ricorda cosa aveva
+già fatto. Chi crea colonne usa `add column if not exists`, chi crea policy le
+toglie prima di rimetterle, chi crea funzioni le droppa prima di ricrearle.
+`rapportino-foto.sql` si ferma da solo se la tabella ha già delle policy sue, e
+`note-contabili.sql` si ferma se trova righe scritte con il suo schema vecchio.
 
 **Resta da fare:** rigenerare i tipi con `supabase gen types typescript`.
 `nessuna_attivita`, `annotazioni` e `invia_foglio_giornata` sono in
@@ -457,7 +494,35 @@ poi quello che ne aggiunge.
 > girano, note al titolare e foto di cantiere sono codice che non funziona, e il
 > bucket `rapportini` resta pubblico.
 
-1. **Il controllo delle 8 ore: completare i due rami.** Chiesto il 2026-09-10.
+1. **Dove si guardano TUTTE le ore in economia, e come si ribaltano al cliente.**
+   Chiesto il 2026-09-10 come domanda aperta, il ribaltamento verrà specificato
+   dopo.
+
+   *Dove stanno oggi:* solo dentro la scheda del singolo cantiere
+   (`/cantieri/:id`), nel riquadro «Note contabili», con la ricerca e il totale
+   di quel cantiere. Si segnano compilando il rapportino e si rileggono anche
+   nella scheda del rapportino, sotto le ore.
+
+   *Cosa manca:* una raccolta che le attraversi tutte. Il titolare che vuole
+   sapere quante ore fuori progetto ha l'impresa questo mese, o
+   l'amministrazione che deve fatturarle, oggi deve aprire i cantieri uno per
+   uno. È lo stesso difetto che aveva il foglio di giornata prima di esistere:
+   il dato c'è, ma la domanda vera si fa a un livello sopra.
+
+   *Consiglio su dove metterla:* sotto **Economia**, che oggi è un segnaposto e
+   ha già il suo permesso (`economics.read`). Una tabella con periodo, cantiere,
+   giorno, descrizione e ore, filtrabile per cantiere e per intervallo di date,
+   con i totali per cantiere. Non nella scheda del cantiere: lì c'è già il
+   dettaglio, e la domanda a cui manca risposta è esattamente quella che il
+   cantiere non può fare.
+
+   *Per il ribaltamento servirà* una spunta «già fatturata» sulla riga più il
+   riferimento del documento, e allora la raccolta diventa una coda di lavoro:
+   «ecco cosa c'è da ribaltare». La tabella è già pronta a reggerlo, sono due
+   colonne. **Non anticiparlo:** l'utente ha detto esplicitamente che dirà lui
+   come si ribalta.
+
+2. **Il controllo delle 8 ore: completare i due rami.** Chiesto il 2026-09-10.
    Il metro sono le 8 ore del contratto italiano, e il conto va fatto sulla
    **persona** e sul **giorno**, non sul singolo rapportino.
 
@@ -493,7 +558,7 @@ poi quello che ne aggiunge.
      straordinarie: oggi l'avviso dice «aprilo e spostale» e chi lo fa deve
      ricalcolare a mano.
 
-2. **Le ore del tecnico: fare il collegamento.** Chiesto il 2026-09-10, e il
+3. **Le ore del tecnico: fare il collegamento.** Chiesto il 2026-09-10, e il
    codice è pronto: resta un'operazione da fare a mano, una volta.
 
    *Già fatto il 2026-09-10.* La scheda operaio espone il campo **Utente del
@@ -516,7 +581,7 @@ poi quello che ne aggiunge.
    aprendo un rapportino nuovo. Sarebbe comodo, ma con più cantieri al giorno
    ricadrebbe nello stesso errore del vecchio precompilato a otto ore.
 
-3. **Subappalto dentro il rapportino.** Chiesto il 2026-09-09. Nella scheda c'è
+4. **Subappalto dentro il rapportino.** Chiesto il 2026-09-09. Nella scheda c'è
    un riquadro segnaposto sotto la squadra, che non ha campi e non salva niente:
    risponde alla stessa domanda della squadra — chi ha lavorato qui oggi — per le
    imprese che non sono la nostra.
@@ -527,7 +592,7 @@ poi quello che ne aggiunge.
    numero di persone, o solo la presenza? Entra nei costi del cantiere o resta
    cronaca della giornata? Serve allegare il contratto?
 
-4. **Documenti: due posti diversi, perché sono due cose diverse.** Deciso il
+5. **Documenti: due posti diversi, perché sono due cose diverse.** Deciso il
    2026-09-10.
 
    *Documenti di CANTIERE* — computi, disegni, permessi, verbali. Appartengono
@@ -552,7 +617,7 @@ poi quello che ne aggiunge.
    la stessa forma serva per le scadenze dei **mezzi** (revisione,
    assicurazione), che sono lo stesso problema con un'altra etichetta.
 
-5. **Foglio generale dei cantieri.** Chiesto il 2026-09-01. Una giornata solare
+6. **Foglio generale dei cantieri.** Chiesto il 2026-09-01. Una giornata solare
    per volta, con tutti i cantieri di quel giorno insieme: chi c'era, su quale
    cantiere, quante ore, più il totale della giornata. Serve a sapere cosa ha
    fatto l'azienda il giorno X, cosa che oggi si può ricostruire solo aprendo i
@@ -576,22 +641,22 @@ poi quello che ne aggiunge.
      (`rapportino_mezzi`): ci sono le tabelle, e includerli cambia la forma
      della pagina.
 
-6. Anagrafiche mancanti: **mezzi** (con scadenze revisione/assicurazione e
+7. Anagrafiche mancanti: **mezzi** (con scadenze revisione/assicurazione e
    storico costi), **fornitori**, **materiali**.
-7. Materiali e mezzi dentro il rapportino (`rapportino_materiali`,
+8. Materiali e mezzi dentro il rapportino (`rapportino_materiali`,
    `rapportino_mezzi`): le tabelle ci sono, il form no.
 
 ### Pulizia
 
-8. Ripulire l'utente di prova `Mario Rossi` (`lillo@lalli.com`), rimasto dal seed
+9. Ripulire l'utente di prova `Mario Rossi` (`lillo@lalli.com`), rimasto dal seed
    della fase C con membership e assegnazione.
-9. Chiudere i due difetti di lint in `SessionProvider.tsx` (fast refresh rotto e
+10. Chiudere i due difetti di lint in `SessionProvider.tsx` (fast refresh rotto e
    dipendenza instabile di `useMemo`).
-10. **Verificare i deep link in produzione**: ricaricare con F5 una route interna
+11. **Verificare i deep link in produzione**: ricaricare con F5 una route interna
    (es. `/cantieri`). Se torna 404 serve un `vercel.json` con il rewrite verso
    `index.html` — react-router fa il routing lato client, e senza fallback il
    server cerca un file che non esiste. Non ancora provato.
-11. Decidere di `src/assets/logo_new.jpeg`: è il file originale del logo, fuori
+12. Decidere di `src/assets/logo_new.jpeg`: è il file originale del logo, fuori
     dal versionamento. Da tenere come sorgente ad alta risoluzione o da
     cancellare, visto che in `src/assets/logo-edily.png` c'è già il ritaglio
     pronto all'uso.
