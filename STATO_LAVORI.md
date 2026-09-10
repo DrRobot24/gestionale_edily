@@ -1,6 +1,6 @@
 # Stato lavori — Gestionale Edily
 
-> Aggiornato al **31 agosto 2026**.
+> Aggiornato al **10 settembre 2026**.
 > Questo file raccoglie fatti **verificati contro il database reale**, non dedotti
 > dallo schema. Dove c'è scritto "verificato" vuol dire che è stato provato con
 > una query e ne è stato osservato l'esito.
@@ -18,9 +18,40 @@
 | Operai — elenco, scheda, CRUD, storico tariffe | ✅ |
 | Rapportini — elenco, scheda, creazione, modifica | ✅ |
 | Rapportini — invio, validazione, rifiuto, contabilizzazione | ✅ |
-| Fornitori, materiali, mezzi | ❌ da fare |
-| Materiali e mezzi dentro il rapportino | ❌ da fare |
+| Rapportini — Foglio Riepilogativo di Giornata | ✅ |
+| Fornitori — elenco, scheda, CRUD | ✅ |
+| Rapportini — note al titolare | ⏳ codice pronto, **SQL da eseguire** |
+| Rapportini — foto di cantiere | ⏳ codice pronto, **SQL da eseguire** |
+| Rapportini — subappalto | ❌ segnaposto, specifiche da definire |
+| Documenti (storage), Subappalti | ❌ voci di menu, pagine da costruire |
+| Materiali e mezzi | ❌ da fare |
 | Economia, paghe, WBS | ❌ da fare |
+
+---
+
+## SQL da eseguire, in quest'ordine
+
+Il codice di queste tre cose è già su `main` e non funziona finché i file non
+girano nel SQL Editor. Non sono migrazioni automatiche: qui non c'è ancora un
+sistema di migrazioni, vedi il punto 1 dei prossimi passi.
+
+| # | File | Cosa fa | Se non gira |
+|---|---|---|---|
+| 1 | [`supabase/schema/rapportino-annotazioni.sql`](supabase/schema/rapportino-annotazioni.sql) | Aggiunge `rapportini.annotazioni`, le note del tecnico al titolare | Il salvataggio del rapportino fallisce: la colonna non esiste |
+| 2 | [`supabase/schema/storage-rapportini.sql`](supabase/schema/storage-rapportini.sql) | Chiude il bucket `rapportini`, oggi **pubblico**, e crea le policy sui file | Le foto non si caricano, e il bucket resta leggibile da chiunque abbia l'URL |
+| 3 | [`supabase/schema/rapportino-foto.sql`](supabase/schema/rapportino-foto.sql) | Policy su `rapportino_foto`, la tabella che registra quali file esistono | Le foto non si registrano, o non si rileggono |
+
+Il 2 **prima** del 3: il terzo dà per scontato che il bucket sia chiuso e ne
+completa il lavoro sul lato database. Il 1 è indipendente e si può fare quando
+si vuole, ma è quello che oggi rompe il salvataggio, quindi sta in cima.
+
+Il 3 non tocca niente se `rapportino_foto` ha già delle policy sue di
+wbs-office: si ferma e lo dice, perché le policy permissive si sommano in OR e
+aggiungerne alla cieca allargherebbe l'accesso invece di stringerlo.
+
+Dopo tutti e tre: rigenerare i tipi con `supabase gen types typescript`.
+`nessuna_attivita`, `annotazioni` e `invia_foglio_giornata` sono in
+`database.types.ts` scritti a mano.
 
 ---
 
@@ -244,6 +275,15 @@ Da fare **prima** di toccare le policy.
 
 ## Prossimi passi
 
+> **Chiusi il 2026-09-09.** Foglio Riepilogativo di Giornata: la giornata parte
+> intera e solo quando ogni cantiere attivo ha la sua scheda, con la regola nel
+> database (`invia_foglio_giornata`) e non nell'interfaccia. Cruscotto a card per
+> il tecnico e vista panoramica per giornata per il titolare. Flag «nessuna
+> attività» per chiudere la scheda di un cantiere fermo. Alleggerimento della
+> scheda: via il meteo, orario e trasferta facoltativi e nascosti, la squadra si
+> compone da una tendina invece che a spunte. Note al titolare, foto di cantiere,
+> impaginazione su due colonne. Menu del tecnico ridotto a quello che fa davvero.
+>
 > **Chiusi il 2026-09-01.** Disallineamento delle collazioni su `postgres`;
 > unicità degli identificativi dei clienti (database + traduzione dell'errore nel
 > form); residui del template React sostituiti dal marchio Edily; primo deploy su
@@ -281,7 +321,28 @@ poi quello che ne aggiunge.
 
 ### Costruire il resto
 
-5. **Foglio generale dei cantieri.** Chiesto il 2026-09-01. Una giornata solare
+> **Prima di tutto: eseguire i tre SQL** della sezione in cima. Finché non
+> girano, note al titolare e foto di cantiere sono codice che non funziona, e il
+> bucket `rapportini` resta pubblico.
+
+1. **Subappalto dentro il rapportino.** Chiesto il 2026-09-09. Nella scheda c'è
+   un riquadro segnaposto sotto la squadra, che non ha campi e non salva niente:
+   risponde alla stessa domanda della squadra — chi ha lavorato qui oggi — per le
+   imprese che non sono la nostra.
+
+   *Le domande da sciogliere prima di scrivere la tabella,* perché ognuna cambia
+   lo schema e migrare dati veri per correggersi costa: il subappaltatore è un
+   `fornitori` già in anagrafica o testo libero? Di lui si registrano le ore, il
+   numero di persone, o solo la presenza? Entra nei costi del cantiere o resta
+   cronaca della giornata? Serve allegare il contratto?
+
+2. **Documenti.** Chiesto il 2026-09-09. Voce di menu con pagina segnaposto: i
+   documenti di cantiere presi dallo storage. Lo spazio non esiste ancora — il
+   bucket `rapportini` è per le foto e ha `allowed_mime_types` solo immagini,
+   quindi i PDF vogliono un bucket loro. Nessuna delle due voci nuove ha un
+   `perm`: si sceglie quando si sa chi ci lavora dentro.
+
+3. **Foglio generale dei cantieri.** Chiesto il 2026-09-01. Una giornata solare
    per volta, con tutti i cantieri di quel giorno insieme: chi c'era, su quale
    cantiere, quante ore, più il totale della giornata. Serve a sapere cosa ha
    fatto l'azienda il giorno X, cosa che oggi si può ricostruire solo aprendo i
@@ -305,22 +366,22 @@ poi quello che ne aggiunge.
      (`rapportino_mezzi`): ci sono le tabelle, e includerli cambia la forma
      della pagina.
 
-6. Anagrafiche mancanti: **mezzi** (con scadenze revisione/assicurazione e
+4. Anagrafiche mancanti: **mezzi** (con scadenze revisione/assicurazione e
    storico costi), **fornitori**, **materiali**.
-7. Materiali e mezzi dentro il rapportino (`rapportino_materiali`,
+5. Materiali e mezzi dentro il rapportino (`rapportino_materiali`,
    `rapportino_mezzi`): le tabelle ci sono, il form no.
 
 ### Pulizia
 
-8. Ripulire l'utente di prova `Mario Rossi` (`lillo@lalli.com`), rimasto dal seed
+6. Ripulire l'utente di prova `Mario Rossi` (`lillo@lalli.com`), rimasto dal seed
    della fase C con membership e assegnazione.
-9. Chiudere i due difetti di lint in `SessionProvider.tsx` (fast refresh rotto e
+7. Chiudere i due difetti di lint in `SessionProvider.tsx` (fast refresh rotto e
    dipendenza instabile di `useMemo`).
-10. **Verificare i deep link in produzione**: ricaricare con F5 una route interna
+8. **Verificare i deep link in produzione**: ricaricare con F5 una route interna
    (es. `/cantieri`). Se torna 404 serve un `vercel.json` con il rewrite verso
    `index.html` — react-router fa il routing lato client, e senza fallback il
    server cerca un file che non esiste. Non ancora provato.
-11. Decidere di `src/assets/logo_new.jpeg`: è il file originale del logo, fuori
+9. Decidere di `src/assets/logo_new.jpeg`: è il file originale del logo, fuori
     dal versionamento. Da tenere come sorgente ad alta risoluzione o da
     cancellare, visto che in `src/assets/logo-edily.png` c'è già il ritaglio
     pronto all'uso.
