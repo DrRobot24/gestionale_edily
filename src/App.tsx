@@ -17,6 +17,7 @@ import { FornitoriPage } from './modules/anagrafiche/FornitoriPage'
 import { FornitoreForm } from './modules/anagrafiche/FornitoreForm'
 import { Dashboard } from './modules/home/Dashboard'
 import { EconomiaPage } from './modules/economia/EconomiaPage'
+import { MagazzinoPage } from './modules/magazzino/MagazzinoPage'
 import { DipendenteForm } from './modules/anagrafiche/DipendenteForm'
 import type { Permission } from './modules/auth/session'
 import { env } from './lib/env'
@@ -84,6 +85,16 @@ const VOCI: Voce[] = [
     elemento: <CantieriPage />,
   },
   { to: '/rapportini', etichetta: 'Rapportini', elemento: <RapportiniPage /> },
+
+  /* Magazzino sotto `anagrafiche.read`, che ce l'hanno tutti tranne chi
+     non e' in azienda: sapere cosa c'e' in magazzino non e' un
+     privilegio, e il tecnico che parte per il cantiere e' proprio quello
+     che deve poterlo guardare dal telefono.
+
+     Le due azioni sono piu' strette e le decide la pagina: carica chi
+     tiene il registro (`anagrafiche.write`), scarica anche il tecnico
+     (`rapportini.create`). La regola vera resta la RLS. */
+  { to: '/magazzino', etichetta: 'Magazzino', perm: 'anagrafiche.read', elemento: <MagazzinoPage /> },
 
   /* Documenti NON e' una voce di menu, ed e' una decisione del
      2026-09-10: un documento di cantiere e' quasi sempre un PDF che

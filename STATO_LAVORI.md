@@ -12,9 +12,11 @@
 Questa è la prima cosa da leggere aprendo il progetto, e vale sia per una chat
 nuova sia per chi ci torna dopo giorni.
 
-1. **Niente SQL in sospeso.** Al 2026-09-10 tutti i file di
-   `supabase/schema/` sono stati eseguiti. Per verificarlo senza fidarsi:
-   [`verifica-stato.sql`](supabase/schema/verifica-stato.sql), di sola lettura.
+1. **Un SQL in sospeso:** [`magazzino.sql`](supabase/schema/magazzino.sql), da
+   eseguire nel SQL Editor. Senza, la pagina Magazzino non legge e non salva.
+   Tutti gli altri file di `supabase/schema/` sono già girati; per verificarlo
+   senza fidarsi: [`verifica-stato.sql`](supabase/schema/verifica-stato.sql), di
+   sola lettura.
 2. **Il lavoro in corso è il flusso del tecnico**, non il backend: il database
    è già quasi completo, il frontend no. Si procede **un settore per volta**,
    con verifica in ufficio a ogni passaggio.
@@ -61,7 +63,8 @@ nuova sia per chi ci torna dopo giorni.
 | Rapportini — foto di cantiere | ✅ verificato sul database il 2026-09-10 |
 | Rapportini — subappalto | ❌ segnaposto, specifiche da definire |
 | Documenti (storage), Subappalti | ❌ voci di menu, pagine da costruire |
-| Materiali e mezzi | ❌ da fare |
+| Magazzino — giacenze, carichi e scarichi | ⏳ codice pronto, **SQL da eseguire** |
+| Materiali dentro il rapportino, mezzi | ❌ da fare |
 | Economia — costi, ricavi, margini | ❌ da fare |
 | Paghe, WBS | ❌ da fare |
 
@@ -77,7 +80,7 @@ e l'altra non resta traccia di chi ha lanciato cosa.
 [`supabase/schema/verifica-stato.sql`](supabase/schema/verifica-stato.sql). È
 di sola lettura e dice riga per riga cosa è FATTO e cosa è DA FARE.
 
-**Esito del 2026-09-10: tutti eseguiti.** Non c'è niente in sospeso.
+**Esito del 2026-09-10:** tutti eseguiti tranne l'ultimo, `magazzino.sql`.
 
 
 | File | Stato |
@@ -88,6 +91,7 @@ di sola lettura e dice riga per riga cosa è FATTO e cosa è DA FARE.
 | [`ore-giornata.sql`](supabase/schema/ore-giornata.sql) | ✅ eseguito il 2026-09-10: colonna `ore_assenza` e funzione `ore_giornata()`, verificata `security definer` |
 | [`foglio-ore-tecnico.sql`](supabase/schema/foglio-ore-tecnico.sql) | ✅ eseguito il 2026-09-10 |
 | [`note-contabili.sql`](supabase/schema/note-contabili.sql) | ✅ eseguito il 2026-09-10, RLS verificata attiva |
+| [`magazzino.sql`](supabase/schema/magazzino.sql) | ⏳ **da eseguire** — due colonne su `materiali`, tabella `movimenti_magazzino`, vista `v_giacenze_magazzino` |
 
 **Si possono rilanciare tutti senza danno**, ed è una proprietà voluta: questi
 file si eseguono a mano e fra una sessione e l'altra nessuno ricorda cosa aveva
@@ -362,6 +366,35 @@ Da fare **prima** di toccare le policy.
 
 ## Prossimi passi
 
+> **Chiusi il 2026-09-10 (settimo giro).** Il **magazzino**, in sidebar per
+> tutti quelli che hanno `anagrafiche.read`: sapere cosa c'è in magazzino non è
+> un privilegio, e il tecnico che parte per il cantiere è proprio quello che
+> deve poterlo guardare dal telefono.
+>
+> *`materiali` c'era già ma è solo un'anagrafica* — codice, descrizione, unità
+> di misura — e non sapeva niente di cosa c'è in magazzino: la giacenza non
+> esisteva da nessuna parte. Aggiunte `ubicazione` e `scorta_minima`.
+>
+> *La verità sono i movimenti, non un numero.* Una colonna `giacenza` da
+> correggere a mano sarebbe stata la strada corta, ma non sa rispondere a «chi
+> ha preso i venti sacchi e quando» né su quale cantiere sono finiti, che in un
+> magazzino di cantiere sono le due domande vere. Quindi `movimenti_magazzino`
+> con carichi e scarichi, e la giacenza calcolata dalla vista
+> `v_giacenze_magazzino` (`security_invoker`, materiali fermi compresi).
+>
+> *Un movimento non si corregge:* non c'è policy di UPDATE, e uno sbagliato si
+> compensa con quello opposto. Un magazzino in cui si riscrive il passato non è
+> un magazzino.
+>
+> *Chi scrive:* carica chi tiene il registro (`anagrafiche.write`), scarica anche
+> il tecnico (`rapportini.create`). È la scelta ragionevole di oggi, **non una
+> regola stabilita con l'utente**: va rivista quando si vedrà la parte
+> amministrativa.
+>
+> *Cosa non c'è di proposito:* prezzi, valorizzazione, ordini ai fornitori.
+> `rapportino_materiali` esiste già e un giorno potrà generare gli scarichi da
+> solo; oggi le due cose non si parlano.
+>
 > **Chiusi il 2026-09-10 (sesto giro).** La pagina **Economia**, che raccoglie
 > le ore in economia di tutti i cantieri: periodo con scorciatoie, filtro per
 > cantiere, ricerca, totale grosso in cima e ripartizione per cantiere. Prima
@@ -645,20 +678,30 @@ poi quello che ne aggiunge.
 
 7. Anagrafiche mancanti: **mezzi** (con scadenze revisione/assicurazione e
    storico costi), **fornitori**, **materiali**.
-8. Materiali e mezzi dentro il rapportino (`rapportino_materiali`,
+8. **Magazzino: completare la parte amministrativa.** Chiesto il 2026-09-10,
+   che l'utente ha esplicitamente rimandato («poi lo vediamo con la parte
+   amministrativa»). Da definire con lui: prezzi e valorizzazione delle
+   giacenze; ordini ai fornitori e riordino automatico al sotto scorta;
+   inventario periodico; e soprattutto **se lo scarico debba nascere da solo dal
+   rapportino**, visto che `rapportino_materiali` già registra il materiale usato
+   in cantiere e oggi le due cose non si parlano. Da rivedere anche chi può
+   scrivere: oggi carica `anagrafiche.write` e scarica anche `rapportini.create`,
+   ma è una scelta ragionevole presa da noi, non una regola concordata.
+
+9. Materiali e mezzi dentro il rapportino (`rapportino_materiali`,
    `rapportino_mezzi`): le tabelle ci sono, il form no.
 
 ### Pulizia
 
-9. Ripulire l'utente di prova `Mario Rossi` (`lillo@lalli.com`), rimasto dal seed
+10. Ripulire l'utente di prova `Mario Rossi` (`lillo@lalli.com`), rimasto dal seed
    della fase C con membership e assegnazione.
-10. Chiudere i due difetti di lint in `SessionProvider.tsx` (fast refresh rotto e
+11. Chiudere i due difetti di lint in `SessionProvider.tsx` (fast refresh rotto e
    dipendenza instabile di `useMemo`).
-11. **Verificare i deep link in produzione**: ricaricare con F5 una route interna
+12. **Verificare i deep link in produzione**: ricaricare con F5 una route interna
    (es. `/cantieri`). Se torna 404 serve un `vercel.json` con il rewrite verso
    `index.html` — react-router fa il routing lato client, e senza fallback il
    server cerca un file che non esiste. Non ancora provato.
-12. Decidere di `src/assets/logo_new.jpeg`: è il file originale del logo, fuori
+13. Decidere di `src/assets/logo_new.jpeg`: è il file originale del logo, fuori
     dal versionamento. Da tenere come sorgente ad alta risoluzione o da
     cancellare, visto che in `src/assets/logo-edily.png` c'è già il ritaglio
     pronto all'uso.

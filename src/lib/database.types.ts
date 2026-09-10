@@ -590,6 +590,8 @@ export type Database = {
           id: string
           org_id: string
           prezzo_ultimo: number | null
+          scorta_minima: number | null
+          ubicazione: string | null
           unita_misura: string
           updated_at: string
         }
@@ -602,6 +604,8 @@ export type Database = {
           id?: string
           org_id: string
           prezzo_ultimo?: number | null
+          scorta_minima?: number | null
+          ubicazione?: string | null
           unita_misura?: string
           updated_at?: string
         }
@@ -614,6 +618,8 @@ export type Database = {
           id?: string
           org_id?: string
           prezzo_ultimo?: number | null
+          scorta_minima?: number | null
+          ubicazione?: string | null
           unita_misura?: string
           updated_at?: string
         }
@@ -820,6 +826,63 @@ export type Database = {
             columns: ["org_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      movimenti_magazzino: {
+        Row: {
+          cantiere_id: string | null
+          created_at: string
+          data: string
+          id: string
+          materiale_id: string
+          note: string | null
+          org_id: string
+          quantita: number
+          registrato_da: string | null
+          riferimento: string | null
+          tipo: string
+        }
+        Insert: {
+          cantiere_id?: string | null
+          created_at?: string
+          data?: string
+          id?: string
+          materiale_id: string
+          note?: string | null
+          org_id: string
+          quantita: number
+          registrato_da?: string | null
+          riferimento?: string | null
+          tipo: string
+        }
+        Update: {
+          cantiere_id?: string | null
+          created_at?: string
+          data?: string
+          id?: string
+          materiale_id?: string
+          note?: string | null
+          org_id?: string
+          quantita?: number
+          registrato_da?: string | null
+          riferimento?: string | null
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "movimenti_magazzino_materiale_id_fkey"
+            columns: ["materiale_id"]
+            isOneToOne: false
+            referencedRelation: "materiali"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimenti_magazzino_cantiere_id_fkey"
+            columns: ["cantiere_id"]
+            isOneToOne: false
+            referencedRelation: "cantieri"
             referencedColumns: ["id"]
           },
         ]
@@ -1805,6 +1868,21 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      v_giacenze_magazzino: {
+        Row: {
+          attivo: boolean | null
+          codice: string | null
+          descrizione: string | null
+          giacenza: number | null
+          materiale_id: string | null
+          org_id: string | null
+          scorta_minima: number | null
+          ubicazione: string | null
+          ultimo_movimento: string | null
+          unita_misura: string | null
+        }
+        Relationships: []
       }
       v_margine_cantiere: {
         Row: {
