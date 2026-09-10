@@ -15,7 +15,7 @@
 | Cantieri — elenco, scheda, creazione, modifica | ✅ |
 | Cantieri — assegnazione della squadra | ✅ |
 | Cantieri — scheda di riepilogo, tappa prima del rapportino | ✅ |
-| Cantieri — note contabili (ore in economia) | ⏳ codice pronto, **SQL da eseguire** |
+| Ore in economia — si segnano nel rapportino, si cercano nel cantiere | ⏳ codice pronto, **SQL da eseguire** |
 | Clienti — elenco, scheda, CRUD, azienda/privato | ✅ |
 | Operai — elenco, scheda, CRUD, storico tariffe | ✅ |
 | Rapportini — elenco, scheda, creazione, modifica | ✅ |
@@ -333,6 +333,17 @@ Da fare **prima** di toccare le policy.
 > registra il giorno, la descrizione, le ore e il perché, e il riquadro ha una
 > ricerca che stringe l'elenco mentre si digita, con il totale delle ore di
 > quello che resta.
+>
+> *Dove si scrivono e dove si leggono.* Si segnano **compilando il rapportino**,
+> perché sono note della giornata e chi le ha fatte se le ricorda il giorno
+> stesso; il mese dopo il nido d'api non se lo ricorda più nessuno e quelle ore
+> restano a carico dell'impresa. Il riquadro sta sotto la squadra e lontano dalla
+> **descrizione attività**, che è l'opposto: quella racconta il lavoro previsto
+> dal progetto, questa ciò che il progetto non prevedeva. Compaiono poi nella
+> scheda del rapportino, sotto le ore, perché chi valida deve vedere le due cose
+> insieme; e nella scheda del cantiere con la ricerca, per la domanda «quante ore
+> di economia abbiamo qui, e per cosa». Su una scheda nuova restano in attesa
+> come le foto, perché cantiere e giorno si possono ancora cambiare.
 >
 > *Il fraintendimento da non fare, scritto anche nel codice e nell'interfaccia:*
 > queste ore **non si sommano** a quelle del rapportino. Sono le stesse ore,

@@ -8,6 +8,7 @@ import { useCantieri } from '../cantieri/useCantieri'
 import { useDipendenti } from '../anagrafiche/dipendenti'
 import { FormRapportino } from './FormRapportino'
 import { caricaFoto } from './useFoto'
+import type { DatiEconomia } from './RiquadroEconomia'
 import { oggi, type CampiRapportino } from './campiRapportino'
 
 export function NuovoRapportino() {
@@ -27,7 +28,15 @@ export function NuovoRapportino() {
   const { data: dipendenti, isPending: caricoDipendenti } = useDipendenti()
 
   const salva = useMutation({
-    mutationFn: async ({ campi, foto }: { campi: CampiRapportino; foto: File[] }) => {
+    mutationFn: async ({
+      campi,
+      foto,
+      economia,
+    }: {
+      campi: CampiRapportino
+      foto: File[]
+      economia: DatiEconomia[]
+    }) => {
       // Numero e anno NON si passano: li assegna il database con
       // document_counters. Verificato: il primo inserimento e' uscito
       // numerato 1/2026 senza che nessuno glielo chiedesse.
@@ -90,6 +99,37 @@ export function NuovoRapportino() {
        * verita'.
        */
       const fallite: string[] = []
+
+      /**
+       * Le note in economia si scrivono tutte insieme, e come le foto non
+       * fanno fallire il salvataggio: a questo punto il rapportino esiste
+       * gia', e rilanciare l'errore farebbe riprovare a salvare
+       * creandone un secondo per lo stesso cantiere e lo stesso giorno.
+       *
+       * Non hanno bisogno dell'id del rapportino — bastano cantiere e
+       * data — ma si scrivono qui in fondo lo stesso: se il rapportino
+       * non nasce, restano fuori anche loro, invece di lasciare note
+       * appese a una giornata che nessuno ha compilato.
+       */
+      if (economia.length > 0) {
+        const { error: erroreEconomia } = await supabase.from('note_contabili').insert(
+          economia.map((n) => ({
+            org_id: org!.id,
+            cantiere_id: campi.cantiere_id,
+            data: campi.data,
+            descrizione: n.descrizione,
+            ore: n.ore,
+            note: n.note,
+            scritta_da: app!.userId,
+          })),
+        )
+        if (erroreEconomia) {
+          fallite.push(
+            economia.length === 1 ? 'la nota in economia' : 'le note in economia',
+          )
+        }
+      }
+
       for (const file of foto) {
         try {
           await caricaFoto({
@@ -108,6 +148,7 @@ export function NuovoRapportino() {
     onSuccess: ({ id, fallite }) => {
       qc.invalidateQueries({ queryKey: ['rapportini'] })
       qc.invalidateQueries({ queryKey: ['foto'] })
+      qc.invalidateQueries({ queryKey: ['note-contabili'] })
       // Se qualche foto e' rimasta a terra ci si ferma qui a dirlo.
       // Andarsene lasciando credere che sia partito tutto e' peggio di
       // un secondo di attesa in piu'.
@@ -184,18 +225,15 @@ export function NuovoRapportino() {
       {salva.isSuccess && salva.data.fallite.length > 0 ? (
         <Card className="grid gap-3 p-5">
           <Avviso tono="errore">
-            La scheda è salvata, ma{' '}
-            {salva.data.fallite.length === 1
-              ? 'una foto non è partita'
-              : `${salva.data.fallite.length} foto non sono partite`}
-            : {salva.data.fallite.join(', ')}. Aprila e riprova ad aggiungerle da lì.
+            La scheda è salvata, ma qualcosa non è partito con lei:{' '}
+            {salva.data.fallite.join(', ')}. Aprila e riprova ad aggiungerlo da lì.
           </Avviso>
           <div className="flex flex-wrap gap-3">
             <Button
               variante="primario"
               onClick={() => navigate(`/rapportini/${salva.data.id}/modifica`)}
             >
-              Apri la scheda e rimetti le foto
+              Apri la scheda e rimetti quello che manca
             </Button>
             <Button onClick={() => navigate(ritorno ?? `/rapportini/${salva.data.id}`)}>
               Lascia stare, vai avanti
@@ -209,7 +247,7 @@ export function NuovoRapportino() {
         etichettaSalva="Segna come compilata"
         inCorso={salva.isPending}
         errore={salva.isError ? (salva.error as Error).message : undefined}
-        onSalva={(campi, foto) => salva.mutate({ campi, foto })}
+        onSalva={(campi, foto, economia) => salva.mutate({ campi, foto, economia })}
         onAnnulla={() => navigate(ritorno ?? '/rapportini')}
       />
       )}

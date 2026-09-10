@@ -3,6 +3,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router'
 import { data as fmtData, numero as fmtNumero, ora } from '../../lib/formato'
 import { Avviso, Button, Card, Cifra, Percorso, Table, Vuoto } from '../../ui'
 import { foglio, risali, strada } from './percorso'
+import { useNoteContabili } from '../cantieri/noteContabili'
 import { useSession } from '../auth/SessionProvider'
 import { usePermission } from '../auth/usePermission'
 import { useRapportino, useTransizione } from './rapportino'
@@ -209,6 +210,11 @@ export function RapportinoPage() {
               </Table>
             )}
           </Card>
+
+          {/* Le ore in economia della giornata. Stanno subito sotto le
+              ore normali perche' chi valida deve vedere le due cose
+              insieme: quelle si pagano, queste si fatturano. */}
+          <Economia cantiereId={r.cantiere_id} giorno={r.data} />
 
           <GalleriaFoto rapportinoId={r.id} />
         </div>
@@ -418,6 +424,59 @@ function Spiegazione({
  * finezza: il titolare valida guardando una crepa o un getto, e la
  * miniatura serve a trovarla, non a giudicarla.
  */
+/**
+ * Le ore in economia di questa giornata, in sola lettura.
+ *
+ * Si aggiungono dal modulo, non da qui: una scheda inviata e' un
+ * documento consegnato, e cio' che si fattura al cliente non deve poter
+ * cambiare dopo che il titolare l'ha letta.
+ *
+ * Sparisce quando non ce ne sono: la maggior parte delle giornate va
+ * come previsto, e un riquadro vuoto su ogni scheda insegna a saltarlo.
+ */
+function Economia({ cantiereId, giorno }: { cantiereId: string | null; giorno: string }) {
+  const { data: note } = useNoteContabili(cantiereId ?? undefined)
+  const diOggi = (note ?? []).filter((n) => n.data === giorno)
+  if (diOggi.length === 0) return null
+
+  const totale = diOggi.reduce((t, n) => t + Number(n.ore), 0)
+
+  return (
+    <Card className="overflow-hidden">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b-2 border-black bg-lime-100 px-5 py-3">
+        <div>
+          <h2 className="text-sm font-extrabold uppercase tracking-wide text-black">
+            Ore in economia
+          </h2>
+          <p className="text-xs font-semibold text-gray-700">
+            Lavorazioni fuori progetto, da fatturare a parte. Non si sommano alle ore qui
+            sopra: sono le stesse ore.
+          </p>
+        </div>
+        <span className="rounded-full border-2 border-black bg-white px-2.5 py-0.5 text-xs font-extrabold">
+          {fmtNumero(totale)} ore
+        </span>
+      </div>
+
+      <ul className="divide-y-2 divide-black">
+        {diOggi.map((n) => (
+          <li key={n.id} className="flex flex-wrap items-start justify-between gap-3 px-5 py-3">
+            <div className="min-w-0">
+              <p className="text-sm font-bold text-black">{n.descrizione}</p>
+              {n.note && (
+                <p className="text-xs font-semibold text-gray-600">{n.note}</p>
+              )}
+            </div>
+            <span className="numerico shrink-0 text-sm font-extrabold text-black">
+              {fmtNumero(n.ore)} h
+            </span>
+          </li>
+        ))}
+      </ul>
+    </Card>
+  )
+}
+
 function GalleriaFoto({ rapportinoId }: { rapportinoId: string }) {
   const { data: foto, isPending, error } = useFoto(rapportinoId)
 

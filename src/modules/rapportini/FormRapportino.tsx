@@ -9,6 +9,7 @@ import {
   type CampiRapportino,
 } from './campiRapportino'
 import { RiquadroFoto } from './RiquadroFoto'
+import { RiquadroEconomia, type DatiEconomia } from './RiquadroEconomia'
 
 type Props = {
   valoriIniziali: CampiRapportino
@@ -24,7 +25,7 @@ type Props = {
   etichettaSalva: string
   inCorso: boolean
   errore?: string
-  onSalva: (campi: CampiRapportino, foto: File[]) => void
+  onSalva: (campi: CampiRapportino, foto: File[], economia: DatiEconomia[]) => void
   onAnnulla: () => void
 }
 
@@ -40,6 +41,10 @@ export function FormRapportino({
   onAnnulla,
 }: Props) {
   const [foto, setFoto] = useState<File[]>([])
+  // Come le foto: su una scheda nuova restano qui finche' non c'e' un
+  // rapportino, perche' cantiere e giorno si possono ancora cambiare e
+  // scriverle subito le lascerebbe appese al cantiere sbagliato.
+  const [economia, setEconomia] = useState<DatiEconomia[]>([])
   const {
     register,
     control,
@@ -90,6 +95,11 @@ export function FormRapportino({
   // compilatore React non puo' memoizzarlo.
   const righe = useWatch({ control, name: 'ore' })
   const nessunaAttivita = useWatch({ control, name: 'nessuna_attivita' })
+  // Cantiere e giorno si leggono dal form, non dai valori iniziali: su
+  // una scheda nuova si possono ancora cambiare, e le note in economia
+  // devono seguire quello che si sta compilando adesso.
+  const cantiereScelto = useWatch({ control, name: 'cantiere_id' })
+  const giornoScelto = useWatch({ control, name: 'data' })
   const totale = (righe ?? []).reduce(
     (s, r) =>
       s + (r.presente ? Number(r.ore_ordinarie || 0) + Number(r.ore_straordinarie || 0) : 0),
@@ -145,7 +155,7 @@ export function FormRapportino({
 
   return (
     <form
-      onSubmit={handleSubmit((campi) => onSalva(campi, foto))}
+      onSubmit={handleSubmit((campi) => onSalva(campi, foto, economia))}
       className="grid gap-4"
       noValidate
     >
@@ -486,6 +496,21 @@ export function FormRapportino({
               </>
             )}
           </Card>
+
+          {/* Le ore in economia nascono qui, mentre si compila la
+              giornata: chi le ha fatte se le ricorda oggi, e il mese dopo
+              il nido d'api non se lo ricorda piu' nessuno. Sta sotto la
+              squadra perche' parla delle stesse ore, e lontano dalla
+              descrizione attivita' perche' e' l'opposto: quella e' il
+              lavoro previsto, questo e' cio' che il progetto non
+              prevedeva. */}
+          <RiquadroEconomia
+            cantiereId={cantiereScelto}
+            giorno={giornoScelto}
+            subito={Boolean(scheda)}
+            inAttesa={economia}
+            onCambia={setEconomia}
+          />
 
           {/* Subappalto: sta subito sotto la squadra perche' risponde alla
               stessa domanda — chi ha lavorato oggi qui — solo per le
