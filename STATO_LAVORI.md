@@ -12,11 +12,11 @@
 Questa è la prima cosa da leggere aprendo il progetto, e vale sia per una chat
 nuova sia per chi ci torna dopo giorni.
 
-1. **Un SQL in sospeso:** [`magazzino.sql`](supabase/schema/magazzino.sql), da
-   eseguire nel SQL Editor. Senza, la pagina Magazzino non legge e non salva.
-   Tutti gli altri file di `supabase/schema/` sono già girati; per verificarlo
-   senza fidarsi: [`verifica-stato.sql`](supabase/schema/verifica-stato.sql), di
-   sola lettura.
+1. **Niente SQL in sospeso.** Al 2026-09-10 tutti i file di
+   `supabase/schema/` sono stati eseguiti, `magazzino.sql` compreso. L'unico
+   che resta è [`rapportino-foto-stato.sql`](supabase/schema/rapportino-foto-stato.sql),
+   **non eseguito di proposito** (vedi il punto 5). Per verificare lo stato:
+   [`verifica-stato.sql`](supabase/schema/verifica-stato.sql), di sola lettura.
 2. **Il lavoro in corso è il flusso del tecnico**, non il backend: il database
    è già quasi completo, il frontend no. Si procede **un settore per volta**,
    con verifica in ufficio a ogni passaggio.
@@ -63,7 +63,7 @@ nuova sia per chi ci torna dopo giorni.
 | Rapportini — foto di cantiere | ✅ verificato sul database il 2026-09-10 |
 | Rapportini — subappalto | ❌ segnaposto, specifiche da definire |
 | Documenti (storage), Subappalti | ❌ voci di menu, pagine da costruire |
-| Magazzino — giacenze, carichi e scarichi | ⏳ codice pronto, **SQL da eseguire** |
+| Magazzino — giacenze, carichi e scarichi | ✅ |
 | Materiali dentro il rapportino, mezzi | ❌ da fare |
 | Economia — costi, ricavi, margini | ❌ da fare |
 | Paghe, WBS | ❌ da fare |
@@ -80,7 +80,7 @@ e l'altra non resta traccia di chi ha lanciato cosa.
 [`supabase/schema/verifica-stato.sql`](supabase/schema/verifica-stato.sql). È
 di sola lettura e dice riga per riga cosa è FATTO e cosa è DA FARE.
 
-**Esito del 2026-09-10:** tutti eseguiti tranne l'ultimo, `magazzino.sql`.
+**Esito del 2026-09-10: tutti eseguiti.**
 
 
 | File | Stato |
@@ -91,7 +91,7 @@ di sola lettura e dice riga per riga cosa è FATTO e cosa è DA FARE.
 | [`ore-giornata.sql`](supabase/schema/ore-giornata.sql) | ✅ eseguito il 2026-09-10: colonna `ore_assenza` e funzione `ore_giornata()`, verificata `security definer` |
 | [`foglio-ore-tecnico.sql`](supabase/schema/foglio-ore-tecnico.sql) | ✅ eseguito il 2026-09-10 |
 | [`note-contabili.sql`](supabase/schema/note-contabili.sql) | ✅ eseguito il 2026-09-10, RLS verificata attiva |
-| [`magazzino.sql`](supabase/schema/magazzino.sql) | ⏳ **da eseguire** — due colonne su `materiali`, tabella `movimenti_magazzino`, vista `v_giacenze_magazzino` |
+| [`magazzino.sql`](supabase/schema/magazzino.sql) | ✅ eseguito il 2026-09-10, vista verificata `security_invoker=on` |
 
 **Si possono rilanciare tutti senza danno**, ed è una proprietà voluta: questi
 file si eseguono a mano e fra una sessione e l'altra nessuno ricorda cosa aveva
