@@ -15,7 +15,7 @@
 | Cantieri — elenco, scheda, creazione, modifica | ✅ |
 | Cantieri — assegnazione della squadra | ✅ |
 | Cantieri — scheda di riepilogo, tappa prima del rapportino | ✅ |
-| Cantieri — note contabili (avanzamento delle lavorazioni) | ⏳ codice pronto, **SQL da eseguire** |
+| Cantieri — note contabili (ore in economia) | ⏳ codice pronto, **SQL da eseguire** |
 | Clienti — elenco, scheda, CRUD, azienda/privato | ✅ |
 | Operai — elenco, scheda, CRUD, storico tariffe | ✅ |
 | Rapportini — elenco, scheda, creazione, modifica | ✅ |
@@ -324,20 +324,35 @@ Da fare **prima** di toccare le policy.
 ## Prossimi passi
 
 > **Chiusi il 2026-09-10 (quinto giro).** Le **note contabili** dentro la scheda
-> del cantiere: a che punto sono le singole lavorazioni, che è la domanda a cui
-> il rapportino non risponde. Il rapportino dice chi c'era e quante ore; questa
-> dice che la posa del pavimento è finita e che i battiscopa cominciano
-> lunedì. Niente importi, per scelta: i soldi restano in `costi_cantiere` e
-> `ricavi_cantiere`, e una seconda fonte di verità sugli stessi numeri prima o
-> poi diverge da sola. La scrivono il tecnico sui cantieri suoi e il titolare
-> ovunque, perché se al tecnico sfugge qualcosa deve poterlo aiutare.
+> del cantiere, cioè le **ore in economia**.
 >
-> *Perché non `wbs_tasks`, che sarebbe fatta apposta:* è uno **specchio** di
-> wbs-office, con `synced_at` e `project_id` non nullo, e le sue righe le
-> riscrive la sincronizzazione. Scriverci a mano vorrebbe dire perdere tutto al
-> primo sync. Resta `wbs_task_id` sulla tabella nuova, nullo e inutilizzato, per
-> il giorno che il ponte funziona.
+> In edilizia il lavoro si paga in due modi: *a misura*, sulle quantità previste
+> dal progetto, e *in economia*, sulle ore effettivamente impiegate per ciò che
+> nel progetto non c'era. L'esempio dell'utente: prima di alzare il muro si
+> trova un nido d'api, le due ore per rimuoverlo si fatturano a parte. La nota
+> registra il giorno, la descrizione, le ore e il perché, e il riquadro ha una
+> ricerca che stringe l'elenco mentre si digita, con il totale delle ore di
+> quello che resta.
 >
+> *Il fraintendimento da non fare, scritto anche nel codice e nell'interfaccia:*
+> queste ore **non si sommano** a quelle del rapportino. Sono le stesse ore,
+> viste dal lato di cosa si fattura invece che di cosa si paga. Chi calcola le
+> paghe continua a guardare `rapportino_ore`.
+>
+> *Niente importi:* le ore ci sono, i soldi no. Quanto valgono lo dice la
+> tariffa concordata, e restano in `costi_cantiere` e `ricavi_cantiere`. Due
+> fonti di verità sugli stessi numeri prima o poi divergono da sole.
+>
+> *La prima stesura sbagliava concetto* — modellava l'avanzamento delle
+> lavorazioni, con stati e date di inizio e fine. Il file dello schema converte
+> da solo se quella tabella è già stata creata, e si ferma invece di buttare via
+> righe se ne trova.
+>
+> *Perché non `wbs_tasks`, che sarebbe fatta apposta per le sottolavorazioni:*
+> è uno **specchio** di wbs-office, con `synced_at` e `project_id` non nullo, e
+> le sue righe le riscrive la sincronizzazione. E comunque la WBS è la struttura
+> del progetto; qui c'è l'opposto, ciò che nel progetto non c'era.
+
 > **Chiusi il 2026-09-10 (quarto giro).** Fascia di benvenuto in home: saluto
 > con il nome, data grande per esteso, verde. Prima la pagina si apriva con la
 > ragione sociale dell'impresa, che chi la legge ogni mattina conosce già.

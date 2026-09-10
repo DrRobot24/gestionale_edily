@@ -827,45 +827,39 @@ export type Database = {
       note_contabili: {
         Row: {
           cantiere_id: string
-          completata_il: string | null
           created_at: string
+          data: string
+          descrizione: string
           id: string
-          iniziata_il: string | null
-          lavorazione: string
           note: string | null
+          ore: number
           org_id: string
           scritta_da: string | null
-          stato: string
           updated_at: string
-          wbs_task_id: string | null
         }
         Insert: {
           cantiere_id: string
-          completata_il?: string | null
           created_at?: string
+          data?: string
+          descrizione: string
           id?: string
-          iniziata_il?: string | null
-          lavorazione: string
           note?: string | null
+          ore?: number
           org_id: string
           scritta_da?: string | null
-          stato?: string
           updated_at?: string
-          wbs_task_id?: string | null
         }
         Update: {
           cantiere_id?: string
-          completata_il?: string | null
           created_at?: string
+          data?: string
+          descrizione?: string
           id?: string
-          iniziata_il?: string | null
-          lavorazione?: string
           note?: string | null
+          ore?: number
           org_id?: string
           scritta_da?: string | null
-          stato?: string
           updated_at?: string
-          wbs_task_id?: string | null
         }
         Relationships: [
           {

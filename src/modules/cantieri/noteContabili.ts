@@ -3,56 +3,41 @@ import { supabase } from '../../lib/supabase'
 import { useSession } from '../auth/SessionProvider'
 
 /* ══════════════════════════════════════════════════════════════════
-   Le note contabili: a che punto sono le lavorazioni di un cantiere.
+   Le note contabili: le ore in economia di un cantiere.
 
-   Il rapportino dice chi c'era e quante ore ha fatto. Non dice a che
-   punto e' il lavoro. Sono due domande diverse e servono tutte e due:
-   dalle ore non si ricava l'avanzamento, e dall'avanzamento non si
-   ricavano le paghe.
+   In edilizia il lavoro si paga in due modi. A MISURA, sulle quantita'
+   previste dal progetto. In ECONOMIA, sulle ore effettivamente impiegate
+   per cio' che nel progetto non c'era.
 
-   Niente importi, per scelta: i soldi stanno in `costi_cantiere` e
-   `ricavi_cantiere`, e una seconda fonte di verita' sugli stessi numeri
-   prima o poi diverge da sola.
+   Una nota contabile registra il secondo: «due ore per rimuovere il nido
+   d'api trovato prima di alzare il muro». Ore che si ribaltano al
+   cliente come costo sopraggiunto.
+
+   ATTENZIONE, e' il punto piu' facile da fraintendere: queste ore NON si
+   sommano a quelle del rapportino. Le due ore del nido d'api stanno gia'
+   dentro la giornata di chi le ha fatte. Qui non si aggiungono, si
+   CLASSIFICANO — per poterle fatturare. Chi somma le ore per le paghe
+   continua a guardare `rapportino_ore` e non deve toccare questa
+   tabella.
 
    Tabella e policy in `supabase/schema/note-contabili.sql`.
    ══════════════════════════════════════════════════════════════════ */
 
-export const STATI_NOTA = ['in_corso', 'completata', 'sospesa'] as const
-export type StatoNota = (typeof STATI_NOTA)[number]
-
-export const ETICHETTA_STATO: Record<StatoNota, string> = {
-  in_corso: 'In corso',
-  completata: 'Completata',
-  sospesa: 'Sospesa',
-}
-
 export type NotaContabile = {
   id: string
   cantiere_id: string
-  lavorazione: string
-  stato: StatoNota
-  iniziata_il: string | null
-  completata_il: string | null
+  data: string
+  descrizione: string
+  ore: number
   note: string | null
   scritta_da: string | null
   created_at: string
 }
 
-const CAMPI = 'id, cantiere_id, lavorazione, stato, iniziata_il, completata_il, note, scritta_da, created_at'
+const CAMPI = 'id, cantiere_id, data, descrizione, ore, note, scritta_da, created_at'
 
-/**
- * Le note di un cantiere, con quelle aperte in cima.
- *
- * L'ordine e' la risposta alla domanda che si fa aprendo la pagina:
- * «a che punto siamo». Prima cio' che e' ancora aperto — in corso e
- * sospese — poi il fatto, dal piu' recente. Un elenco in ordine di
- * inserimento sotterrerebbe la lavorazione di oggi sotto tre mesi di
- * storia.
- *
- * L'ordinamento vero lo fa il client: in SQL servirebbe una `case` in
- * `order by` che PostgREST non sa esprimere, e le note di un cantiere
- * sono decine, non decine di migliaia.
- */
+/** Dal giorno piu' recente: chi apre la pagina vuole prima quello che e'
+ *  successo ieri, non quello di tre mesi fa. */
 export function useNoteContabili(cantiereId: string | undefined) {
   const { org } = useSession()
 
@@ -65,25 +50,19 @@ export function useNoteContabili(cantiereId: string | undefined) {
         .select(CAMPI)
         .eq('cantiere_id', cantiereId!)
         .eq('org_id', org!.id)
+        .order('data', { ascending: false })
         .order('created_at', { ascending: false })
 
       if (error) throw error
-
-      const peso: Record<string, number> = { in_corso: 0, sospesa: 1, completata: 2 }
-      return [...((data ?? []) as NotaContabile[])].sort((a, b) => {
-        const d = (peso[a.stato] ?? 9) - (peso[b.stato] ?? 9)
-        if (d !== 0) return d
-        return (b.completata_il ?? b.created_at).localeCompare(a.completata_il ?? a.created_at)
-      })
+      return (data ?? []) as NotaContabile[]
     },
   })
 }
 
 export type DatiNota = {
-  lavorazione: string
-  stato: StatoNota
-  iniziata_il: string | null
-  completata_il: string | null
+  data: string
+  descrizione: string
+  ore: number
   note: string | null
 }
 
@@ -142,4 +121,50 @@ export function useEliminaNota() {
       qc.invalidateQueries({ queryKey: ['note-contabili', v.cantiereId] })
     },
   })
+}
+
+/* ── ricerca ───────────────────────────────────────────────────── */
+
+/**
+ * Minuscole e senza accenti.
+ *
+ * Chi cerca scrive «perche», non «perché», e scrive di fretta dal
+ * telefono in cantiere. Una ricerca che non trova «perché» perche' e'
+ * stato digitato senza accento e' una ricerca che l'utente smette di
+ * usare dopo due tentativi.
+ */
+function pulisci(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize('NFD')
+    // `\p{Diacritic}` invece del range dei segni combinanti scritto a
+    // mano: quelli sono caratteri invisibili nel sorgente, e passando
+    // da un editor all'altro si perdono senza che nessuno se ne accorga.
+    .replace(/\p{Diacritic}/gu, '')
+}
+
+/**
+ * Filtra le note su quello che si e' scritto nella casella di ricerca.
+ *
+ * Ogni parola cercata deve comparire da qualche parte — nella
+ * descrizione, nelle note o nella data. E' l'AND e non l'OR: cercando
+ * «nido muro» si vuole la nota che parla di tutti e due, non l'unione di
+ * chi parla dell'uno o dell'altro.
+ *
+ * Tutto in memoria e non con una query: le note di un cantiere sono
+ * decine, e una ricerca che parte a ogni tasto premuto deve rispondere
+ * prima che il dito si alzi.
+ */
+export function filtra(note: NotaContabile[], cerca: string): NotaContabile[] {
+  const parole = pulisci(cerca).split(/\s+/).filter(Boolean)
+  if (parole.length === 0) return note
+
+  return note.filter((n) => {
+    const dove = pulisci(`${n.descrizione} ${n.note ?? ''} ${n.data}`)
+    return parole.every((p) => dove.includes(p))
+  })
+}
+
+export function sommaOre(note: NotaContabile[]): number {
+  return note.reduce((t, n) => t + Number(n.ore), 0)
 }

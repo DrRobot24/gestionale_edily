@@ -1,117 +1,154 @@
 -- =====================================================================
--- `note_contabili`: a che punto sono le lavorazioni di un cantiere
+-- `note_contabili`: le ore in economia di un cantiere
 --
--- Chiesto il 2026-09-10. Serve a rendicontare le lavorazioni specifiche
--- dentro il progetto generale: «la posa in opera del pavimento del piano
--- primo e' finita, adesso si passa ai battiscopa». Una granularita' che
--- oggi non esiste da nessuna parte.
+-- Chiesto e precisato il 2026-09-10.
 --
--- Il rapportino dice CHI c'era e QUANTE ore ha fatto. Non dice a che
--- punto e' il lavoro. Sono due domande diverse e servono tutte e due:
--- dalle ore non si ricava l'avanzamento, e dall'avanzamento non si
--- ricavano le paghe.
+-- COS'E' UNA NOTA CONTABILE
 --
--- PERCHE' NON `wbs_tasks`
+-- In edilizia il lavoro si paga in due modi. **A misura**, sulle
+-- quantita' previste dal progetto: tanti metri quadri di muro, tanto al
+-- metro. E **in economia**, sulle ore e i materiali effettivamente
+-- impiegati, per cio' che nel progetto non c'era.
 --
--- La domanda e' legittima: la WBS e' fatta apposta per le
--- sottolavorazioni. Ma `wbs_tasks` e' uno SPECCHIO di wbs-office, non
--- una tabella che si scrive da qui: ha `synced_at`, `project_id` non
--- nullo e `task_key`, e le sue righe le riscrive la sincronizzazione.
--- Oggi poi il ponte e' staccato da entrambi i lati — 151 righe importate
--- il 4 agosto, tutte con `cantiere_id` null, e `projects` a zero righe.
--- Scriverci dentro a mano vorrebbe dire perdere tutto al primo sync.
+-- La nota contabile registra il secondo. L'esempio dell'utente:
 --
--- Resta comunque `wbs_task_id` qui sotto, nullo e inutilizzato: il
--- giorno che il ponte funziona, una nota si potra' agganciare al suo
--- task. `costi_cantiere` e `rapportino_ore` hanno gia' la stessa
--- colonna, quindi e' la convenzione di questo database.
+--   «Dobbiamo alzare un muro con dei blocchetti. Prima di farlo abbiamo
+--   trovato un nido d'api che impediva il lavoro. Le 2 ore impiegate per
+--   rimuoverlo sono una lavorazione extra che ci faremo pagare a parte,
+--   in economia e non a misura come il resto del progetto.»
 --
--- NIENTE IMPORTI, ed e' una scelta del 2026-09-10.
+-- Serve al tecnico per segnarle il giorno che succedono, e al titolare
+-- per vedere a volo d'uccello quante ne ha un cantiere e perche'.
 --
--- La nota racconta l'avanzamento e basta. I soldi stanno in
--- `costi_cantiere` e `ricavi_cantiere`, che esistono gia': mettere un
--- importo anche qui creerebbe una seconda fonte di verita' sugli stessi
--- numeri, e due fonti che devono restare allineate a mano prima o poi
--- non lo sono piu'.
+-- ATTENZIONE A COSA NON E'
+--
+-- Non e' una WBS, e non e' l'avanzamento delle lavorazioni previste.
+-- Quella e' la struttura del progetto e vive in `wbs_tasks`, che e' uno
+-- specchio di wbs-office. Qui c'e' l'opposto: cio' che nel progetto NON
+-- c'era e che e' successo lo stesso.
+--
+-- E non e' un secondo posto dove segnare le ore. Le 2 ore del nido d'api
+-- stanno gia' nel rapportino di quel giorno, dentro la giornata di chi
+-- le ha fatte: qui non si aggiungono, si CLASSIFICANO, per poterle
+-- ribaltare al cliente. Chi somma le ore per le paghe continua a
+-- guardare `rapportino_ore` e non deve toccare questa tabella.
+--
+-- NIENTE IMPORTI, come deciso il 2026-09-10. Qui ci sono le ORE e il
+-- motivo; quanto valgono lo dice la tariffa concordata, e i soldi
+-- stanno in `costi_cantiere` e `ricavi_cantiere`. Due fonti di verita'
+-- sugli stessi numeri prima o poi divergono da sole.
 --
 -- DATABASE CONDIVISO con wbs-office: si CREA una tabella nuova, non si
 -- tocca niente di esistente.
 --
--- Da eseguire nel SQL Editor. Si puo' rilanciare: tutto e' `if not
--- exists` oppure si toglie prima di rimettere.
+-- Da eseguire nel SQL Editor. Si puo' rilanciare.
 -- =====================================================================
 
 
 -- 1. LA TABELLA
 
 create table if not exists public.note_contabili (
-  id            uuid primary key default gen_random_uuid(),
-  org_id        uuid not null references public.organizations(id) on delete cascade,
-  cantiere_id   uuid not null references public.cantieri(id) on delete cascade,
+  id           uuid primary key default gen_random_uuid(),
+  org_id       uuid not null references public.organizations(id) on delete cascade,
+  cantiere_id  uuid not null references public.cantieri(id) on delete cascade,
 
-  -- Che cosa si sta facendo. Testo libero di proposito: in edilizia le
-  -- lavorazioni non stanno in una lista chiusa, e costringerle in un
-  -- elenco farebbe scrivere "Altro" nella meta' dei casi.
-  lavorazione   text not null,
+  -- Il giorno in cui e' successo. Le note sono giornaliere: una stessa
+  -- lavorazione extra ripetuta due giorni fa due note, perche' e' cosi'
+  -- che si rendiconta.
+  data         date not null default current_date,
 
-  stato         text not null default 'in_corso',
+  -- Cosa e' stato fatto e perche' non era previsto. E' il campo su cui
+  -- si cerca, quindi va scritto per esteso e non a sigle: fra sei mesi
+  -- «rimozione nido d'api dietro il muro sud» si ritrova, «NDA muro S»
+  -- no.
+  descrizione  text not null,
 
-  iniziata_il   date,
-  completata_il date,
+  -- Le ore in economia. Non si sommano a quelle del rapportino: le
+  -- classificano.
+  ore          numeric(5,2) not null default 0,
 
-  -- Il racconto: cosa e' rimasto indietro, cosa ha rallentato, cosa
-  -- serve. E' la parte che il titolare legge.
-  note          text,
+  -- Il seguito: cosa serve, chi era presente, cosa ha detto il cliente.
+  note         text,
 
-  -- Nullo e inutilizzato finche' il ponte WBS non funziona. Vedi sopra.
-  wbs_task_id   uuid references public.wbs_tasks(id) on delete set null,
-
-  scritta_da    uuid references auth.users(id) on delete set null,
-  created_at    timestamptz not null default now(),
-  updated_at    timestamptz not null default now()
+  scritta_da   uuid references auth.users(id) on delete set null,
+  created_at   timestamptz not null default now(),
+  updated_at   timestamptz not null default now()
 );
 
 comment on table public.note_contabili is
-  'Avanzamento delle singole lavorazioni di un cantiere. Nessun importo: i soldi stanno in costi_cantiere e ricavi_cantiere.';
+  'Ore in economia: lavorazioni extra non previste dal progetto, da ribaltare al cliente. Le ore qui CLASSIFICANO ore gia'' scritte nei rapportini, non se ne aggiungono di nuove.';
+
+comment on column public.note_contabili.ore is
+  'Ore in economia. NON sommarle a rapportino_ore: sono le stesse ore, viste dal lato di cosa si fattura invece che di cosa si paga.';
 
 
--- 2. I VINCOLI
+-- 2. CONVERGENZA DALLA PRIMA STESURA
 --
--- Uno stato fuori lista non e' un caso di scuola: "Completata",
--- "completato" e "completata " diventerebbero tre categorie e i conteggi
--- sbaglierebbero IN SILENZIO. Un `check` e non un enum perche' il
--- database e' condiviso: aggiungere un tipo lo vede anche l'altro
--- frontend, allargare un check no.
+-- La prima versione di questo file modellava l'avanzamento delle
+-- lavorazioni: `stato`, `lavorazione`, `iniziata_il`, `completata_il`.
+-- Era il concetto sbagliato. Se quella tabella e' gia' stata creata, qui
+-- si converte.
+--
+-- Le colonne vecchie si tolgono SOLO se la tabella e' vuota. Con delle
+-- righe dentro ci si ferma e lo si dice: buttare via del lavoro vero per
+-- far quadrare uno schema non e' una migrazione, e' una perdita.
+
+do $blocco$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'note_contabili'
+      and column_name = 'lavorazione'
+  ) then
+    if exists (select 1 from public.note_contabili limit 1) then
+      raise exception 'note_contabili ha gia'' delle righe con lo schema vecchio: convertile a mano prima di rilanciare questo file.'
+        using errcode = 'P0001';
+    end if;
+
+    alter table public.note_contabili drop constraint if exists note_contabili_stato_valido;
+    alter table public.note_contabili drop constraint if exists note_contabili_date_coerenti;
+    alter table public.note_contabili drop constraint if exists note_contabili_lavorazione_non_vuota;
+
+    alter table public.note_contabili drop column if exists lavorazione;
+    alter table public.note_contabili drop column if exists stato;
+    alter table public.note_contabili drop column if exists iniziata_il;
+    alter table public.note_contabili drop column if exists completata_il;
+    alter table public.note_contabili drop column if exists wbs_task_id;
+
+    alter table public.note_contabili add column if not exists data date not null default current_date;
+    alter table public.note_contabili add column if not exists descrizione text not null default '';
+    alter table public.note_contabili add column if not exists ore numeric(5,2) not null default 0;
+    alter table public.note_contabili alter column descrizione drop default;
+
+    raise notice 'note_contabili convertita dallo schema vecchio (avanzamento) a quello nuovo (ore in economia).';
+  end if;
+end
+$blocco$;
+
+
+-- 3. I VINCOLI
 
 alter table public.note_contabili
-  drop constraint if exists note_contabili_stato_valido;
+  drop constraint if exists note_contabili_descrizione_non_vuota;
 alter table public.note_contabili
-  add constraint note_contabili_stato_valido
-  check (stato in ('in_corso', 'completata', 'sospesa'));
+  add constraint note_contabili_descrizione_non_vuota
+  check (length(btrim(descrizione)) > 0);
 
--- Una lavorazione completata ha una data di fine, e una finita prima di
--- cominciare e' un refuso che finirebbe in un rendiconto.
+-- Ore negative non esistono, e sopra le 24 in un giorno solo non e'
+-- economia: e' un refuso che finirebbe in una fattura al cliente.
 alter table public.note_contabili
-  drop constraint if exists note_contabili_date_coerenti;
+  drop constraint if exists note_contabili_ore_valide;
 alter table public.note_contabili
-  add constraint note_contabili_date_coerenti
-  check (
-    (stato <> 'completata' or completata_il is not null)
-    and (iniziata_il is null or completata_il is null or completata_il >= iniziata_il)
-  );
+  add constraint note_contabili_ore_valide
+  check (ore >= 0 and ore <= 24);
 
-alter table public.note_contabili
-  drop constraint if exists note_contabili_lavorazione_non_vuota;
-alter table public.note_contabili
-  add constraint note_contabili_lavorazione_non_vuota
-  check (length(btrim(lavorazione)) > 0);
-
--- Si legge sempre per cantiere, e quasi sempre ordinato per data.
-create index if not exists note_contabili_cantiere_idx
-  on public.note_contabili (cantiere_id, stato, completata_il desc nulls first);
+-- Si legge sempre per cantiere, dal giorno piu' recente.
+drop index if exists public.note_contabili_cantiere_idx;
+create index if not exists note_contabili_cantiere_data_idx
+  on public.note_contabili (cantiere_id, data desc);
 
 
--- 3. `updated_at` CHE SI AGGIORNA DA SOLO
+-- 4. `updated_at` CHE SI AGGIORNA DA SOLO
 -- Una colonna che si aggiorna solo se il codice si ricorda di farlo e'
 -- una colonna di cui non ci si puo' fidare.
 
@@ -132,17 +169,17 @@ create trigger note_contabili_tocca
   for each row execute function public.note_contabili_tocca();
 
 
--- 4. LE POLICY
+-- 5. LE POLICY
 --
 -- Chi scrive, deciso il 2026-09-10: il TECNICO sui cantieri suoi, perche'
--- chi sta in cantiere e' chi sa quando il pavimento e' finito; e il
--- TITOLARE ovunque, perche' se al tecnico sfugge qualcosa deve poterlo
--- aiutare.
+-- chi sta in cantiere e' chi vede il nido d'api; e il TITOLARE ovunque,
+-- perche' veglia su tutti a volo d'uccello e se al tecnico sfugge
+-- qualcosa deve poterlo aiutare.
 --
 -- `rapportini.validate` e' il permesso che distingue il titolare: owner e
 -- admin ce l'hanno, `amministrazione` no — legge tutto ma non valida. E'
--- quindi il modo di dire "il titolare" nel linguaggio dei permessi
--- invece che con il nome di un ruolo.
+-- il modo di dire "il titolare" nel linguaggio dei permessi invece che
+-- con il nome di un ruolo.
 
 alter table public.note_contabili enable row level security;
 
@@ -175,7 +212,8 @@ create policy note_contabili_update on public.note_contabili
 
 -- Cancellare: il titolare sempre, il tecnico solo cio' che ha scritto
 -- lui. Una nota altrui che sparisce senza lasciare traccia e' peggio di
--- una nota sbagliata che resta e si corregge.
+-- una nota sbagliata che resta e si corregge — e qui dentro c'e' roba
+-- che si fattura.
 drop policy if exists note_contabili_delete on public.note_contabili;
 create policy note_contabili_delete on public.note_contabili
   for delete using (
@@ -188,7 +226,7 @@ create policy note_contabili_delete on public.note_contabili
   );
 
 
--- 5. VERIFICA
+-- 6. VERIFICA
 select column_name, data_type, is_nullable, column_default
 from information_schema.columns
 where table_schema = 'public' and table_name = 'note_contabili'
@@ -206,7 +244,7 @@ join pg_namespace n on n.oid = c.relnamespace
 where n.nspname = 'public' and c.relname = 'note_contabili';
 
 
--- 6. PROVA DAL VIVO
+-- 7. PROVA DAL VIVO
 -- Come tecnico@cassia.com: su un cantiere assegnato la nota si crea e si
 -- corregge; su un cantiere non assegnato l'insert deve tornare 42501.
 -- Come amministrazione: le note si leggono tutte e non si scrive niente.
