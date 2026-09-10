@@ -14,6 +14,7 @@
 | Login, sessione, tre livelli di permesso | ✅ |
 | Cantieri — elenco, scheda, creazione, modifica | ✅ |
 | Cantieri — assegnazione della squadra | ✅ |
+| Cantieri — scheda di riepilogo per il tecnico | ❌ da costruire, **prossimo passo** |
 | Clienti — elenco, scheda, CRUD, azienda/privato | ✅ |
 | Operai — elenco, scheda, CRUD, storico tariffe | ✅ |
 | Rapportini — elenco, scheda, creazione, modifica | ✅ |
@@ -325,7 +326,48 @@ poi quello che ne aggiunge.
 > girano, note al titolare e foto di cantiere sono codice che non funziona, e il
 > bucket `rapportini` resta pubblico.
 
-1. **Subappalto dentro il rapportino.** Chiesto il 2026-09-09. Nella scheda c'è
+1. **La scheda del cantiere, tappa obbligata prima del rapportino.** Chiesto il
+   2026-09-10, ed è la spina dorsale del lavoro del tecnico, non una pagina in
+   più. Oggi la card in home porta **dritta** al form del rapportino: il tecnico
+   non vede mai il cantiere su cui sta per scrivere. Deve invece approdare su un
+   riepilogo completo, guardarlo, e **solo quando è pronto** far partire da lì il
+   rapportino della giornata scelta.
+
+   *Pagina, non modale,* per tre motivi: il contenuto è tanto e cresce
+   (anagrafica, squadra, storico, foto, documenti, subappalti); l'indirizzo deve
+   reggere un F5 e un link mandato per messaggio; e da lì si esce verso il
+   rapportino e si rientra, cosa che un modale non sa fare senza perdere il
+   posto.
+
+   *L'ostacolo da togliere per primo:* `/cantieri/:id` oggi apre `CantiereForm`,
+   cioè il modulo dell'anagrafica. Senza `cantieri.write` il tecnico ci
+   troverebbe quindici campi grigi e spenti — non una panoramica, un modulo di
+   amministrazione castrato. La strada pulita è la simmetria che i rapportini
+   hanno già: `/cantieri/:id` diventa la **scheda in lettura**, aperta a chi ha
+   il cantiere secondo la RLS, e il form si sposta su `/cantieri/:id/modifica`
+   dietro `cantieri.write`.
+
+   *Cosa ci va dentro,* in ordine di quanto serve a chi sta per compilare: il
+   cappello (codice, denominazione, cliente, stato, luogo); la squadra
+   assegnata, che è già `cantiere_assegnazioni` e ha già il suo componente
+   `Squadra`; l'ultimo rapportino e lo storico dei giorni lavorati; le foto già
+   caricate; date e importo di contratto, ma solo a chi ha `economics.read`.
+   Documenti e subappalti diventano due riquadri quando esisteranno. In fondo il
+   pulsante che porta al rapportino di oggi — o alla scheda che c'è già.
+
+   *Il semaforo non cambia:* verde appena il rapportino esiste, bozza compresa,
+   e il foglio parte solo a tutte verdi. Quella parte è già viva e la regola sta
+   nel database. Qui si aggiunge la tappa che manca prima.
+
+   *La domanda aperta, e non è di dettaglio:* «tutte le card quanti sono i
+   cantieri attivi» vuol dire tutti quelli **dell'impresa** o tutti quelli
+   **assegnati a te**? Oggi vale il secondo: la RLS filtra su
+   `cantiere_assegnazioni`, e `invia_foglio_giornata` conta sullo stesso
+   perimetro perché è `security invoker`. Con un tecnico solo le due cose
+   coincidono e la differenza non si vede; col secondo tecnico si vede subito.
+   Cambiare risposta significa toccare il modello dei permessi, non il frontend.
+
+2. **Subappalto dentro il rapportino.** Chiesto il 2026-09-09. Nella scheda c'è
    un riquadro segnaposto sotto la squadra, che non ha campi e non salva niente:
    risponde alla stessa domanda della squadra — chi ha lavorato qui oggi — per le
    imprese che non sono la nostra.
@@ -336,13 +378,13 @@ poi quello che ne aggiunge.
    numero di persone, o solo la presenza? Entra nei costi del cantiere o resta
    cronaca della giornata? Serve allegare il contratto?
 
-2. **Documenti.** Chiesto il 2026-09-09. Voce di menu con pagina segnaposto: i
+3. **Documenti.** Chiesto il 2026-09-09. Voce di menu con pagina segnaposto: i
    documenti di cantiere presi dallo storage. Lo spazio non esiste ancora — il
    bucket `rapportini` è per le foto e ha `allowed_mime_types` solo immagini,
    quindi i PDF vogliono un bucket loro. Nessuna delle due voci nuove ha un
    `perm`: si sceglie quando si sa chi ci lavora dentro.
 
-3. **Foglio generale dei cantieri.** Chiesto il 2026-09-01. Una giornata solare
+4. **Foglio generale dei cantieri.** Chiesto il 2026-09-01. Una giornata solare
    per volta, con tutti i cantieri di quel giorno insieme: chi c'era, su quale
    cantiere, quante ore, più il totale della giornata. Serve a sapere cosa ha
    fatto l'azienda il giorno X, cosa che oggi si può ricostruire solo aprendo i
@@ -366,22 +408,22 @@ poi quello che ne aggiunge.
      (`rapportino_mezzi`): ci sono le tabelle, e includerli cambia la forma
      della pagina.
 
-4. Anagrafiche mancanti: **mezzi** (con scadenze revisione/assicurazione e
+5. Anagrafiche mancanti: **mezzi** (con scadenze revisione/assicurazione e
    storico costi), **fornitori**, **materiali**.
-5. Materiali e mezzi dentro il rapportino (`rapportino_materiali`,
+6. Materiali e mezzi dentro il rapportino (`rapportino_materiali`,
    `rapportino_mezzi`): le tabelle ci sono, il form no.
 
 ### Pulizia
 
-6. Ripulire l'utente di prova `Mario Rossi` (`lillo@lalli.com`), rimasto dal seed
+7. Ripulire l'utente di prova `Mario Rossi` (`lillo@lalli.com`), rimasto dal seed
    della fase C con membership e assegnazione.
-7. Chiudere i due difetti di lint in `SessionProvider.tsx` (fast refresh rotto e
+8. Chiudere i due difetti di lint in `SessionProvider.tsx` (fast refresh rotto e
    dipendenza instabile di `useMemo`).
-8. **Verificare i deep link in produzione**: ricaricare con F5 una route interna
+9. **Verificare i deep link in produzione**: ricaricare con F5 una route interna
    (es. `/cantieri`). Se torna 404 serve un `vercel.json` con il rewrite verso
    `index.html` — react-router fa il routing lato client, e senza fallback il
    server cerca un file che non esiste. Non ancora provato.
-9. Decidere di `src/assets/logo_new.jpeg`: è il file originale del logo, fuori
+10. Decidere di `src/assets/logo_new.jpeg`: è il file originale del logo, fuori
     dal versionamento. Da tenere come sorgente ad alta risoluzione o da
     cancellare, visto che in `src/assets/logo-edily.png` c'è già il ritaglio
     pronto all'uso.
