@@ -58,7 +58,16 @@ where id = 'rapportini';
 -- I controlli sul formato prima dei cast non sono pignoleria: un file
 -- con segmenti non-uuid farebbe fallire il cast, e una policy che va in
 -- errore blocca la lettura dell'intero bucket, non solo di quel file.
+--
+-- Ogni policy si toglie prima di rifarla, cosi' il file si puo'
+-- rilanciare senza schiantarsi con un 42710 «policy gia' esistente».
+-- Non e' pigrizia: questi file si eseguono a mano, fra una sessione e
+-- l'altra, e chi li lancia non ha modo di ricordare cosa aveva gia'
+-- fatto. Un file che si puo' rilanciare e' un file che si puo' lanciare.
+-- Il SQL Editor esegue tutto in una transazione, quindi fra il drop e il
+-- create non esiste un istante in cui il bucket resta scoperto.
 
+drop policy if exists rapportini_read on storage.objects;
 create policy rapportini_read on storage.objects
   for select using (
     bucket_id = 'rapportini'
@@ -72,6 +81,7 @@ create policy rapportini_read on storage.objects
 
 -- Chi carica una foto e' il tecnico che compila il rapportino: gli serve
 -- rapportini.create, e solo sui cantieri che gli sono assegnati.
+drop policy if exists rapportini_write on storage.objects;
 create policy rapportini_write on storage.objects
   for insert with check (
     bucket_id = 'rapportini'
@@ -88,6 +98,7 @@ create policy rapportini_write on storage.objects
 -- poter togliere la foto storta o quella sbagliata che ha appena
 -- caricato. Negarglielo non protegge niente e lo costringe a mandare al
 -- titolare una scheda che sa di avere un errore dentro.
+drop policy if exists rapportini_delete on storage.objects;
 create policy rapportini_delete on storage.objects
   for delete using (
     bucket_id = 'rapportini'

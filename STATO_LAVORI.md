@@ -36,6 +36,17 @@ Il codice di queste tre cose è già su `main` e non funziona finché i file non
 girano nel SQL Editor. Non sono migrazioni automatiche: qui non c'è ancora un
 sistema di migrazioni, vedi il punto 1 dei prossimi passi.
 
+**Prima di lanciarli, per sapere cosa c'è già:** incollare
+[`supabase/schema/verifica-stato.sql`](supabase/schema/verifica-stato.sql) nel
+SQL Editor. È di sola lettura e dice riga per riga cosa è FATTO e cosa è DA
+FARE. Serve perché questi file si eseguono a mano e fra una sessione e l'altra
+non resta traccia di chi ha lanciato cosa.
+
+**Tutti e tre si possono rilanciare senza danno.** Il primo usa `add column if
+not exists`; il terzo si ferma da solo se le policy ci sono già; il secondo dal
+2026-09-10 toglie ogni policy prima di rifarla, e prima invece si schiantava con
+un `42710` alla seconda esecuzione.
+
 | # | File | Cosa fa | Se non gira |
 |---|---|---|---|
 | 1 | [`supabase/schema/rapportino-annotazioni.sql`](supabase/schema/rapportino-annotazioni.sql) | Aggiunge `rapportini.annotazioni`, le note del tecnico al titolare | Il salvataggio del rapportino fallisce: la colonna non esiste |
