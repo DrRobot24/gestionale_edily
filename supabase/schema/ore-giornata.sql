@@ -30,9 +30,55 @@
 -- mappa di chi lavora dove, invece, e' esattamente cio' che il perimetro
 -- per assegnazione tiene separato.
 --
--- Da eseguire nel SQL Editor. Si puo' rilanciare: e' `create or replace`.
+-- Fa due cose: aggiunge la colonna `ore_assenza` a `rapportino_ore`, e
+-- crea la funzione. In quest'ordine, perche' la seconda legge la prima.
+--
+-- Da eseguire nel SQL Editor. Si puo' rilanciare tutte le volte che si
+-- vuole: la colonna e' `if not exists`, il vincolo si toglie prima di
+-- rimetterlo, la funzione si droppa prima di ricrearla.
 -- =====================================================================
 
+
+-- 1. LA COLONNA `ore_assenza`
+--
+-- Finora una persona era o presente con le ore, o assente con un motivo
+-- e zero ore. Un permesso di 2 ore in mezzo a una giornata lavorata non
+-- si poteva scrivere, e senza quello il ramo «sotto le 8, segna il
+-- motivo» sarebbe un avviso senza rimedio.
+--
+-- Una colonna e non due righe per la stessa persona: resta una riga per
+-- persona per scheda, la somma non deve indovinare niente, e non serve
+-- verificare vincoli di unicità che oggi potrebbero impedirlo.
+--
+-- `not null default 0` così le righe che ci sono già restano valide
+-- senza toccarle. DATABASE CONDIVISO: si aggiunge e basta, nessuna
+-- colonna esistente cambia, le query di wbs-office continuano identiche.
+--
+-- Le righe vecchie NON si riscrivono. Una riga con `tipo_assenza` e zero
+-- ovunque è un'assenza a giornata scritta prima che questa colonna
+-- esistesse: metterle 8 d'ufficio vorrebbe dire inventare un dato. Il
+-- controllo le riconosce e le lascia stare.
+
+alter table public.rapportino_ore
+  add column if not exists ore_assenza numeric(5,2) not null default 0;
+
+alter table public.rapportino_ore
+  drop constraint if exists rapportino_ore_ore_assenza_valide;
+
+alter table public.rapportino_ore
+  add constraint rapportino_ore_ore_assenza_valide
+  check (ore_assenza >= 0 and ore_assenza <= 24);
+
+comment on column public.rapportino_ore.ore_assenza is
+  'Quante delle ore della giornata sono coperte dal motivo in `tipo_assenza`. Zero con `tipo_assenza` valorizzato = assenza a giornata intera (righe scritte prima che questa colonna esistesse).';
+
+
+-- 2. LA FUNZIONE
+--
+-- Il tipo restituito cambia rispetto alla prima stesura, e `create or
+-- replace` non sa cambiare il tipo di ritorno di una funzione che
+-- esiste: va tolta prima.
+drop function if exists public.ore_giornata(uuid, date);
 
 create or replace function public.ore_giornata(p_org uuid, p_giorno date)
 returns table (
@@ -40,6 +86,7 @@ returns table (
   nominativo        text,
   ore_ordinarie     numeric,
   ore_straordinarie numeric,
+  ore_assenza       numeric,
   ore_visibili      numeric,
   assenze           text
 )
@@ -71,6 +118,10 @@ begin
     (d.cognome || ' ' || d.nome)::text,
     coalesce(sum(o.ore_ordinarie), 0)::numeric,
     coalesce(sum(o.ore_straordinarie), 0)::numeric,
+    -- Le ore coperte da un motivo: permesso, malattia, ferie. Sommate
+    -- alle ordinarie devono arrivare a otto, ed e' proprio questa
+    -- colonna a rendere rispondibile la domanda «perche' meno di otto».
+    coalesce(sum(o.ore_assenza), 0)::numeric,
     -- Le ore che chi chiama puo' gia' vedere da solo. La differenza col
     -- totale e' quanto sta fuori dal suo perimetro, e si racconta senza
     -- dire dove.
@@ -100,6 +151,13 @@ grant execute on function public.ore_giornata(uuid, date) to authenticated;
 
 
 -- VERIFICA
+select column_name, data_type, column_default, is_nullable
+from information_schema.columns
+where table_schema = 'public'
+  and table_name = 'rapportino_ore'
+  and column_name like 'ore_%'
+order by column_name;
+
 -- Deve dire `security definer`, e comparire fra le funzioni eseguibili
 -- da `authenticated`.
 select p.proname,

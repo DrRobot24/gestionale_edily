@@ -1,8 +1,13 @@
 import { useState } from 'react'
 import { useForm, useFieldArray, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Avviso, Button, CampoArea, Campo, CampoSelect, Card, Input } from '../../ui'
-import { ASSENZE, schemaRapportino, type CampiRapportino } from './campiRapportino'
+import { Avviso, Button, CampoArea, Campo, CampoSelect, Card, Input, cn } from '../../ui'
+import {
+  ASSENZE,
+  ORE_STANDARD,
+  schemaRapportino,
+  type CampiRapportino,
+} from './campiRapportino'
 import { RiquadroFoto } from './RiquadroFoto'
 
 type Props = {
@@ -112,6 +117,7 @@ export function FormRapportino({
       campo,
       i,
       presente: Boolean(riga?.presente),
+      motivo: String(riga?.tipo_assenza ?? ''),
       scelto: Boolean(riga?.presente) || Boolean(riga?.tipo_assenza),
     }
   })
@@ -121,7 +127,8 @@ export function FormRapportino({
   function aggiungi(i: number) {
     setValue(`ore.${i}.presente`, true)
     setValue(`ore.${i}.tipo_assenza`, '')
-    setValue(`ore.${i}.ore_ordinarie`, 8)
+    setValue(`ore.${i}.ore_assenza`, 0)
+    setValue(`ore.${i}.ore_ordinarie`, ORE_STANDARD)
   }
 
   /** Toglierlo dalla scheda, non segnarlo assente: sono due cose
@@ -133,6 +140,7 @@ export function FormRapportino({
     setValue(`ore.${i}.ore_ordinarie`, 0)
     setValue(`ore.${i}.ore_straordinarie`, 0)
     setValue(`ore.${i}.ore_trasferta`, 0)
+    setValue(`ore.${i}.ore_assenza`, 0)
   }
 
   return (
@@ -314,14 +322,18 @@ export function FormRapportino({
                   </p>
                 ) : (
                   <ul className="grid gap-2">
-                    {inSquadra.map(({ campo, i, presente }) => (
+                    {inSquadra.map(({ campo, i, presente, motivo }) => (
                       <li
                         key={campo.id}
-                        className={
-                          presente
-                            ? 'rounded-xl border-2 border-black bg-white p-3'
-                            : 'rounded-xl border-2 border-black bg-gray-100 p-3'
-                        }
+                        /* Tre stati, non due: in cantiere, in cantiere
+                           con una parte di giornata coperta da un motivo,
+                           e fuori del tutto. Il giallo e' il caso nuovo, ed
+                           e' quello che prima non si poteva nemmeno
+                           scrivere. */
+                        className={cn(
+                          'rounded-xl border-2 border-black p-3',
+                          !presente ? 'bg-gray-100' : motivo ? 'bg-amber-50' : 'bg-white',
+                        )}
                       >
                         <div className="flex flex-wrap items-center gap-3">
                           <span
@@ -342,16 +354,32 @@ export function FormRapportino({
                             className="cursor-pointer rounded-lg border-2 border-black bg-white px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-amber-400"
                             {...register(`ore.${i}.tipo_assenza`, {
                               onChange: (e) => {
-                                const assente = e.target.value !== ''
-                                setValue(`ore.${i}.presente`, !assente)
-                                if (assente) {
-                                  // Lasciargli otto ore mentre e' in ferie
-                                  // gliele pagherebbe due volte.
-                                  setValue(`ore.${i}.ore_ordinarie`, 0)
+                                if (e.target.value === '') {
+                                  setValue(`ore.${i}.ore_assenza`, 0)
+                                  setValue(`ore.${i}.presente`, true)
+                                  if (!Number(righe?.[i]?.ore_ordinarie)) {
+                                    setValue(`ore.${i}.ore_ordinarie`, ORE_STANDARD)
+                                  }
+                                  return
+                                }
+
+                                // Il motivo copre quello che MANCA alle otto,
+                                // non per forza la giornata intera. Chi ha
+                                // gia' scritto sei ore sta dichiarando un
+                                // permesso di due, non un giorno di permesso:
+                                // prima questa distinzione non si poteva
+                                // nemmeno scrivere.
+                                const lavorate = Number(righe?.[i]?.ore_ordinarie) || 0
+                                setValue(
+                                  `ore.${i}.ore_assenza`,
+                                  Math.max(0, ORE_STANDARD - lavorate),
+                                )
+                                setValue(`ore.${i}.presente`, lavorate > 0)
+                                if (lavorate === 0) {
+                                  // Otto ore di lavoro mentre e' in ferie
+                                  // gliele pagherebbero due volte.
                                   setValue(`ore.${i}.ore_straordinarie`, 0)
                                   setValue(`ore.${i}.ore_trasferta`, 0)
-                                } else if (!Number(righe?.[i]?.ore_ordinarie)) {
-                                  setValue(`ore.${i}.ore_ordinarie`, 8)
                                 }
                               },
                             })}
@@ -364,15 +392,29 @@ export function FormRapportino({
                             ))}
                           </select>
 
-                          {presente && (
-                            <div className="flex items-center gap-2">
-                              <CampoOre etichetta="ord." {...register(`ore.${i}.ore_ordinarie`)} />
-                              <CampoOre etichetta="str." {...register(`ore.${i}.ore_straordinarie`)} />
-                              {mostraTrasferta && (
-                                <CampoOre etichetta="trasf." {...register(`ore.${i}.ore_trasferta`)} />
-                              )}
-                            </div>
-                          )}
+                          <div className="flex items-center gap-2">
+                            {/* Le ore lavorate si vedono SEMPRE, anche su una
+                                riga con un motivo addosso: e' scrivendo qui
+                                le ore fatte davvero che si dichiara mezza
+                                giornata di permesso invece di una intera.
+                                Nasconderle finche' non e' "presente"
+                                lascerebbe la mezza giornata senza una porta
+                                da cui entrare. */}
+                            <CampoOre
+                              etichetta="ord."
+                              {...register(`ore.${i}.ore_ordinarie`, {
+                                onChange: (e) =>
+                                  setValue(`ore.${i}.presente`, Number(e.target.value) > 0),
+                              })}
+                            />
+                            <CampoOre etichetta="str." {...register(`ore.${i}.ore_straordinarie`)} />
+                            {mostraTrasferta && (
+                              <CampoOre etichetta="trasf." {...register(`ore.${i}.ore_trasferta`)} />
+                            )}
+                            {motivo !== '' && (
+                              <CampoOre etichetta="assenza" {...register(`ore.${i}.ore_assenza`)} />
+                            )}
+                          </div>
 
                           <button
                             type="button"

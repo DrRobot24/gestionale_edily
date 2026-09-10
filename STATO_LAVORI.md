@@ -47,7 +47,7 @@ di sola lettura e dice riga per riga cosa è FATTO e cosa è DA FARE.
 | [`rapportino-annotazioni.sql`](supabase/schema/rapportino-annotazioni.sql) | ✅ la colonna `annotazioni` c'è |
 | [`storage-rapportini.sql`](supabase/schema/storage-rapportini.sql) | ✅ bucket chiuso, 3 policy su 3 |
 | [`rapportino-foto.sql`](supabase/schema/rapportino-foto.sql) | ✅ RLS attiva — ma le policy sono di wbs-office, vedi il difetto qui sotto |
-| [`ore-giornata.sql`](supabase/schema/ore-giornata.sql) | ⏳ **da eseguire** — senza, il controllo delle ore in home dice che non è attivo |
+| [`ore-giornata.sql`](supabase/schema/ore-giornata.sql) | ⏳ **da eseguire** — aggiunge `rapportino_ore.ore_assenza` e crea `ore_giornata()`. Senza, il salvataggio del rapportino fallisce e il controllo in home dice che non è attivo |
 
 Tutti e tre si possono rilanciare senza danno. Il primo usa `add column if not
 exists`; il terzo si ferma da solo se le policy ci sono già; il secondo dal
@@ -416,14 +416,14 @@ poi quello che ne aggiunge.
 
    *Cosa resta.*
 
-   - **Il buco nello schema, ed è il primo da chiudere.** Oggi una persona è o
-     presente con le ore, o assente con un motivo e zero ore: un **permesso di 2
-     ore** in mezzo a una giornata lavorata non si può scrivere. Finché manca,
-     il ramo «sotto le 8, segna il motivo» non ha dove mettere la risposta e
-     resta un avviso senza rimedio. *Consigliata* una colonna `ore_assenza` su
-     `rapportino_ore` accanto a quelle che ci sono, invece di due righe per la
-     stessa persona: resta una riga per persona per scheda e la somma non deve
-     indovinare niente. Da decidere.
+   - ~~Il buco nello schema.~~ **Chiuso il 2026-09-10** con la colonna
+     `ore_assenza` su `rapportino_ore`, scelta dall'utente fra le tre proposte.
+     Adesso sei ore lavorate e due di permesso stanno sulla stessa riga, e nel
+     form il motivo non spegne più la presenza: la affianca. Scegliendo un
+     motivo, le ore di assenza si riempiono con quello che manca alle otto, non
+     con la giornata intera — chi ha già scritto sei ore sta dichiarando un
+     permesso di due. Le righe vecchie con un motivo e zero ore non sono state
+     riscritte: valgono come assenza a giornata e il controllo le riconosce.
    - **La stessa regola dentro `invia_foglio_giornata`.** Oggi il controllo vive
      solo nell'interfaccia, e un controllo che vive solo lì lo aggira chiunque
      chiami l'API. Va deciso se blocca l'invio o se avvisa e basta: il ramo dello

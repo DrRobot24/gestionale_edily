@@ -68,11 +68,15 @@ export function ModificaRapportino() {
        */
       for (const riga of campi.ore) {
         const vuole = riga.presente || Boolean(riga.tipo_assenza)
+        // Come nella creazione: niente azzeramenti in base a
+        // `presente`. Ore lavorate e ore di permesso convivono sulla
+        // stessa riga, e la coerenza la garantisce il form.
         const valori = {
-          ore_ordinarie: riga.presente ? riga.ore_ordinarie : 0,
-          ore_straordinarie: riga.presente ? riga.ore_straordinarie : 0,
-          ore_trasferta: riga.presente ? riga.ore_trasferta : 0,
-          tipo_assenza: riga.presente ? null : riga.tipo_assenza || null,
+          ore_ordinarie: riga.ore_ordinarie,
+          ore_straordinarie: riga.ore_straordinarie,
+          ore_trasferta: riga.ore_trasferta,
+          ore_assenza: riga.ore_assenza,
+          tipo_assenza: riga.tipo_assenza || null,
         }
 
         if (riga.rigaId && vuole) {
@@ -183,6 +187,7 @@ type RigaSalvata = {
   ore_ordinarie: number
   ore_straordinarie: number
   ore_trasferta: number
+  ore_assenza: number
   tipo_assenza: string | null
   dipendenti: { nome: string; cognome: string; matricola: string | null } | null
 }
@@ -217,6 +222,7 @@ function righeUnite(salvate: RigaSalvata[], attivi: Attivo[]) {
       ore_ordinarie: s ? Number(s.ore_ordinarie) : 0,
       ore_straordinarie: s ? Number(s.ore_straordinarie) : 0,
       ore_trasferta: s ? Number(s.ore_trasferta) : 0,
+      ore_assenza: s ? Number(s.ore_assenza) : 0,
       tipo_assenza: s?.tipo_assenza ?? '',
     })
   }
@@ -233,6 +239,7 @@ function righeUnite(salvate: RigaSalvata[], attivi: Attivo[]) {
       ore_ordinarie: Number(s.ore_ordinarie),
       ore_straordinarie: Number(s.ore_straordinarie),
       ore_trasferta: Number(s.ore_trasferta),
+      ore_assenza: Number(s.ore_assenza),
       tipo_assenza: s.tipo_assenza ?? '',
     })
   }

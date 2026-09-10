@@ -64,6 +64,9 @@ export function RapportinoPage() {
   // davvero: alla Edily e' l'eccezione, e una colonna di zeri toglie
   // spazio alle due che contano.
   const conTrasferta = totaleTrasferta > 0
+  // La colonna delle ore di assenza compare solo se qualcuno ne ha:
+  // su una giornata normale sarebbe una colonna di zeri.
+  const conAssenza = ore.some((o) => Number(o.ore_assenza) > 0)
 
   const adesso = () => new Date().toISOString()
 
@@ -164,12 +167,20 @@ export function RapportinoPage() {
                     <th className="text-right">Ordinarie</th>
                     <th className="text-right">Straord.</th>
                     {conTrasferta && <th className="text-right">Trasferta</th>}
+                    {conAssenza && <th className="text-right">Ore ass.</th>}
                     <th>Assenza</th>
                   </tr>
                 </thead>
                 <tbody>
                   {ore.map((o) => (
-                    <tr key={o.id} className={o.tipo_assenza ? 'bg-gray-50 text-gray-500' : undefined}>
+                    <tr
+                      key={o.id}
+                      className={
+                        o.tipo_assenza && Number(o.ore_ordinarie) === 0
+                          ? 'bg-gray-50 text-gray-500'
+                          : undefined
+                      }
+                    >
                       <td className="numerico">{o.dipendenti?.matricola ?? '—'}</td>
                       <td className="font-semibold">
                         {o.dipendenti ? `${o.dipendenti.cognome} ${o.dipendenti.nome}` : '—'}
@@ -179,6 +190,9 @@ export function RapportinoPage() {
                       {conTrasferta && (
                         <Cifra className="text-gray-600">{fmtNumero(o.ore_trasferta)}</Cifra>
                       )}
+                      {conAssenza && (
+                        <Cifra className="text-gray-600">{fmtNumero(o.ore_assenza)}</Cifra>
+                      )}
                       <td>{o.tipo_assenza ?? '—'}</td>
                     </tr>
                   ))}
@@ -186,6 +200,9 @@ export function RapportinoPage() {
                     <td colSpan={2}>Totale</td>
                     <Cifra colSpan={2}>{fmtNumero(totale)}</Cifra>
                     {conTrasferta && <Cifra>{fmtNumero(totaleTrasferta)}</Cifra>}
+                    {conAssenza && (
+                      <Cifra>{fmtNumero(ore.reduce((s, o) => s + Number(o.ore_assenza), 0))}</Cifra>
+                    )}
                     <td />
                   </tr>
                 </tbody>

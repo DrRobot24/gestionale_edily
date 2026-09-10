@@ -22,15 +22,17 @@ import { useSession } from '../auth/SessionProvider'
    `supabase/schema/ore-giornata.sql`.
    ══════════════════════════════════════════════════════════════════ */
 
-/** Le ore di una giornata piena in Italia. E' il metro di tutto il
- *  controllo: sopra c'e' straordinario, sotto ci vuole un motivo. */
-export const ORE_STANDARD = 8
+export { ORE_STANDARD } from './campiRapportino'
+import { ORE_STANDARD } from './campiRapportino'
 
 export type OrePersona = {
   dipendente_id: string
   nominativo: string
   ore_ordinarie: number
   ore_straordinarie: number
+  /** Ore coperte da un motivo: permesso, malattia, ferie. Sommate alle
+   *  ordinarie devono arrivare a otto. */
+  ore_assenza: number
   /** Quante di quelle ore stanno su cantieri che chi guarda puo' gia'
    *  vedere. La differenza col totale e' quanto sta altrove, e si
    *  racconta senza dire dove. */
@@ -70,8 +72,10 @@ export type Anomalia = { tipo: 'straordinario' | 'mancano'; ore: number }
  * in una colonna sua ed e' giusto che ci sia: il difetto non e' lavorare
  * piu' di otto ore, e' scriverne nove come se fossero ordinarie.
  *
- * Chi ha un motivo di assenza non risulta mai in difetto: quel motivo
- * e' esattamente la risposta alla domanda «perche' meno di otto».
+ * Sotto le otto non basta piu' che ci sia un motivo: contano le ore che
+ * quel motivo copre. Sei ore lavorate piu' due di permesso fanno otto e
+ * vanno bene; sei ore lavorate con scritto solo "permesso" lasciano due
+ * ore senza risposta.
  *
  * Chi non compare su nessun rapportino della giornata non entra qui
  * dentro affatto: la funzione restituisce solo chi ha almeno una riga.
@@ -85,10 +89,18 @@ export function anomaliaDi(p: OrePersona): Anomalia | null {
   if (ordinarie > ORE_STANDARD) {
     return { tipo: 'straordinario', ore: ordinarie - ORE_STANDARD }
   }
-  if (ordinarie < ORE_STANDARD && !p.assenze) {
-    return { tipo: 'mancano', ore: ORE_STANDARD - ordinarie }
-  }
-  return null
+
+  const coperte = ordinarie + Number(p.ore_assenza)
+  if (coperte >= ORE_STANDARD) return null
+
+  /* Un motivo scritto senza le ore e' una riga compilata prima che
+     `ore_assenza` esistesse, e vuol dire assenza a giornata intera. Si
+     lascia stare invece di segnalarla: non e' un errore del tecnico, e
+     riempire la home di avvisi sullo storico farebbe smettere di
+     leggere anche quelli veri. */
+  if (p.assenze && Number(p.ore_assenza) === 0) return null
+
+  return { tipo: 'mancano', ore: ORE_STANDARD - coperte }
 }
 
 /** La funzione nel database non c'e' ancora: e' un file dello schema

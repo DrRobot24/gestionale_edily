@@ -15,6 +15,10 @@ import { z } from 'zod'
  */
 export const ASSENZE = ['Ferie', 'Permesso', 'Malattia', 'Infortunio', 'Congedo'] as const
 
+/** Le ore di una giornata piena in Italia. E' il metro del controllo
+ *  sulle ore: sopra c'e' straordinario, sotto ci vuole un motivo. */
+export const ORE_STANDARD = 8
+
 const rigaOre = z.object({
   /** Vuoto per una riga nuova, valorizzato per una che esiste gia' nel
    *  database: e' quel che permette alla modifica di distinguere fra
@@ -29,8 +33,20 @@ const rigaOre = z.object({
    *  squadra lavora quasi sempre in sede, ma il giorno che si sposta
    *  davvero l'ora di trasferta va scritta, e a stipendio si paga. */
   ore_trasferta: z.coerce.number().min(0, 'Mai negativo').max(24, 'Al massimo 24'),
+  /** Quante ore della giornata copre il motivo scelto in `tipo_assenza`.
+   *  Esiste perche' un permesso di due ore in mezzo a una giornata
+   *  lavorata prima non si poteva scrivere: si era o presenti con le
+   *  ore, o assenti con zero ore. Ed e' proprio quel caso che rende
+   *  rispondibile la domanda del controllo, «perche' meno di otto». */
+  ore_assenza: z.coerce.number().min(0, 'Mai negativo').max(24, 'Al massimo 24'),
   tipo_assenza: z.string(),
 })
+  // Ore di assenza senza un motivo sono ore sparite: il controllo le
+  // conterebbe come coperte senza sapere da cosa.
+  .refine((r) => r.ore_assenza === 0 || r.tipo_assenza !== '', {
+    message: 'Scegli il motivo dell’assenza',
+    path: ['tipo_assenza'],
+  })
 
 export const schemaRapportino = z
   .object({

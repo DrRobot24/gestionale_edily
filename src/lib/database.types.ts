@@ -1349,6 +1349,7 @@ export type Database = {
           id: string
           mansione: string | null
           note: string | null
+          ore_assenza: number
           ore_ordinarie: number
           ore_straordinarie: number
           ore_trasferta: number
@@ -1363,6 +1364,7 @@ export type Database = {
           id?: string
           mansione?: string | null
           note?: string | null
+          ore_assenza?: number
           ore_ordinarie?: number
           ore_straordinarie?: number
           ore_trasferta?: number
@@ -1377,6 +1379,7 @@ export type Database = {
           id?: string
           mansione?: string | null
           note?: string | null
+          ore_assenza?: number
           ore_ordinarie?: number
           ore_straordinarie?: number
           ore_trasferta?: number
@@ -1919,6 +1922,7 @@ export type Database = {
           nominativo: string
           ore_ordinarie: number
           ore_straordinarie: number
+          ore_assenza: number
           ore_visibili: number
           assenze: string | null
         }[]

@@ -54,10 +54,16 @@ export function NuovoRapportino() {
           org_id: org!.id,
           rapportino_id: rapportino.id,
           dipendente_id: r.dipendente_id,
-          ore_ordinarie: r.presente ? r.ore_ordinarie : 0,
-          ore_straordinarie: r.presente ? r.ore_straordinarie : 0,
-          ore_trasferta: r.presente ? r.ore_trasferta : 0,
-          tipo_assenza: r.presente ? null : r.tipo_assenza || null,
+          // Si salva quello che c'e' scritto, senza azzerare in base a
+          // `presente`. Da quando esiste `ore_assenza` le due cose
+          // convivono: sei ore lavorate e due di permesso stanno sulla
+          // stessa riga, e azzerare le une o le altre butterebbe via
+          // meta' del dato. La coerenza la garantisce il form.
+          ore_ordinarie: r.ore_ordinarie,
+          ore_straordinarie: r.ore_straordinarie,
+          ore_trasferta: r.ore_trasferta,
+          ore_assenza: r.ore_assenza,
+          tipo_assenza: r.tipo_assenza || null,
         }))
 
       if (ore.length > 0) {
@@ -154,6 +160,7 @@ export function NuovoRapportino() {
       ore_ordinarie: 0,
       ore_straordinarie: 0,
       ore_trasferta: 0,
+      ore_assenza: 0,
       tipo_assenza: '',
     })),
   }
