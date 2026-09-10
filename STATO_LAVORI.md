@@ -47,6 +47,7 @@ di sola lettura e dice riga per riga cosa è FATTO e cosa è DA FARE.
 | [`rapportino-annotazioni.sql`](supabase/schema/rapportino-annotazioni.sql) | ✅ la colonna `annotazioni` c'è |
 | [`storage-rapportini.sql`](supabase/schema/storage-rapportini.sql) | ✅ bucket chiuso, 3 policy su 3 |
 | [`rapportino-foto.sql`](supabase/schema/rapportino-foto.sql) | ✅ RLS attiva — ma le policy sono di wbs-office, vedi il difetto qui sotto |
+| [`ore-giornata.sql`](supabase/schema/ore-giornata.sql) | ⏳ **da eseguire** — senza, il controllo delle ore in home dice che non è attivo |
 
 Tutti e tre si possono rilanciare senza danno. Il primo usa `add column if not
 exists`; il terzo si ferma da solo se le policy ci sono già; il secondo dal
@@ -395,52 +396,41 @@ poi quello che ne aggiunge.
 > girano, note al titolare e foto di cantiere sono codice che non funziona, e il
 > bucket `rapportini` resta pubblico.
 
-1. **Il controllo delle 8 ore per operaio, sulla giornata solare.** Chiesto il
-   2026-09-10, ed è la richiesta più grossa delle tre. Il metro sono le 8 ore
-   del contratto italiano, e il conto va fatto **sulla persona e sul giorno**,
-   non sul singolo rapportino: se Mario Rossi ha 4 ore sul cantiere X, 2 sul Y e
-   3 sul Z, il totale è 9 e va segnalato.
+1. **Il controllo delle 8 ore: completare i due rami.** Chiesto il 2026-09-10.
+   Il metro sono le 8 ore del contratto italiano, e il conto va fatto sulla
+   **persona** e sul **giorno**, non sul singolo rapportino.
 
-   - Se le ordinarie superano 8, l'eccedenza è **straordinario**, e l'avviso
-     deve chiedere *in quale cantiere* è stato fatto: sposta ore da
-     `ore_ordinarie` a `ore_straordinarie` su una riga precisa.
-   - Se stanno sotto 8, va indicato il **motivo** della mancanza: permesso,
-     malattia, e così via.
+   *Già fatto il 2026-09-10:* la funzione
+   [`ore-giornata.sql`](supabase/schema/ore-giornata.sql) e il riquadro in home,
+   che compare solo quando qualcosa non torna e dice quanto sta fuori dal
+   perimetro di chi guarda senza dire dove.
 
-   *C'è già la materia prima nel database:* la vista **`v_ore_giornaliere`**
-   dà una riga per dipendente, cantiere e giorno, con ordinarie,
-   straordinarie, totali e `tipo_assenza`. Basta raggrupparla per persona e
-   data. **Da verificare prima:** che sia `security_invoker`, come impone la
-   regola sulle viste; una vista `security definer` scavalcherebbe la RLS.
+   *Perché una funzione `security definer` e non la vista.* Le sette viste sono
+   tutte `security_invoker=on` — verificato il 2026-09-10 — quindi
+   `v_ore_giornaliere` mostra solo i cantieri del perimetro di chi legge. Con il
+   perimetro per assegnazione, sommare nel browser darebbe 4 invece di 9 senza
+   nessun errore. Un numero sbagliato che si presenta come giusto è peggio di un
+   numero che manca. La funzione restituisce l'aggregato per persona e mai su
+   quali cantieri, e ha il suo cancello su `rapportini.create` /
+   `read_all` / `validate` scritto a mano, perché `definer` spegne la RLS.
 
-   ```sql
-   select c.relname, c.reloptions
-   from pg_class c join pg_namespace n on n.oid = c.relnamespace
-   where n.nspname = 'public' and c.relname like 'v_%';
-   ```
+   *Cosa resta.*
 
-   *Il nodo vero, e non è di interfaccia:* il conto ha bisogno di vedere
-   **tutti** i cantieri del giorno, anche quelli non assegnati a chi guarda. Con
-   il perimetro per assegnazione — che resta, è una decisione presa — un
-   tecnico non può leggere le ore messe da un collega su un cantiere suo, quindi
-   una somma fatta nel browser sarebbe incompleta per costruzione, e in silenzio.
-   La strada pulita è una funzione `security definer` che restituisce **solo
-   l'aggregato per persona** (totale ore del giorno), mai il dettaglio dei
-   cantieri fuori dal tuo perimetro: si viene a sapere che Mario ha 9 ore, non su
-   quali cantieri sono le altre 5. Il dettaglio si mostra solo per i cantieri
-   propri, e il resto si scrive «altri cantieri: 5 ore».
-
-   *Un buco nello schema da colmare prima:* oggi una persona è o presente con le
-   ore, o assente con un motivo e zero ore. Un **permesso di 2 ore** in mezzo a
-   una giornata lavorata non si può scrivere. Serve decidere: una colonna
-   `ore_assenza` su `rapportino_ore`, oppure due righe per la stessa persona
-   sullo stesso rapportino — e in quel caso va controllato se esiste un vincolo
-   di unicità su `(rapportino_id, dipendente_id)` che lo impedisce.
-
-   *Dove va l'avviso:* nella home, dentro la fascia della giornata, prima del
-   pulsante che manda il foglio. E la stessa regola andrà dentro
-   `invia_foglio_giornata`, perché un controllo che vive solo
-   nell'interfaccia lo aggira chiunque chiami l'API.
+   - **Il buco nello schema, ed è il primo da chiudere.** Oggi una persona è o
+     presente con le ore, o assente con un motivo e zero ore: un **permesso di 2
+     ore** in mezzo a una giornata lavorata non si può scrivere. Finché manca,
+     il ramo «sotto le 8, segna il motivo» non ha dove mettere la risposta e
+     resta un avviso senza rimedio. *Consigliata* una colonna `ore_assenza` su
+     `rapportino_ore` accanto a quelle che ci sono, invece di due righe per la
+     stessa persona: resta una riga per persona per scheda e la somma non deve
+     indovinare niente. Da decidere.
+   - **La stessa regola dentro `invia_foglio_giornata`.** Oggi il controllo vive
+     solo nell'interfaccia, e un controllo che vive solo lì lo aggira chiunque
+     chiami l'API. Va deciso se blocca l'invio o se avvisa e basta: il ramo dello
+     straordinario probabilmente blocca, quello delle ore mancanti forse no.
+   - **Nel form del rapportino**, un modo rapido per spostare ore da ordinarie a
+     straordinarie: oggi l'avviso dice «aprilo e spostale» e chi lo fa deve
+     ricalcolare a mano.
 
 2. **Le ore del tecnico.** Chiesto il 2026-09-10: anche chi compila lavora, e
    deve poter segnare le proprie ore.

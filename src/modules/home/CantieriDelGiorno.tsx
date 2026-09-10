@@ -7,6 +7,7 @@ import { useCantieri } from '../cantieri/useCantieri'
 import { useRapportini, type Rapportino } from '../rapportini/useRapportini'
 import { oggi } from '../rapportini/campiRapportino'
 import { data as formattaData } from '../../lib/formato'
+import { ControlloOre } from './ControlloOre'
 
 /* ══════════════════════════════════════════════════════════════════
    La giornata del tecnico, un cantiere per card.
@@ -172,6 +173,11 @@ export function CantieriDelGiorno() {
           />
         ))}
       </div>
+
+      {/* Le ore non tornano? Si vede qui, un attimo prima di decidere
+          se mandare. Dopo l'invio sarebbe una segnalazione inutile: il
+          foglio e' gia' sul tavolo del titolare. */}
+      <ControlloOre giorno={giorno} />
 
       {invia.isError && <Avviso tono="errore">{(invia.error as Error).message}</Avviso>}
       {invia.isSuccess && (

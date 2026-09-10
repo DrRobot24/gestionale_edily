@@ -1912,6 +1912,17 @@ export type Database = {
         Args: { p_giorno: string; p_org: string }
         Returns: number
       }
+      ore_giornata: {
+        Args: { p_giorno: string; p_org: string }
+        Returns: {
+          dipendente_id: string
+          nominativo: string
+          ore_ordinarie: number
+          ore_straordinarie: number
+          ore_visibili: number
+          assenze: string | null
+        }[]
+      }
       is_admin: { Args: { uid: string }; Returns: boolean }
     }
     Enums: {
