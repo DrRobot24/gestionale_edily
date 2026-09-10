@@ -688,16 +688,28 @@ poi quello che ne aggiunge.
    scrivere: oggi carica `anagrafiche.write` e scarica anche `rapportini.create`,
    ma è una scelta ragionevole presa da noi, non una regola concordata.
 
-9. Materiali e mezzi dentro il rapportino (`rapportino_materiali`,
+9. **Spostamento di materiale da cantiere a cantiere.** Chiesto il 2026-09-10,
+   da discutere un altro giorno. Oggi i movimenti sanno solo entrare (carico dal
+   fornitore) e uscire (scarico su un cantiere), quindi la roba che da un
+   cantiere passa a un altro si può scrivere solo come due movimenti staccati
+   che non sanno di essere la stessa cosa — e nessuno dei due dice da dove
+   viene. Da definire con lui: se serva un terzo tipo (`trasferimento`) con
+   cantiere di partenza e di arrivo, oppure una coppia di movimenti legati da un
+   riferimento comune; se il magazzino centrale sia esso stesso un luogo fra i
+   luoghi, cioè se abbia senso una giacenza **per cantiere** e non solo per
+   impresa; e chi può spostare, visto che qui non c'è nessun fornitore di
+   mezzo ma solo materiale già dell'impresa che cambia posto.
+
+10. Materiali e mezzi dentro il rapportino (`rapportino_materiali`,
    `rapportino_mezzi`): le tabelle ci sono, il form no.
 
 ### Pulizia
 
-10. Ripulire l'utente di prova `Mario Rossi` (`lillo@lalli.com`), rimasto dal seed
+11. Ripulire l'utente di prova `Mario Rossi` (`lillo@lalli.com`), rimasto dal seed
    della fase C con membership e assegnazione.
-11. Chiudere i due difetti di lint in `SessionProvider.tsx` (fast refresh rotto e
+12. Chiudere i due difetti di lint in `SessionProvider.tsx` (fast refresh rotto e
    dipendenza instabile di `useMemo`).
-12. **Verificare i deep link in produzione**: ricaricare con F5 una route interna
+13. **Verificare i deep link in produzione**: ricaricare con F5 una route interna
    (es. `/cantieri`). Se torna 404 serve un `vercel.json` con il rewrite verso
    `index.html` — react-router fa il routing lato client, e senza fallback il
    server cerca un file che non esiste. Non ancora provato.
