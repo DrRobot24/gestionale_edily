@@ -15,7 +15,7 @@
 | Cantieri — elenco, scheda, creazione, modifica | ✅ |
 | Cantieri — assegnazione della squadra | ✅ |
 | Cantieri — scheda di riepilogo, tappa prima del rapportino | ✅ |
-| Ore in economia — si segnano nel rapportino, si cercano nel cantiere | ⏳ codice pronto, **SQL da eseguire** |
+| Ore in economia — si segnano nel rapportino, si cercano nel cantiere | ✅ |
 | Clienti — elenco, scheda, CRUD, azienda/privato | ✅ |
 | Operai — elenco, scheda, CRUD, storico tariffe | ✅ |
 | Rapportini — elenco, scheda, creazione, modifica | ✅ |
@@ -41,7 +41,8 @@ e l'altra non resta traccia di chi ha lanciato cosa.
 [`supabase/schema/verifica-stato.sql`](supabase/schema/verifica-stato.sql). È
 di sola lettura e dice riga per riga cosa è FATTO e cosa è DA FARE.
 
-**Esito del 2026-09-10, letto sul database vero:**
+**Esito del 2026-09-10: tutti eseguiti.** Non c'è niente in sospeso.
+
 
 | File | Stato |
 |---|---|
@@ -50,7 +51,7 @@ di sola lettura e dice riga per riga cosa è FATTO e cosa è DA FARE.
 | [`rapportino-foto.sql`](supabase/schema/rapportino-foto.sql) | ✅ RLS attiva — ma le policy sono di wbs-office, vedi il difetto qui sotto |
 | [`ore-giornata.sql`](supabase/schema/ore-giornata.sql) | ✅ eseguito il 2026-09-10: colonna `ore_assenza` e funzione `ore_giornata()`, verificata `security definer` |
 | [`foglio-ore-tecnico.sql`](supabase/schema/foglio-ore-tecnico.sql) | ✅ eseguito il 2026-09-10 |
-| [`note-contabili.sql`](supabase/schema/note-contabili.sql) | ⏳ **da eseguire** — crea la tabella `note_contabili` con le sue policy. Senza, il riquadro nella scheda del cantiere non legge e non salva |
+| [`note-contabili.sql`](supabase/schema/note-contabili.sql) | ✅ eseguito il 2026-09-10, RLS verificata attiva |
 
 Tutti e tre si possono rilanciare senza danno. Il primo usa `add column if not
 exists`; il terzo si ferma da solo se le policy ci sono già; il secondo dal
