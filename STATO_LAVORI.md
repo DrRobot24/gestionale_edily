@@ -47,7 +47,7 @@ di sola lettura e dice riga per riga cosa è FATTO e cosa è DA FARE.
 | [`rapportino-annotazioni.sql`](supabase/schema/rapportino-annotazioni.sql) | ✅ la colonna `annotazioni` c'è |
 | [`storage-rapportini.sql`](supabase/schema/storage-rapportini.sql) | ✅ bucket chiuso, 3 policy su 3 |
 | [`rapportino-foto.sql`](supabase/schema/rapportino-foto.sql) | ✅ RLS attiva — ma le policy sono di wbs-office, vedi il difetto qui sotto |
-| [`ore-giornata.sql`](supabase/schema/ore-giornata.sql) | ⏳ **da eseguire** — aggiunge `rapportino_ore.ore_assenza` e crea `ore_giornata()`. Senza, il salvataggio del rapportino fallisce e il controllo in home dice che non è attivo |
+| [`ore-giornata.sql`](supabase/schema/ore-giornata.sql) | ✅ eseguito il 2026-09-10: colonna `ore_assenza` e funzione `ore_giornata()`, verificata `security definer` |
 
 Tutti e tre si possono rilanciare senza danno. Il primo usa `add column if not
 exists`; il terzo si ferma da solo se le policy ci sono già; il secondo dal

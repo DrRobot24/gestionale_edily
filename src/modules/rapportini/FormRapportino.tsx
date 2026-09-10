@@ -363,21 +363,38 @@ export function FormRapportino({
                                   return
                                 }
 
-                                // Il motivo copre quello che MANCA alle otto,
-                                // non per forza la giornata intera. Chi ha
-                                // gia' scritto sei ore sta dichiarando un
-                                // permesso di due, non un giorno di permesso:
-                                // prima questa distinzione non si poteva
-                                // nemmeno scrivere.
+                                /* Il motivo copre quello che MANCA alle
+                                   otto, e quanto manca dipende da cosa c'e'
+                                   scritto nelle ore.
+
+                                   Su una riga a giornata piena — otto ore,
+                                   che e' anche il valore con cui la persona
+                                   entra in squadra — scegliere un motivo
+                                   vuol dire che non c'era proprio: le ore
+                                   si azzerano e il motivo copre tutto il
+                                   giorno. Lasciargliele mentre e' in ferie
+                                   gliele pagherebbe due volte.
+
+                                   Se invece le ore sono state abbassate a
+                                   mano, quella e' una scelta: sei ore
+                                   scritte piu' "Permesso" vogliono dire un
+                                   permesso di due ore, non un giorno. E'
+                                   la distinzione che prima non si poteva
+                                   nemmeno esprimere. */
                                 const lavorate = Number(righe?.[i]?.ore_ordinarie) || 0
-                                setValue(
-                                  `ore.${i}.ore_assenza`,
-                                  Math.max(0, ORE_STANDARD - lavorate),
-                                )
+
+                                if (lavorate >= ORE_STANDARD) {
+                                  setValue(`ore.${i}.ore_ordinarie`, 0)
+                                  setValue(`ore.${i}.ore_straordinarie`, 0)
+                                  setValue(`ore.${i}.ore_trasferta`, 0)
+                                  setValue(`ore.${i}.ore_assenza`, ORE_STANDARD)
+                                  setValue(`ore.${i}.presente`, false)
+                                  return
+                                }
+
+                                setValue(`ore.${i}.ore_assenza`, ORE_STANDARD - lavorate)
                                 setValue(`ore.${i}.presente`, lavorate > 0)
                                 if (lavorate === 0) {
-                                  // Otto ore di lavoro mentre e' in ferie
-                                  // gliele pagherebbero due volte.
                                   setValue(`ore.${i}.ore_straordinarie`, 0)
                                   setValue(`ore.${i}.ore_trasferta`, 0)
                                 }
