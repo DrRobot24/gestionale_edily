@@ -6,8 +6,9 @@ import { useSession } from '../auth/SessionProvider'
 import { useCantieri } from '../cantieri/useCantieri'
 import { useRapportini, type Rapportino } from '../rapportini/useRapportini'
 import { oggi } from '../rapportini/campiRapportino'
-import { data as formattaData } from '../../lib/formato'
 import { ControlloOre } from './ControlloOre'
+import { useMioDipendente } from '../anagrafiche/dipendenti'
+import { useOreGiornata } from '../rapportini/useOreGiornata'
 
 /* ══════════════════════════════════════════════════════════════════
    La giornata del tecnico, un cantiere per card.
@@ -91,6 +92,24 @@ export function CantieriDelGiorno() {
   const { data: cantieri, isPending: caricoCantieri, error: erroreCantieri } = useCantieri()
   const { data: rapportini, isPending: caricoRapportini } = useRapportini()
 
+  /* Le ore di chi compila. Un tecnico che passa in cantiere lavora come
+     tutti, e una giornata in cui l'unica persona certa di esserci stata
+     non compare non e' il resoconto di quella giornata.
+
+     Vale solo per chi ha un'anagrafica collegata al suo utente: senza,
+     non esisterebbe una riga dove scrivere quelle ore, e pretenderle
+     bloccherebbe l'invio senza via d'uscita. La stessa condizione la
+     applica il database dentro `invia_foglio_giornata`, che e' dove la
+     regola conta davvero.
+
+     `oreLette` non e' pignoleria: se la lettura fallisce, `data` e'
+     undefined e senza quel controllo risulterebbe che le ore mancano
+     sempre. Meglio non bloccare qui e lasciare rispondere il database. */
+  const { data: mio } = useMioDipendente()
+  const { data: oreOggi, isSuccess: oreLette } = useOreGiornata(giorno)
+  const mancanoLeMieOre =
+    Boolean(mio) && oreLette && !(oreOggi ?? []).some((p) => p.dipendente_id === mio!.id)
+
   if (caricoCantieri || caricoRapportini) {
     return <p className="text-sm font-bold text-gray-600">Carico la giornata…</p>
   }
@@ -140,9 +159,10 @@ export function CantieriDelGiorno() {
     <div className="grid gap-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="text-lg font-extrabold text-black">
-            La tua giornata — {formattaData(giorno)}
-          </h2>
+          {/* Senza la data: sta grande nella fascia di benvenuto, qui
+              sopra. Scriverla due volte nella stessa schermata la rende
+              rumore invece che riferimento. */}
+          <h2 className="text-lg font-extrabold text-black">I cantieri di oggi</h2>
           <p className="text-xs font-semibold text-gray-600">
             Ogni cantiere attivo vuole la sua scheda, anche quelli fermi.
           </p>
@@ -192,10 +212,14 @@ export function CantieriDelGiorno() {
           complete ? 'bg-lime-100' : 'bg-white',
         )}
       >
-        <p className="text-sm font-bold text-black">{riepilogo(schede.length, fatte, daSpedire)}</p>
+        <p className="text-sm font-bold text-black">
+          {mancanoLeMieOre && complete
+            ? 'Mancano le tue ore: aggiungiti alla squadra del cantiere dove hai lavorato.'
+            : riepilogo(schede.length, fatte, daSpedire)}
+        </p>
         <Button
           variante="primario"
-          disabled={!complete || !daSpedire || invia.isPending}
+          disabled={!complete || !daSpedire || mancanoLeMieOre || invia.isPending}
           onClick={() => invia.mutate()}
         >
           {invia.isPending ? 'Invio…' : 'Invia il foglio della giornata'}

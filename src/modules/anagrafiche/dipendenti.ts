@@ -90,6 +90,16 @@ export type DatiDipendente = {
   data_cessazione: string | null
   telefono: string | null
   email: string | null
+  /** L'utente che entra nel gestionale con questa anagrafica.
+   *
+   *  Serve a chi lavora E compila: un tecnico che passa in cantiere fa
+   *  ore come tutti, ma senza questo collegamento non esiste in
+   *  `dipendenti` e le sue ore non si possono scrivere da nessuna parte.
+   *
+   *  Collegarlo lo fa comparire nella tendina della squadra come
+   *  chiunque altro, e il controllo delle 8 ore comincia a valere anche
+   *  per lui senza una riga di codice in piu'. */
+  user_id: string | null
 }
 
 /** Un solo hook per creare e per modificare: il chiamante passa l'id
@@ -196,5 +206,37 @@ export function useEliminaDipendente() {
       }
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['dipendenti'] }),
+  })
+}
+
+/**
+ * L'anagrafica di chi sta usando il gestionale, se ne ha una.
+ *
+ * Il legame passa da `dipendenti.user_id`, e serve a chi lavora E
+ * compila: un tecnico che passa in cantiere fa ore come tutti, ma senza
+ * questo collegamento non esiste in `dipendenti` e le sue ore non hanno
+ * dove andare.
+ *
+ * Torna `null` senza errore quando il collegamento non c'e': non e' un
+ * guasto, e' una cosa che l'amministrazione non ha ancora fatto dalla
+ * scheda operaio. Chi legge questo hook deve comportarsi di conseguenza
+ * invece di dare per scontato che ci sia.
+ */
+export function useMioDipendente() {
+  const { org, app } = useSession()
+
+  return useQuery({
+    queryKey: ['dipendenti', 'mio', org?.id, app?.userId],
+    enabled: Boolean(org?.id && app?.userId),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('dipendenti')
+        .select('id, nome, cognome')
+        .eq('org_id', org!.id)
+        .eq('user_id', app!.userId)
+        .maybeSingle()
+      if (error) throw error
+      return data
+    },
   })
 }

@@ -6,8 +6,10 @@ import { z } from 'zod'
 import { data as fmtData, euro } from '../../lib/formato'
 import { Avviso, Badge, Button, Campo, CampoSelect, Card, Cifra, Percorso, Table } from '../../ui'
 import { usePermission } from '../auth/usePermission'
+import { useMembri } from '../cantieri/assegnazioni'
 import {
   tariffaVigente,
+  useDipendenti,
   useAggiungiTariffa,
   useArchiviaDipendente,
   useDipendente,
@@ -38,6 +40,7 @@ const schema = z.object({
   data_cessazione: z.string(),
   telefono: z.string(),
   email: z.string().refine((v) => v === '' || /.+@.+\..+/.test(v), 'Email non valida'),
+  user_id: z.string(),
 })
 
 type Campi = z.infer<typeof schema>
@@ -54,6 +57,7 @@ const VUOTO: Campi = {
   data_cessazione: '',
   telefono: '',
   email: '',
+  user_id: '',
 }
 
 export function DipendenteForm() {
@@ -63,6 +67,10 @@ export function DipendenteForm() {
   const puoScrivere = usePermission('anagrafiche.write')
 
   const { data: dipendente, isPending, error } = useDipendente(id)
+  const { data: membri } = useMembri()
+  // Anche gli archiviati: una scheda archiviata tiene comunque occupato
+  // il suo utente, e riassegnarlo conterebbe le ore due volte.
+  const { data: tutti } = useDipendenti({ soloAttivi: false })
   const salva = useSalvaDipendente()
   const archivia = useArchiviaDipendente()
   const elimina = useEliminaDipendente()
@@ -73,6 +81,11 @@ export function DipendenteForm() {
     reset,
     formState: { errors, isDirty },
   } = useForm<Campi>({ resolver: zodResolver(schema), defaultValues: VUOTO })
+
+  const giaCollegati = new Set(
+    (tutti ?? []).filter((d) => d.user_id && d.id !== id).map((d) => d.user_id as string),
+  )
+  const collegabili = (membri ?? []).filter((m) => !giaCollegati.has(m.userId))
 
   useEffect(() => {
     if (!dipendente) return
@@ -88,6 +101,7 @@ export function DipendenteForm() {
       data_cessazione: dipendente.data_cessazione ?? '',
       telefono: dipendente.telefono ?? '',
       email: dipendente.email ?? '',
+      user_id: dipendente.user_id ?? '',
     })
   }, [dipendente, reset])
 
@@ -111,6 +125,7 @@ export function DipendenteForm() {
         data_cessazione: vuotoSeVuoto(c.data_cessazione),
         telefono: vuotoSeVuoto(c.telefono),
         email: vuotoSeVuoto(c.email),
+        user_id: vuotoSeVuoto(c.user_id),
       },
     })
     // Dopo la creazione si resta sulla scheda invece di tornare alla
@@ -249,6 +264,32 @@ export function DipendenteForm() {
               {...register('email')}
             />
           </div>
+
+          {/* Il collegamento all'utente del gestionale.
+
+              Non e' un campo anagrafico come gli altri: e' quello che
+              permette a chi COMPILA i rapportini di comparire nella
+              squadra e segnare le proprie ore. Un tecnico che passa in
+              cantiere lavora come tutti, ma senza questa riga non esiste
+              in anagrafica e le sue ore non hanno dove andare.
+
+              La tendina mostra solo le persone non ancora collegate a
+              un'altra anagrafica: due schede sullo stesso utente
+              conterebbero le sue ore due volte. */}
+          <CampoSelect
+            etichetta="Utente del gestionale"
+            disabled={!puoScrivere}
+            suggerimento="Collegalo se questa persona entra nel programma e deve segnare le proprie ore. Serve per il tecnico; per un operaio che non usa il gestionale si lascia vuoto."
+            errore={errors.user_id?.message}
+            {...register('user_id')}
+          >
+            <option value="">— nessun utente collegato —</option>
+            {collegabili.map((m) => (
+              <option key={m.userId} value={m.userId}>
+                {m.nome} ({m.ruolo})
+              </option>
+            ))}
+          </CampoSelect>
         </Card>
 
         {puoScrivere && (

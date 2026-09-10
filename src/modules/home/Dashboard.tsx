@@ -5,6 +5,7 @@ import { useSession } from '../auth/SessionProvider'
 import { useRapportini, type Rapportino } from '../rapportini/useRapportini'
 import { StatoRapportino } from '../rapportini/stato'
 import { data as formattaData } from '../../lib/formato'
+import { Benvenuto } from './Benvenuto'
 import { CantieriDelGiorno } from './CantieriDelGiorno'
 import { GiornateAperte } from './GiornateAperte'
 import { GiornateDaValidare } from './GiornateDaValidare'
@@ -30,7 +31,7 @@ import { GiornateDaValidare } from './GiornateDaValidare'
    ══════════════════════════════════════════════════════════════════ */
 
 export function Dashboard() {
-  const { app, org, can } = useSession()
+  const { app, can } = useSession()
   const { data: rapportini, isPending, error } = useRapportini()
 
   const puoValidare = can('rapportini.validate')
@@ -51,13 +52,7 @@ export function Dashboard() {
 
   return (
     <div className="mx-auto grid max-w-5xl gap-6">
-      <div>
-        <h1 className="text-2xl font-extrabold text-black">{org?.ragioneSociale}</h1>
-        <p className="text-sm font-semibold text-gray-600">
-          {app?.email} — <span className="lowercase">{org?.ruolo}</span>
-          {app?.isPlatformAdmin && ' · staff di piattaforma'}
-        </p>
-      </div>
+      <Benvenuto />
 
       {error && (
         <Avviso tono="errore">Non riesco a leggere i rapportini: {error.message}</Avviso>

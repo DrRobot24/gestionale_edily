@@ -150,6 +150,7 @@ export function CantiereScheda() {
         <div className="grid gap-4">
           <Anagrafica cantiere={c} vedeSoldi={vedeSoldi} />
           <FotoDelCantiere cantiereId={id!} />
+          <Documenti />
           {c.note && (
             <Card className="grid gap-2 p-5">
               <h2 className="text-lg font-extrabold text-black">Note del cantiere</h2>
@@ -568,6 +569,34 @@ function FotoDelCantiere({ cantiereId }: { cantiereId: string }) {
           ))}
         </ul>
       )}
+    </Card>
+  )
+}
+
+/**
+ * I documenti di questo cantiere.
+ *
+ * Stanno qui e non in una pagina di menu, ed e' una decisione presa il
+ * 2026-09-10: un documento di cantiere e' quasi sempre un PDF che
+ * appartiene a UN cantiere. In un elenco generale la prima cosa da fare
+ * sarebbe filtrarlo per cantiere, cioe' rifare a mano il raggruppamento
+ * che il cantiere gia' offre.
+ *
+ * Segnaposto per ora, e lo dice: il bucket `rapportini` accetta solo
+ * immagini, quindi i PDF ne vogliono uno loro che non e' ancora stato
+ * creato. Meglio un riquadro che dichiara di essere vuoto in attesa, che
+ * un riquadro che non c'e' e lascia credere che la cosa non sia
+ * prevista.
+ */
+function Documenti() {
+  return (
+    <Card className="grid gap-2 border-dashed p-5">
+      <h2 className="text-lg font-extrabold text-gray-500">Documenti</h2>
+      <p className="text-sm font-semibold text-gray-600">
+        Qui andranno i documenti di questo cantiere: computi, disegni, permessi, verbali.
+        Lo spazio dove conservarli non è ancora stato creato, quindi per adesso non si
+        carica niente.
+      </p>
     </Card>
   )
 }

@@ -46,6 +46,9 @@ export type Organizzazione = {
 export type AppSession = {
   userId: string
   email: string | null
+  /** Il nome scritto in `profiles`. Puo' mancare: chi si registra senza
+   *  compilarlo lascia stringa vuota, e allora resta solo l'email. */
+  nome: string | null
   isPlatformAdmin: boolean
   orgs: Organizzazione[]
 }
@@ -68,13 +71,16 @@ function primo<T>(v: T | T[] | null): T | null {
  */
 export async function fetchAppSession(userId: string, email: string | null): Promise<AppSession> {
   const [profiloRes, matriceRes] = await Promise.all([
-    supabase.from('profiles').select('is_platform_admin').eq('id', userId).maybeSingle(),
+    supabase.from('profiles').select('is_platform_admin, full_name').eq('id', userId).maybeSingle(),
     supabase.from('role_permissions').select('ruolo, permission'),
   ])
 
   if (matriceRes.error) throw matriceRes.error
 
   const isPlatformAdmin = Boolean(profiloRes.data?.is_platform_admin)
+  // `full_name` puo' essere stringa vuota e non solo null: `|| null`
+  // le tratta uguali, che e' quello che serve a chi deve salutare.
+  const nome = profiloRes.data?.full_name?.trim() || null
 
   const permessiPerRuolo = new Map<OrgRole, Set<Permission>>()
   for (const riga of matriceRes.data ?? []) {
@@ -102,6 +108,7 @@ export async function fetchAppSession(userId: string, email: string | null): Pro
     return {
       userId,
       email,
+      nome,
       isPlatformAdmin,
       orgs: (data ?? []).map((o) => ({
         id: o.id as string,
@@ -136,5 +143,5 @@ export async function fetchAppSession(userId: string, email: string | null): Pro
   }
   orgs.sort((a, b) => a.ragioneSociale.localeCompare(b.ragioneSociale))
 
-  return { userId, email, isPlatformAdmin, orgs }
+  return { userId, email, nome, isPlatformAdmin, orgs }
 }

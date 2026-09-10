@@ -83,20 +83,20 @@ const VOCI: Voce[] = [
   },
   { to: '/rapportini', etichetta: 'Rapportini', elemento: <RapportiniPage /> },
 
-  /* Le due voci del tecnico che restano da costruire. Senza `perm` di
-     proposito e non per fretta: finche' non esistono non c'e' niente da
-     proteggere, e il cancello va scelto quando si sa chi ci lavora
-     dentro. Metterne uno adesso vorrebbe dire indovinare. */
-  {
-    to: '/documenti',
-    etichetta: 'Documenti',
-    elemento: (
-      <Segnaposto
-        titolo="Documenti"
-        nota="Qui arriveranno i documenti di cantiere, presi dallo storage. Lo spazio non è ancora stato creato."
-      />
-    ),
-  },
+  /* Documenti NON e' una voce di menu, ed e' una decisione del
+     2026-09-10: un documento di cantiere e' quasi sempre un PDF che
+     appartiene a UN cantiere. Messo in un elenco generale, la prima cosa
+     che l'utente dovrebbe fare e' filtrarlo per cantiere — cioe' rifare
+     a mano il raggruppamento che il cantiere gia' fornisce. Sta quindi
+     dentro la scheda del cantiere, accanto alle foto.
+
+     I documenti dell'IMPRESA (DURC, iscrizione alla cassa edile,
+     assicurazioni, visura) sono un'altra cosa e vogliono un posto loro:
+     hanno una scadenza e non un cantiere. Vedi STATO_LAVORI.md.
+
+     Subappalti resta senza `perm` di proposito e non per fretta: finche'
+     non esiste non c'e' niente da proteggere, e il cancello va scelto
+     quando si sa chi ci lavora dentro. */
   {
     to: '/subappalti',
     etichetta: 'Subappalti',

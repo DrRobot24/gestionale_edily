@@ -48,6 +48,7 @@ di sola lettura e dice riga per riga cosa è FATTO e cosa è DA FARE.
 | [`storage-rapportini.sql`](supabase/schema/storage-rapportini.sql) | ✅ bucket chiuso, 3 policy su 3 |
 | [`rapportino-foto.sql`](supabase/schema/rapportino-foto.sql) | ✅ RLS attiva — ma le policy sono di wbs-office, vedi il difetto qui sotto |
 | [`ore-giornata.sql`](supabase/schema/ore-giornata.sql) | ✅ eseguito il 2026-09-10: colonna `ore_assenza` e funzione `ore_giornata()`, verificata `security definer` |
+| [`foglio-ore-tecnico.sql`](supabase/schema/foglio-ore-tecnico.sql) | ⏳ **da eseguire** — la giornata non parte senza le ore di chi la manda. Si può eseguire subito: non cambia niente finché il tecnico non viene collegato a un'anagrafica |
 
 Tutti e tre si possono rilanciare senza danno. Il primo usa `add column if not
 exists`; il terzo si ferma da solo se le policy ci sono già; il secondo dal
@@ -320,6 +321,13 @@ Da fare **prima** di toccare le policy.
 
 ## Prossimi passi
 
+> **Chiusi il 2026-09-10 (quarto giro).** Fascia di benvenuto in home: saluto
+> con il nome, data grande per esteso, verde. Prima la pagina si apriva con la
+> ragione sociale dell'impresa, che chi la legge ogni mattina conosce già.
+> Documenti spostati dentro la scheda del cantiere e tolti dal menu. Campo
+> «Utente del gestionale» nella scheda operaio, che è il ponte per far segnare
+> al tecnico le proprie ore.
+>
 > **Chiusi il 2026-09-10 (terzo giro).** Il controllo delle 8 ore per persona e
 > per giornata solare, con la colonna `ore_assenza` che finalmente permette di
 > scrivere un permesso di mezza giornata. E la regola «sapere sempre dove si
@@ -441,24 +449,27 @@ poi quello che ne aggiunge.
      straordinarie: oggi l'avviso dice «aprilo e spostale» e chi lo fa deve
      ricalcolare a mano.
 
-2. **Le ore del tecnico.** Chiesto il 2026-09-10: anche chi compila lavora, e
-   deve poter segnare le proprie ore.
+2. **Le ore del tecnico: fare il collegamento.** Chiesto il 2026-09-10, e il
+   codice è pronto: resta un'operazione da fare a mano, una volta.
 
-   *Il ponte esiste già:* `dipendenti` ha una colonna **`user_id`** che lega
-   l'anagrafica all'utente di `auth.users`. Quindi la strada non è inventare un
-   posto nuovo: è dare al tecnico la sua riga in `dipendenti` con `user_id`
-   valorizzato, e da quel momento compare nella tendina della squadra come
-   chiunque altro, si divide le ore fra i cantieri della giornata, e il controllo
-   delle 8 ore vale anche per lui senza una riga di codice in più.
+   *Già fatto il 2026-09-10.* La scheda operaio espone il campo **Utente del
+   gestionale** (`dipendenti.user_id`), con la tendina delle persone non ancora
+   collegate a un'altra anagrafica — due schede sullo stesso utente
+   conterebbero le sue ore due volte. E
+   [`foglio-ore-tecnico.sql`](supabase/schema/foglio-ore-tecnico.sql) impedisce
+   di mandare la giornata senza le proprie ore, con l'avviso anche in home
+   sopra il pulsante.
 
-   *Cosa manca davvero:* `DipendenteForm` non espone `user_id`, quindi oggi quel
-   collegamento non si può fare dall'applicazione. Va aggiunto — come una
-   tendina delle persone in `memberships` non ancora collegate, non come un campo
-   dove si incolla un UUID a mano. Resta lavoro di **amministrazione**, coerente
-   con la regola che le anagrafiche le tiene lei.
+   *Da fare, e lo fa amministrazione:* aprire la scheda operaio del tecnico —
+   creandola se non esiste — e collegarla al suo utente. Da quel momento il
+   tecnico compare nella tendina della squadra come chiunque altro, si divide le
+   ore fra i cantieri della giornata, il controllo delle 8 ore vale anche per
+   lui, e la giornata non parte senza le sue ore. Prima del collegamento non
+   cambia niente e nessuno resta bloccato: il controllo si accende da solo
+   quando c'è dove rispondere.
 
-   *Da decidere:* se il tecnico collegato debba comparire già in squadra quando
-   apre un rapportino nuovo. Sarebbe comodo, ma con più cantieri al giorno
+   *Da decidere:* se il tecnico collegato debba comparire già in squadra
+   aprendo un rapportino nuovo. Sarebbe comodo, ma con più cantieri al giorno
    ricadrebbe nello stesso errore del vecchio precompilato a otto ore.
 
 3. **Subappalto dentro il rapportino.** Chiesto il 2026-09-09. Nella scheda c'è
@@ -472,11 +483,30 @@ poi quello che ne aggiunge.
    numero di persone, o solo la presenza? Entra nei costi del cantiere o resta
    cronaca della giornata? Serve allegare il contratto?
 
-4. **Documenti.** Chiesto il 2026-09-09. Voce di menu con pagina segnaposto: i
-   documenti di cantiere presi dallo storage. Lo spazio non esiste ancora — il
-   bucket `rapportini` è per le foto e ha `allowed_mime_types` solo immagini,
-   quindi i PDF vogliono un bucket loro. Nessuna delle due voci nuove ha un
-   `perm`: si sceglie quando si sa chi ci lavora dentro.
+4. **Documenti: due posti diversi, perché sono due cose diverse.** Deciso il
+   2026-09-10.
+
+   *Documenti di CANTIERE* — computi, disegni, permessi, verbali. Appartengono
+   a un cantiere, quindi stanno **nella scheda del cantiere**, accanto alle
+   foto. La voce di menu è stata tolta: in un elenco generale la prima cosa da
+   fare sarebbe filtrarli per cantiere, cioè rifare a mano il raggruppamento
+   che il cantiere già offre. Oggi c'è il riquadro che dichiara di essere in
+   attesa; manca il bucket, perché `rapportini` accetta solo immagini e i PDF
+   ne vogliono uno loro.
+
+   *Documenti dell'IMPRESA* — DURC, iscrizione alla cassa edile, assicurazioni,
+   visura camerale, certificazioni. Non hanno un cantiere: hanno una
+   **scadenza**, ed è quella il motivo per cui esistono nel gestionale. Un DURC
+   scaduto ferma un cantiere.
+
+   *Consiglio su come farli:* non un archivio di file ma una tabella di
+   documenti con `tipo`, `numero`, `valido_dal`, `valido_al` e il file
+   allegato, più un riquadro in home per chi tiene l'amministrazione che dice
+   cosa scade nei prossimi trenta giorni. Un archivio dove cercare a mano
+   funziona finché qualcuno si ricorda di guardarci; una scadenza che si fa
+   avanti da sola funziona anche quando nessuno ci pensa. Da decidere anche se
+   la stessa forma serva per le scadenze dei **mezzi** (revisione,
+   assicurazione), che sono lo stesso problema con un'altra etichetta.
 
 5. **Foglio generale dei cantieri.** Chiesto il 2026-09-01. Una giornata solare
    per volta, con tutti i cantieri di quel giorno insieme: chi c'era, su quale

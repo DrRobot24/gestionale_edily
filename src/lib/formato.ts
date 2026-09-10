@@ -29,6 +29,17 @@ const DATA_ESTESA = new Intl.DateTimeFormat('it-IT', {
   month: 'long',
 })
 
+/** Come DATA_ESTESA ma con l'anno: per l'intestazione della home, dove
+ *  la data e' il titolo della pagina e non un riferimento di passaggio.
+ *  Chi apre il gestionale la mattina deve leggere che giorno e' senza
+ *  dover decifrare 10/09/2026. */
+const DATA_LUNGA = new Intl.DateTimeFormat('it-IT', {
+  weekday: 'long',
+  day: 'numeric',
+  month: 'long',
+  year: 'numeric',
+})
+
 /** `null` diventa una lineetta, non "€ 0,00": un importo assente e un
  *  importo pari a zero sono cose diverse e vanno lette diverse. */
 export function euro(v: number | null | undefined): string {
@@ -60,6 +71,14 @@ export function dataEstesa(v: string | null | undefined): string {
   const [a, m, g] = v.slice(0, 10).split('-').map(Number)
   if (!a || !m || !g) return '—'
   return DATA_ESTESA.format(new Date(a, m - 1, g))
+}
+
+/** Come `dataEstesa`, con l'anno in coda. */
+export function dataLunga(v: string | null | undefined): string {
+  if (!v) return '—'
+  const [a, m, g] = v.slice(0, 10).split('-').map(Number)
+  if (!a || !m || !g) return '—'
+  return DATA_LUNGA.format(new Date(a, m - 1, g))
 }
 
 /** 'HH:MM:SS' → 'HH:MM'. In cantiere i secondi non servono a nessuno. */
