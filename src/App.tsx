@@ -16,6 +16,7 @@ import { ClienteForm } from './modules/anagrafiche/ClienteForm'
 import { FornitoriPage } from './modules/anagrafiche/FornitoriPage'
 import { FornitoreForm } from './modules/anagrafiche/FornitoreForm'
 import { Dashboard } from './modules/home/Dashboard'
+import { EconomiaPage } from './modules/economia/EconomiaPage'
 import { DipendenteForm } from './modules/anagrafiche/DipendenteForm'
 import type { Permission } from './modules/auth/session'
 import { env } from './lib/env'
@@ -33,7 +34,8 @@ import { Button, Card, cn } from './ui'
 type Voce = {
   to: string
   etichetta: string
-  perm?: Permission
+  /** Una lista vuol dire OR: basta averne uno. */
+  perm?: Permission | Permission[]
   elemento: ReactNode
 }
 
@@ -126,15 +128,29 @@ const VOCI: Voce[] = [
     perm: 'anagrafiche.write',
     elemento: <DipendentiPage />,
   },
+  /* Economia la vede anche il TECNICO, ed è una scelta del 2026-09-10.
+     Oggi la pagina sono le ore in economia: le lavorazioni fuori
+     progetto di tutti i cantieri, che il tecnico segna compilando i
+     rapportini e che finora poteva rileggere solo un cantiere per volta.
+     È lavoro suo, e nella pagina non c'è un euro.
+
+     Il cancello è in OR: `rapportini.create` fa entrare chi le scrive,
+     `economics.read` chi tiene i conti. Chi vede cosa lo decide la RLS,
+     non questa riga: il tecnico legge le note dei cantieri suoi, il
+     titolare e l'amministrazione tutte. Stessa pagina, due risposte.
+
+     Quando qui dentro arriveranno anche i soldi — costi, ricavi,
+     margini — quelli andranno gated su `economics.read` DENTRO la
+     pagina, non spostando questo cancello. */
   {
     to: '/economia',
     etichetta: 'Economia',
-    perm: 'economics.read',
-    elemento: <Segnaposto titolo="Economia" />,
+    perm: ['rapportini.create', 'economics.read'],
+    elemento: <EconomiaPage />,
   },
 ]
 
-function proteggi(perm: Permission | undefined, elemento: ReactNode) {
+function proteggi(perm: Permission | Permission[] | undefined, elemento: ReactNode) {
   if (!perm) return elemento
   return <RequirePermission perm={perm}>{elemento}</RequirePermission>
 }
@@ -233,7 +249,9 @@ export default function App() {
 
 function Layout() {
   const { can } = useSession()
-  const visibili = VOCI.filter((v) => !v.perm || can(v.perm))
+  const visibili = VOCI.filter(
+    (v) => !v.perm || (Array.isArray(v.perm) ? v.perm.some(can) : can(v.perm)),
+  )
 
   return (
     <div className="flex min-h-screen">

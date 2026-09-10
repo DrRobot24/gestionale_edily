@@ -155,7 +155,9 @@ function pulisci(s: string): string {
  * decine, e una ricerca che parte a ogni tasto premuto deve rispondere
  * prima che il dito si alzi.
  */
-export function filtra(note: NotaContabile[], cerca: string): NotaContabile[] {
+// Generica: chi la chiama con le note arricchite del cantiere si
+// riprende indietro quelle, non la versione spoglia.
+export function filtra<T extends NotaContabile>(note: T[], cerca: string): T[] {
   const parole = pulisci(cerca).split(/\s+/).filter(Boolean)
   if (parole.length === 0) return note
 
@@ -165,6 +167,66 @@ export function filtra(note: NotaContabile[], cerca: string): NotaContabile[] {
   })
 }
 
-export function sommaOre(note: NotaContabile[]): number {
+export function sommaOre(note: { ore: number }[]): number {
   return note.reduce((t, n) => t + Number(n.ore), 0)
+}
+
+/* ── la raccolta, attraverso tutti i cantieri ──────────────────── */
+
+export type NotaConCantiere = NotaContabile & {
+  cantiere: { codice: string; denominazione: string } | null
+}
+
+/**
+ * Tutte le ore in economia dell'azienda in un intervallo di date.
+ *
+ * Esiste perche' la domanda vera si fa un livello sopra il cantiere:
+ * «quante ore fuori progetto ha l'impresa questo mese» e «cosa c'e' da
+ * ribaltare al cliente». Cantiere per cantiere quella risposta si
+ * ottiene solo aprendo sette pagine e sommando a mano.
+ *
+ * Il perimetro lo decide la RLS e non questa query: il tecnico vede le
+ * note dei cantieri suoi, chi ha `rapportini.read_all` le vede tutte.
+ * Stessa pagina, due risposte diverse, e nessun `if` nel frontend.
+ */
+export function useOreEconomia(da: string, a: string) {
+  const { org } = useSession()
+
+  return useQuery({
+    // Sotto ['note-contabili'] perche' chi salva una nota invalida quel
+    // prefisso: senza, questa pagina resterebbe indietro.
+    queryKey: ['note-contabili', 'economia', org?.id, da, a],
+    enabled: Boolean(org?.id),
+    queryFn: async (): Promise<NotaConCantiere[]> => {
+      const { data, error } = await supabase
+        .from('note_contabili')
+        .select(
+          'id, cantiere_id, data, descrizione, ore, note, scritta_da, created_at, cantieri ( codice, denominazione )',
+        )
+        .eq('org_id', org!.id)
+        .gte('data', da)
+        .lte('data', a)
+        .order('data', { ascending: false })
+
+      if (error) throw error
+
+      return (data ?? []).map((n) => {
+        // PostgREST annida una relazione molti-a-uno come oggetto, ma i
+        // tipi generati la danno a volte come array: si normalizza qui
+        // invece di fidarsi, come si fa gia' altrove.
+        const c = Array.isArray(n.cantieri) ? n.cantieri[0] : n.cantieri
+        return {
+          id: n.id,
+          cantiere_id: n.cantiere_id,
+          data: n.data,
+          descrizione: n.descrizione,
+          ore: Number(n.ore),
+          note: n.note,
+          scritta_da: n.scritta_da,
+          created_at: n.created_at,
+          cantiere: c ? { codice: c.codice, denominazione: c.denominazione } : null,
+        }
+      })
+    },
+  })
 }

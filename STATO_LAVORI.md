@@ -18,9 +18,9 @@ nuova sia per chi ci torna dopo giorni.
 2. **Il lavoro in corso è il flusso del tecnico**, non il backend: il database
    è già quasi completo, il frontend no. Si procede **un settore per volta**,
    con verifica in ufficio a ogni passaggio.
-3. **Il prossimo passo** è il punto 1 di «Costruire il resto»: dove si guardano
-   tutte le ore in economia insieme. Il ribaltamento al cliente lo specificherà
-   l'utente, non va anticipato.
+3. **Il prossimo passo** è il punto 2 di «Costruire il resto»: chiudere i due
+   rami rimasti del controllo delle 8 ore. Il punto 1 e il subappalto aspettano
+   l'utente e non vanno anticipati.
 4. **Due cose aperte che aspettano l'utente** e non vanno indovinate: le
    specifiche del **subappalto**, e come si **ribaltano al cliente** le ore in
    economia.
@@ -50,7 +50,7 @@ nuova sia per chi ci torna dopo giorni.
 | Cantieri — elenco, scheda, creazione, modifica | ✅ |
 | Cantieri — assegnazione della squadra | ✅ |
 | Cantieri — scheda di riepilogo, tappa prima del rapportino | ✅ |
-| Ore in economia — si segnano nel rapportino, si cercano nel cantiere | ✅ |
+| Ore in economia — nel rapportino, nel cantiere e tutte insieme sotto Economia | ✅ |
 | Clienti — elenco, scheda, CRUD, azienda/privato | ✅ |
 | Operai — elenco, scheda, CRUD, storico tariffe | ✅ |
 | Rapportini — elenco, scheda, creazione, modifica | ✅ |
@@ -62,7 +62,8 @@ nuova sia per chi ci torna dopo giorni.
 | Rapportini — subappalto | ❌ segnaposto, specifiche da definire |
 | Documenti (storage), Subappalti | ❌ voci di menu, pagine da costruire |
 | Materiali e mezzi | ❌ da fare |
-| Economia, paghe, WBS | ❌ da fare |
+| Economia — costi, ricavi, margini | ❌ da fare |
+| Paghe, WBS | ❌ da fare |
 
 ---
 
@@ -361,6 +362,21 @@ Da fare **prima** di toccare le policy.
 
 ## Prossimi passi
 
+> **Chiusi il 2026-09-10 (sesto giro).** La pagina **Economia**, che raccoglie
+> le ore in economia di tutti i cantieri: periodo con scorciatoie, filtro per
+> cantiere, ricerca, totale grosso in cima e ripartizione per cantiere. Prima
+> quelle ore si potevano leggere solo un cantiere per volta.
+>
+> *La voce la vede anche il tecnico*, ed è lavoro suo: le note le scrive lui
+> compilando i rapportini, e nella pagina non c'è un euro. Il cancello è in **OR**
+> fra `rapportini.create` ed `economics.read` — `RequirePermission` adesso accetta
+> una lista. Chi vede cosa lo decide la RLS: il tecnico i cantieri suoi, il
+> titolare e l'amministrazione tutti. Stessa pagina, due risposte, e nessun `if`
+> nel frontend a farsi carico di una regola che non gli appartiene.
+>
+> Quando in quella pagina arriveranno i soldi — costi, ricavi, margini — vanno
+> chiusi su `economics.read` **dentro** la pagina, non spostando il cancello.
+>
 > **Chiusi il 2026-09-10 (quinto giro).** Le **note contabili** dentro la scheda
 > del cantiere, cioè le **ore in economia**.
 >
@@ -494,33 +510,19 @@ poi quello che ne aggiunge.
 > girano, note al titolare e foto di cantiere sono codice che non funziona, e il
 > bucket `rapportini` resta pubblico.
 
-1. **Dove si guardano TUTTE le ore in economia, e come si ribaltano al cliente.**
-   Chiesto il 2026-09-10 come domanda aperta, il ribaltamento verrà specificato
-   dopo.
+1. **Il ribaltamento al cliente delle ore in economia.** Aspetta le specifiche
+   dell'utente, che ha detto esplicitamente che dirà lui come si fa: **non
+   anticiparlo**.
 
-   *Dove stanno oggi:* solo dentro la scheda del singolo cantiere
-   (`/cantieri/:id`), nel riquadro «Note contabili», con la ricerca e il totale
-   di quel cantiere. Si segnano compilando il rapportino e si rileggono anche
-   nella scheda del rapportino, sotto le ore.
+   *Già pronto:* la pagina **Economia** raccoglie tutte le ore in economia di
+   tutti i cantieri, con periodo, filtro per cantiere, ricerca e totali. La vede
+   anche il tecnico (cancello in OR fra `rapportini.create` e `economics.read`),
+   e chi vede cosa lo decide la RLS.
 
-   *Cosa manca:* una raccolta che le attraversi tutte. Il titolare che vuole
-   sapere quante ore fuori progetto ha l'impresa questo mese, o
-   l'amministrazione che deve fatturarle, oggi deve aprire i cantieri uno per
-   uno. È lo stesso difetto che aveva il foglio di giornata prima di esistere:
-   il dato c'è, ma la domanda vera si fa a un livello sopra.
-
-   *Consiglio su dove metterla:* sotto **Economia**, che oggi è un segnaposto e
-   ha già il suo permesso (`economics.read`). Una tabella con periodo, cantiere,
-   giorno, descrizione e ore, filtrabile per cantiere e per intervallo di date,
-   con i totali per cantiere. Non nella scheda del cantiere: lì c'è già il
-   dettaglio, e la domanda a cui manca risposta è esattamente quella che il
-   cantiere non può fare.
-
-   *Per il ribaltamento servirà* una spunta «già fatturata» sulla riga più il
-   riferimento del documento, e allora la raccolta diventa una coda di lavoro:
-   «ecco cosa c'è da ribaltare». La tabella è già pronta a reggerlo, sono due
-   colonne. **Non anticiparlo:** l'utente ha detto esplicitamente che dirà lui
-   come si ribalta.
+   *Quando arriveranno le specifiche* serviranno probabilmente due colonne su
+   `note_contabili` — una spunta «già fatturata» e il riferimento del documento
+   — e la pagina diventa una coda di lavoro invece di un elenco. La tabella è
+   già fatta per reggerlo.
 
 2. **Il controllo delle 8 ore: completare i due rami.** Chiesto il 2026-09-10.
    Il metro sono le 8 ore del contratto italiano, e il conto va fatto sulla

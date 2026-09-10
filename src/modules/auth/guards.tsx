@@ -44,15 +44,26 @@ export function RequireAuth({ children }: { children: ReactNode }) {
   return <>{children}</>
 }
 
+/**
+ * Con una lista, basta UNO dei permessi.
+ *
+ * Serve alle pagine che rispondono alla stessa domanda per ruoli
+ * diversi. «Ore in economia» è il caso: il tecnico ci arriva da
+ * `rapportini.create` e vede le sue, chi tiene i conti da
+ * `economics.read` e le vede tutte. Il perimetro non lo decide questo
+ * cancello, lo decide la RLS — qui si sceglie solo chi vede la voce
+ * invece di sbattere contro un 403.
+ */
 export function RequirePermission({
   perm,
   children,
 }: {
-  perm: Permission
+  perm: Permission | Permission[]
   children: ReactNode
 }) {
   const { can } = useSession()
-  if (!can(perm)) {
+  const lista = Array.isArray(perm) ? perm : [perm]
+  if (!lista.some(can)) {
     return (
       <Schermo
         titolo="Questa sezione non è nel tuo ruolo"
