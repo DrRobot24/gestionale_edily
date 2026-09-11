@@ -12,6 +12,9 @@
 Questa è la prima cosa da leggere aprendo il progetto, e vale sia per una chat
 nuova sia per chi ci torna dopo giorni.
 
+0. **C'è il muro "Lavori in corso" alzato** (dall'11 settembre 2026): chi apre
+   l'indirizzo trova un cartello di attesa, passano solo le email elencate in
+   `.env`. Si spegne con `VITE_WIP=false`. Vedi la sezione dedicata qui sotto.
 1. **Niente SQL in sospeso.** Al 2026-09-10 tutti i file di
    `supabase/schema/` sono stati eseguiti, `magazzino.sql` compreso. L'unico
    che resta è [`rapportino-foto-stato.sql`](supabase/schema/rapportino-foto-stato.sql),
@@ -41,6 +44,49 @@ nuova sia per chi ci torna dopo giorni.
   sicuro, rinominare o restringere no.
 - Il tecnico vede **solo i cantieri assegnati a lui**. È una decisione presa il
   2026-09-10 e vale per il prodotto, non solo per Edily.
+
+---
+
+## Muro "Lavori in corso" — ATTIVO
+
+> Acceso l'**11 settembre 2026**. Se apri l'app e trovi un cartello di attesa
+> invece del gestionale, non è rotto: è questo.
+
+I clienti conoscono l'indirizzo e ci entrano. Finché il flusso del tecnico non è
+finito, davanti all'applicazione c'è una schermata di attesa che non dice mai
+cosa stiamo costruendo — è tutto il suo scopo: niente elenco di moduli in
+arrivo, niente date.
+
+**Si spegne da `.env`, senza toccare il codice:**
+
+```
+VITE_WIP=false
+```
+
+Poi si riavvia `npm run dev`, o si ricostruisce per la produzione: le `VITE_*`
+vengono lette alla compilazione, non a ogni caricamento della pagina.
+
+**Chi passa comunque**, a muro alzato: solo le email in
+`VITE_WIP_EMAIL_AMMESSE` (separate da virgola, maiuscole e spazi non contano).
+Bisogna prima fare il login — l'email si sa solo da lì — e per questo `/login`
+resta raggiungibile anche col cartello alzato. Chi entra con un'utenza non
+ammessa ritrova il cartello, con un pulsante per uscire e riprovare.
+
+**ATTENZIONE a cosa NON è.** Non è sicurezza. Il valore finisce nel bundle come
+ogni `VITE_*`, e chi sa leggere il JavaScript aggira la schermata. A proteggere
+i dati resta la RLS: superato il cartello si trova comunque solo ciò che quella
+utenza poteva già leggere. È una tenda, non una porta blindata. Se un domani
+servisse davvero chiudere fuori qualcuno, si toglie il suo accesso
+sull'organizzazione, non si alza questo muro.
+
+Se la riga sparisce dal `.env` o è scritta male, l'app resta **aperta**: la
+scelta è deliberata, meglio sbagliare verso il funzionamento normale che verso
+un muro di cui nessuno sa l'origine.
+
+I file: [`src/lib/env.ts`](src/lib/env.ts) legge l'interruttore,
+[`src/modules/wip/MuroWip.tsx`](src/modules/wip/MuroWip.tsx) decide chi passa,
+[`src/modules/wip/LavoriInCorso.tsx`](src/modules/wip/LavoriInCorso.tsx) è il
+cartello. L'aggancio sta in [`src/App.tsx`](src/App.tsx), sopra `RequireAuth`.
 
 ---
 

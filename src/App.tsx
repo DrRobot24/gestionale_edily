@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, NavLink, Outlet } from 'react-router'
 import { SessionProvider, useSession } from './modules/auth/SessionProvider'
 import { RequireAuth, RequirePermission } from './modules/auth/guards'
 import { LoginPage } from './modules/auth/LoginPage'
+import { MuroWip } from './modules/wip/MuroWip'
 import { CantieriPage } from './modules/cantieri/CantieriPage'
 import { CantiereForm } from './modules/cantieri/CantiereForm'
 import { CantiereScheda } from './modules/cantieri/CantiereScheda'
@@ -172,11 +173,19 @@ export default function App() {
       <SessionProvider>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          {/* Il muro sta QUI e non piu' in alto di proposito: `/login`
+              deve restare raggiungibile anche a cartello alzato, perche'
+              il muro riconosce chi passa dall'email e l'email si sa solo
+              dopo l'accesso. Sta invece SOPRA `RequireAuth` perche' a un
+              cliente che apre l'indirizzo va mostrato il cartello, non
+              un modulo di login che lo invita a insistere. */}
           <Route
             element={
-              <RequireAuth>
-                <Layout />
-              </RequireAuth>
+              <MuroWip>
+                <RequireAuth>
+                  <Layout />
+                </RequireAuth>
+              </MuroWip>
             }
           >
             {VOCI.map(({ to, perm, elemento }) =>
