@@ -199,7 +199,16 @@ export function CantieriDelGiorno() {
           foglio e' gia' sul tavolo del titolare. */}
       <ControlloOre giorno={giorno} />
 
-      {invia.isError && <Avviso tono="errore">{(invia.error as Error).message}</Avviso>}
+      {/* `whitespace-pre-line` non e' un dettaglio estetico: il rifiuto
+          per le ore che non tornano elenca una persona per riga, e in
+          HTML gli a capo si perdono. Senza, sei nomi diventano un muro
+          di testo su una riga sola, cioe' proprio la cosa che l'elenco
+          serviva a evitare. */}
+      {invia.isError && (
+        <Avviso tono="errore" className="whitespace-pre-line">
+          {(invia.error as Error).message}
+        </Avviso>
+      )}
       {invia.isSuccess && (
         <Avviso tono="successo">
           Foglio della giornata inviato al titolare: {invia.data} schede.

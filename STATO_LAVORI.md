@@ -15,17 +15,24 @@ nuova sia per chi ci torna dopo giorni.
 0. **C'è il muro "Lavori in corso" alzato** (dall'11 settembre 2026): chi apre
    l'indirizzo trova un cartello di attesa, passano solo le email elencate in
    `.env`. Si spegne con `VITE_WIP=false`. Vedi la sezione dedicata qui sotto.
-1. **Niente SQL in sospeso.** Al 2026-09-10 tutti i file di
-   `supabase/schema/` sono stati eseguiti, `magazzino.sql` compreso. L'unico
-   che resta è [`rapportino-foto-stato.sql`](supabase/schema/rapportino-foto-stato.sql),
+1. **C'è un SQL DA ESEGUIRE.**
+   [`invio-controllo-ore.sql`](supabase/schema/invio-controllo-ore.sql), scritto
+   l'11 settembre 2026 e **non ancora girato**: porta il controllo delle 8 ore
+   dentro l'invio della giornata. Va incollato nel SQL Editor. Finché non gira,
+   il controllo resta il solo avviso in home e la giornata parte lo stesso.
+
+   Gli altri file al 2026-09-10 sono tutti eseguiti, `magazzino.sql` compreso.
+   Resta fuori [`rapportino-foto-stato.sql`](supabase/schema/rapportino-foto-stato.sql),
    **non eseguito di proposito** (vedi il punto 5). Per verificare lo stato:
    [`verifica-stato.sql`](supabase/schema/verifica-stato.sql), di sola lettura.
 2. **Il lavoro in corso è il flusso del tecnico**, non il backend: il database
    è già quasi completo, il frontend no. Si procede **un settore per volta**,
    con verifica in ufficio a ogni passaggio.
-3. **Il prossimo passo** è il punto 2 di «Costruire il resto»: chiudere i due
-   rami rimasti del controllo delle 8 ore. Il punto 1 e il subappalto aspettano
-   l'utente e non vanno anticipati.
+3. **Il prossimo passo** va scelto con l'utente: il controllo delle 8 ore è
+   chiuso (blocca l'invio in tutti e due i rami, dall'11 settembre 2026) e lo
+   spostamento rapido delle ore in straordinario è stato **rimandato** di
+   proposito, per provare prima il blocco in ufficio. Il punto 1 e il
+   subappalto aspettano l'utente e non vanno anticipati.
 4. **Due cose aperte che aspettano l'utente** e non vanno indovinate: le
    specifiche del **subappalto**, e come si **ribaltano al cliente** le ore in
    economia.
@@ -103,6 +110,7 @@ cartello. L'aggancio sta in [`src/App.tsx`](src/App.tsx), sopra `RequireAuth`.
 | Operai — elenco, scheda, CRUD, storico tariffe | ✅ |
 | Rapportini — elenco, scheda, creazione, modifica | ✅ |
 | Rapportini — invio, validazione, rifiuto, contabilizzazione | ✅ |
+| Controllo delle 8 ore — avviso in home **e blocco all'invio** | ✅ |
 | Rapportini — Foglio Riepilogativo di Giornata | ✅ |
 | Fornitori — elenco, scheda, CRUD | ✅ |
 | Rapportini — note al titolare | ✅ |
@@ -126,7 +134,8 @@ e l'altra non resta traccia di chi ha lanciato cosa.
 [`supabase/schema/verifica-stato.sql`](supabase/schema/verifica-stato.sql). È
 di sola lettura e dice riga per riga cosa è FATTO e cosa è DA FARE.
 
-**Esito del 2026-09-10: tutti eseguiti.**
+**Esito del 2026-09-10: tutti eseguiti.** Dall'11 settembre 2026 ce n'è però
+**uno nuovo da eseguire**, l'ultima riga della tabella.
 
 
 | File | Stato |
@@ -138,6 +147,7 @@ di sola lettura e dice riga per riga cosa è FATTO e cosa è DA FARE.
 | [`foglio-ore-tecnico.sql`](supabase/schema/foglio-ore-tecnico.sql) | ✅ eseguito il 2026-09-10 |
 | [`note-contabili.sql`](supabase/schema/note-contabili.sql) | ✅ eseguito il 2026-09-10, RLS verificata attiva |
 | [`magazzino.sql`](supabase/schema/magazzino.sql) | ✅ eseguito il 2026-09-10, vista verificata `security_invoker=on` |
+| [`invio-controllo-ore.sql`](supabase/schema/invio-controllo-ore.sql) | ⏳ **DA ESEGUIRE** — scritto l'11 settembre 2026. Sostituisce `invia_foglio_giornata` aggiungendo il blocco delle 8 ore, e crea `ore_in_lettere()`. Provato su un Postgres 17 usa e getta, nove casi (vedi sotto) |
 
 **Si possono rilanciare tutti senza danno**, ed è una proprietà voluta: questi
 file si eseguono a mano e fra una sessione e l'altra nessuno ricorda cosa aveva
@@ -145,6 +155,16 @@ già fatto. Chi crea colonne usa `add column if not exists`, chi crea policy le
 toglie prima di rimetterle, chi crea funzioni le droppa prima di ricrearle.
 `rapportino-foto.sql` si ferma da solo se la tabella ha già delle policy sue, e
 `note-contabili.sql` si ferma se trova righe scritte con il suo schema vecchio.
+
+**Come è stato provato `invio-controllo-ore.sql` prima di consegnarlo**, visto
+che qui non c'è un ambiente di prova: un Postgres 17 in Docker usa e getta, uno
+scheletro minimo delle quattro tabelle toccate, e nove casi — la giornata che
+quadra, 4+5 ore su due cantieri diversi, le stesse 9 ore con una dichiarata
+straordinario, 6 ore senza motivo, 6 più 2 di permesso, un motivo che copre
+troppo poco, le righe vecchie con motivo e zero ore, due persone insieme, e
+l'ordine dei controlli. La prova ha trovato un difetto vero nei messaggi
+(«2, ore in meno», con la virgola di troppo di `to_char`, corretto con
+`trim_scale`), che a leggere il codice non si vedeva.
 
 **Resta da fare:** rigenerare i tipi con `supabase gen types typescript`.
 `nessuna_attivita`, `annotazioni` e `invia_foglio_giornata` sono in
@@ -631,13 +651,35 @@ poi quello che ne aggiunge.
      con la giornata intera — chi ha già scritto sei ore sta dichiarando un
      permesso di due. Le righe vecchie con un motivo e zero ore non sono state
      riscritte: valgono come assenza a giornata e il controllo le riconosce.
-   - **La stessa regola dentro `invia_foglio_giornata`.** Oggi il controllo vive
-     solo nell'interfaccia, e un controllo che vive solo lì lo aggira chiunque
-     chiami l'API. Va deciso se blocca l'invio o se avvisa e basta: il ramo dello
-     straordinario probabilmente blocca, quello delle ore mancanti forse no.
+   - ~~La stessa regola dentro `invia_foglio_giornata`.~~ **Chiusa l'11
+     settembre 2026** con
+     [`invio-controllo-ore.sql`](supabase/schema/invio-controllo-ore.sql).
+     Blocca **tutti e due i rami**, e il dubbio scritto qui — «quello delle ore
+     mancanti forse no» — è stato **corretto dall'utente**: il ramo delle ore
+     mancanti blocca eccome. L'ipotesi era che il motivo dell'assenza lo
+     sapesse l'amministrazione; è il contrario. **È il tecnico che fa il giro
+     dei cantieri ogni giorno ed è lui che porta le informazioni in ufficio**:
+     se qualcuno non c'era, lo sa prima di chiunque altro. Chiederglielo a fine
+     giornata è chiederlo all'unica persona che ce l'ha.
+
+     Il conto passa da `ore_giornata()` e non da una query dentro l'invio:
+     quella funzione è `security invoker` e vedrebbe solo il perimetro di chi
+     manda, cioè 4 dove il totale è 9.
+
+     Il messaggio elenca **tutte** le persone in una volta, non si ferma alla
+     prima: con una squadra di otto sarebbero otto viaggi per un lavoro solo.
+     Dove le ore stanno su cantieri di un collega lo dice — «5 ore su cantieri
+     non tuoi: sentile con chi li segue» — così il tecnico sa che deve sentire
+     qualcuno invece di cercare a vuoto nei suoi.
+
+     **La regola è scritta in due posti** e vanno tenuti allineati: `anomaliaDi()`
+     in [`useOreGiornata.ts`](src/modules/rapportini/useOreGiornata.ts) per
+     l'avviso in home, e il file SQL per il blocco. Se cambia una, cambiare
+     l'altra.
    - **Nel form del rapportino**, un modo rapido per spostare ore da ordinarie a
      straordinarie: oggi l'avviso dice «aprilo e spostale» e chi lo fa deve
-     ricalcolare a mano.
+     ricalcolare a mano. **Rimandato dall'utente l'11 settembre 2026:** prima si
+     prova in ufficio il blocco all'invio, poi si decide se serve.
 
 3. **Le ore del tecnico: fare il collegamento.** Chiesto il 2026-09-10, e il
    codice è pronto: resta un'operazione da fare a mano, una volta.
