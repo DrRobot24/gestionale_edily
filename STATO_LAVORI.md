@@ -15,14 +15,12 @@ nuova sia per chi ci torna dopo giorni.
 0. **C'è il muro "Lavori in corso" alzato** (dall'11 settembre 2026): chi apre
    l'indirizzo trova un cartello di attesa, passano solo le email elencate in
    `.env`. Si spegne con `VITE_WIP=false`. Vedi la sezione dedicata qui sotto.
-1. **C'è un SQL DA ESEGUIRE.**
-   [`invio-controllo-ore.sql`](supabase/schema/invio-controllo-ore.sql), scritto
-   l'11 settembre 2026 e **non ancora girato**: porta il controllo delle 8 ore
-   dentro l'invio della giornata. Va incollato nel SQL Editor. Finché non gira,
-   il controllo resta il solo avviso in home e la giornata parte lo stesso.
-
-   Gli altri file al 2026-09-10 sono tutti eseguiti, `magazzino.sql` compreso.
-   Resta fuori [`rapportino-foto-stato.sql`](supabase/schema/rapportino-foto-stato.sql),
+1. **Niente SQL in sospeso.** Tutti i file di `supabase/schema/` sono stati
+   eseguiti, compreso
+   [`invio-controllo-ore.sql`](supabase/schema/invio-controllo-ore.sql), girato
+   l'11 settembre 2026 e verificato: entrambe le funzioni esistono, e
+   `invia_foglio_giornata` è `security invoker` come deve. Resta fuori
+   [`rapportino-foto-stato.sql`](supabase/schema/rapportino-foto-stato.sql),
    **non eseguito di proposito** (vedi il punto 6). Per verificare lo stato:
    [`verifica-stato.sql`](supabase/schema/verifica-stato.sql), di sola lettura.
 2. **Il lavoro in corso è il flusso del tecnico**, non il backend: il database
@@ -155,8 +153,8 @@ e l'altra non resta traccia di chi ha lanciato cosa.
 [`supabase/schema/verifica-stato.sql`](supabase/schema/verifica-stato.sql). È
 di sola lettura e dice riga per riga cosa è FATTO e cosa è DA FARE.
 
-**Esito del 2026-09-10: tutti eseguiti.** Dall'11 settembre 2026 ce n'è però
-**uno nuovo da eseguire**, l'ultima riga della tabella.
+**Esito all'11 settembre 2026: tutti eseguiti**, compreso
+`invio-controllo-ore.sql` dell'ultima riga.
 
 
 | File | Stato |
@@ -168,7 +166,7 @@ di sola lettura e dice riga per riga cosa è FATTO e cosa è DA FARE.
 | [`foglio-ore-tecnico.sql`](supabase/schema/foglio-ore-tecnico.sql) | ✅ eseguito il 2026-09-10 |
 | [`note-contabili.sql`](supabase/schema/note-contabili.sql) | ✅ eseguito il 2026-09-10, RLS verificata attiva |
 | [`magazzino.sql`](supabase/schema/magazzino.sql) | ✅ eseguito il 2026-09-10, vista verificata `security_invoker=on` |
-| [`invio-controllo-ore.sql`](supabase/schema/invio-controllo-ore.sql) | ⏳ **DA ESEGUIRE** — scritto l'11 settembre 2026. Sostituisce `invia_foglio_giornata` aggiungendo il blocco delle 8 ore, e crea `ore_in_lettere()`. Provato su un Postgres 17 usa e getta, nove casi (vedi sotto) |
+| [`invio-controllo-ore.sql`](supabase/schema/invio-controllo-ore.sql) | ✅ eseguito l'11 settembre 2026, verificato: `invia_foglio_giornata` c'è ed è `security invoker`, `ore_in_lettere()` pure. Provato prima su un Postgres 17 usa e getta, nove casi (vedi sotto) |
 
 **Si possono rilanciare tutti senza danno**, ed è una proprietà voluta: questi
 file si eseguono a mano e fra una sessione e l'altra nessuno ricorda cosa aveva
