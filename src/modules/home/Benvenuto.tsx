@@ -16,10 +16,22 @@ import { oggi } from '../rapportini/campiRapportino'
    perche' tutto quello che c'e' sotto parla di oggi — e il saluto col
    nome.
 
-   Il verde non e' decorazione. E' l'unico blocco pieno di colore
-   dell'intera schermata che non stia dicendo che qualcosa non va: sotto
-   ci sono rossi da compilare e gialli rimasti aperti, e cominciare da
-   quelli e' un modo faticoso di aprire la giornata.
+   L'AZZURRO, e perche' non e' piu' verde. Serve un blocco pieno di
+   colore che non stia dicendo che qualcosa non va: sotto ci sono rossi
+   da compilare e gialli rimasti aperti, e cominciare da quelli e' un
+   modo faticoso di aprire la giornata.
+
+   Era verde, e il verde qui e' gia' preso. In questa schermata dice
+   «fatto» in tre posti: la fascia «Pronta» sulle card, i puntini
+   dell'avanzamento, il riquadro dell'invio quando la giornata e'
+   completa. Una fascia verde che saluta e basta indebolisce quel
+   segnale, perche' insegna all'occhio che il verde a volte non vuol
+   dire niente.
+
+   L'azzurro e' il colore che in questo progetto porta informazione
+   neutra — `Avviso tono="info"`, `Badge variante="info"` — ed e'
+   esattamente cio' che questa fascia e': ti dice che giorno e' e chi
+   sei, non che qualcosa e' andato bene. Cambia il colore, non il ruolo.
    ══════════════════════════════════════════════════════════════════ */
 
 export function Benvenuto() {
@@ -28,8 +40,8 @@ export function Benvenuto() {
   const chiSei = nomeDi(app?.nome, app?.email)
 
   return (
-    <Card className="bg-lime-200 p-5 sm:p-6">
-      <p className="text-sm font-extrabold uppercase tracking-wide text-lime-900">
+    <Card className="bg-sky-200 p-5 sm:p-6">
+      <p className="text-sm font-extrabold uppercase tracking-wide text-sky-900">
         {saluto()}
         {chiSei && `, ${chiSei}`}
       </p>
@@ -41,7 +53,7 @@ export function Benvenuto() {
         {dataLunga(giorno)}
       </p>
 
-      <p className="mt-2 text-xs font-semibold text-lime-900">
+      <p className="mt-2 text-xs font-semibold text-sky-900">
         {org?.ragioneSociale}
         {org?.ruolo && <span className="lowercase"> · {org.ruolo}</span>}
         {app?.isPlatformAdmin && ' · staff di piattaforma'}
