@@ -23,20 +23,41 @@ nuova sia per chi ci torna dopo giorni.
 
    Gli altri file al 2026-09-10 sono tutti eseguiti, `magazzino.sql` compreso.
    Resta fuori [`rapportino-foto-stato.sql`](supabase/schema/rapportino-foto-stato.sql),
-   **non eseguito di proposito** (vedi il punto 5). Per verificare lo stato:
+   **non eseguito di proposito** (vedi il punto 6). Per verificare lo stato:
    [`verifica-stato.sql`](supabase/schema/verifica-stato.sql), di sola lettura.
 2. **Il lavoro in corso è il flusso del tecnico**, non il backend: il database
    è già quasi completo, il frontend no. Si procede **un settore per volta**,
    con verifica in ufficio a ogni passaggio.
-3. **Il prossimo passo** va scelto con l'utente: il controllo delle 8 ore è
+3. **Quello che viene dopo è già deciso, ed è un cambio di prospettiva.**
+   Annunciato dall'utente l'11 settembre 2026: finiti questi test, quindi
+   indicativamente **entro il 15-20 settembre 2026**, si smette con i dati finti
+   e si **inserisce un cantiere vero**. Da lì si riparte **dal lato
+   amministrazione**.
+
+   *Perché conta:* finora si è costruito il flusso del tecnico. L'amministrazione
+   è il capo opposto dello stesso flusso e **non vede i rapportini come li vede
+   il tecnico**: vede il totale ore per persona, quello che diventa la busta
+   paga. È il motivo per cui il controllo delle 8 ore era propedeutico — un
+   rapportino con 9 ore ordinarie invece di 8 più 1 di straordinario non è un
+   dettaglio di cantiere, è una paga sbagliata.
+
+   *Come affrontarlo:* non anticipare costruendo pagine a indovinare. Si parte
+   dal cantiere vero, si guarda cosa l'amministrazione non riesce a fare, e si
+   costruisce quello — un settore per volta, con verifica in ufficio.
+
+   *Da fare a mano prima:* collegare la scheda operaio del tecnico al suo
+   utente del gestionale — è il punto «Le ore del tecnico» fra i prossimi
+   passi — altrimenti le sue ore non entrano nel conto.
+
+4. **L'ordine di lavoro corrente** va scelto con l'utente: il controllo delle 8 ore è
    chiuso (blocca l'invio in tutti e due i rami, dall'11 settembre 2026) e lo
    spostamento rapido delle ore in straordinario è stato **rimandato** di
    proposito, per provare prima il blocco in ufficio. Il punto 1 e il
    subappalto aspettano l'utente e non vanno anticipati.
-4. **Due cose aperte che aspettano l'utente** e non vanno indovinate: le
+5. **Due cose aperte che aspettano l'utente** e non vanno indovinate: le
    specifiche del **subappalto**, e come si **ribaltano al cliente** le ore in
    economia.
-5. **Un difetto da chiudere prima o poi**, registrato fra i difetti noti: le
+6. **Un difetto da chiudere prima o poi**, registrato fra i difetti noti: le
    policy di `rapportino_foto` sono di wbs-office e non guardano lo stato della
    scheda. Il rimedio è già scritto in
    [`rapportino-foto-stato.sql`](supabase/schema/rapportino-foto-stato.sql) e
