@@ -5,6 +5,7 @@ import { data as fmtData, dataEstesa, euro } from '../../lib/formato'
 import { usePermission } from '../auth/usePermission'
 import { useSession } from '../auth/SessionProvider'
 import { oggi } from '../rapportini/campiRapportino'
+import { StatoRapportino } from '../rapportini/stato'
 import { useFotoCantiere } from '../rapportini/useFoto'
 import {
   useRapportiniCantiere,
