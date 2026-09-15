@@ -809,21 +809,38 @@ poi quello che ne aggiunge.
    partire. È il passaggio da un magazzino con un luogo solo (il capannone) a un
    magazzino con tanti luoghi (il capannone più ogni cantiere aperto).
 
-   *La conseguenza da decidere con l'utente e con Stefania,* perché non è un
-   dettaglio tecnico: se il materiale resta contato sul cantiere, allora
-   «scaricato su un cantiere» **non significa più «consumato»**, e servono due
-   gesti distinti — il materiale che *arriva* in cantiere e quello che viene
-   *usato*. Senza la distinzione non si sa mai cosa c'è ancora lì da spostare.
+   *Il modello è DECISO dall'utente il 2026-09-15.* Il materiale ha un **luogo**,
+   e i luoghi sono il capannone più ogni cantiere. Il capannone è un luogo fra i
+   luoghi, non un posto speciale. Quattro gesti, tutti della stessa forma
+   «da un luogo a un altro luogo»:
 
-   *Le altre domande aperte:* se serva un terzo tipo (`trasferimento`) con
-   cantiere di partenza e di arrivo, oppure una coppia di movimenti legati da un
-   riferimento comune; se il magazzino centrale sia esso stesso un luogo fra i
-   luoghi; e se lo spostamento si dichiari dentro il rapportino (dove il tecnico
-   già scrive la giornata) o da una sua schermata.
+   | Gesto | Chi | Da → A |
+   |---|---|---|
+   | Carico | amministrazione | fornitore → capannone |
+   | Prelievo | tecnico | capannone → cantiere |
+   | Spostamento | tecnico | cantiere → cantiere |
+   | Reso | tecnico | cantiere → capannone |
 
-   *Da non fare:* inventare lo schema prima di queste risposte. Migrare dati
-   veri di magazzino per correggere il modello costa più che aspettare una
-   riunione.
+   *Il reso è lo spostamento con gli estremi invertiti*, non una funzione nuova:
+   se il gesto è già «da un luogo a un altro», il ritorno in magazzino esce
+   gratis. Un concetto in meno da spiegare a chi lo usa.
+
+   *NIENTE concetto di «consumato», ed è una scelta esplicita.* Il materiale
+   portato in cantiere **è** consumato da quel cantiere: il costo gli appartiene
+   dal momento in cui arriva, che è ciò che serve al consuntivo. Se non viene
+   spostato resta lì, e **un cantiere che chiude si tiene il suo materiale** —
+   deciso dall'utente. Un gesto «segna il consumato» sarebbe un adempimento
+   quotidiano in più per il tecnico, che ha già ore, foto e note: non lo farebbe,
+   e dopo un mese le giacenze dei cantieri direbbero «40 sacchi» su cantieri
+   chiusi da settimane. Un numero sbagliato che si presenta come giusto è peggio
+   di un numero che manca — la stessa ragione per cui il conto delle ore passa da
+   `ore_giornata()` e non da una somma nel browser.
+
+   *Resta da definire, e sono domande di forma non di sostanza:* se serva un
+   terzo tipo (`trasferimento`) con luogo di partenza e di arrivo, oppure una
+   coppia di movimenti legati da un riferimento comune; e se lo spostamento si
+   dichiari dentro il rapportino — dove il tecnico già scrive la giornata — o da
+   una sua schermata.
 
 10. **Materiali dentro il rapportino: la tendina del magazzino.** Chiesto
    esplicitamente il 2026-09-15 e definito **fondamentale** dall'utente: serve a
@@ -838,9 +855,9 @@ poi quello che ne aggiunge.
    magazzino quando il cantiere lo consuma**, non quando lo carica il camion,
    perché è il tecnico a dichiararlo dal cantiere. Quindi **un registro solo**,
    non due: i materiali del rapportino e i movimenti di magazzino sono la stessa
-   cosa, altrimenti lo stesso sacco viene contato due volte. Va incrociata con la
-   decisione del punto 9, che introduce la differenza fra materiale *arrivato* in
-   cantiere e materiale *usato*.
+   cosa, altrimenti lo stesso sacco viene contato due volte. Il punto 9 non la
+   contraddice: il prelievo del tecnico **è** il consumo del cantiere, e non
+   esiste un gesto separato per dichiararlo.
 
    *Stato di oggi:* in `src/modules/rapportini` la parola `materiali` non
    compare da nessuna parte — verificato il 2026-09-15. La tabella
