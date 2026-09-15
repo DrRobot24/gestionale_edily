@@ -1,6 +1,6 @@
 # Stato lavori — Gestionale Edily
 
-> Aggiornato al **10 settembre 2026**.
+> Aggiornato al **15 settembre 2026**.
 > Questo file raccoglie fatti **verificati contro il database reale**, non dedotti
 > dallo schema. Dove c'è scritto "verificato" vuol dire che è stato provato con
 > una query e ne è stato osservato l'esito.
@@ -12,50 +12,68 @@
 Questa è la prima cosa da leggere aprendo il progetto, e vale sia per una chat
 nuova sia per chi ci torna dopo giorni.
 
-0. **C'è il muro "Lavori in corso" alzato** (dall'11 settembre 2026): chi apre
-   l'indirizzo trova un cartello di attesa, passano solo le email elencate in
-   `.env`. Si spegne con `VITE_WIP=false`. Vedi la sezione dedicata qui sotto.
+0. **Il muro "Lavori in corso": spento in locale, ALZATO in produzione.** Il
+   `.env` locale ha `VITE_WIP=false` dal 15 settembre 2026, per i test in
+   ufficio, e in `VITE_WIP_EMAIL_AMMESSE` ci sono ora tutte e quattro le
+   utenze di Edily più quella dell'utente — serve da quando lo si rialza. Su
+   Vercel il valore è ancora `true` e i clienti trovano il cartello. Il `.env`
+   non è versionato, quindi chi apre il progetto su un'altra macchina parte da
+   `.env.example`. Vedi la sezione dedicata qui sotto.
 1. **Niente SQL in sospeso.** Tutti i file di `supabase/schema/` sono stati
    eseguiti, compreso
    [`invio-controllo-ore.sql`](supabase/schema/invio-controllo-ore.sql), girato
    l'11 settembre 2026 e verificato: entrambe le funzioni esistono, e
    `invia_foglio_giornata` è `security invoker` come deve. Resta fuori
    [`rapportino-foto-stato.sql`](supabase/schema/rapportino-foto-stato.sql),
-   **non eseguito di proposito** (vedi il punto 6). Per verificare lo stato:
+   **non eseguito di proposito** (vedi il punto 7). Per verificare lo stato:
    [`verifica-stato.sql`](supabase/schema/verifica-stato.sql), di sola lettura.
 2. **Il lavoro in corso è il flusso del tecnico**, non il backend: il database
    è già quasi completo, il frontend no. Si procede **un settore per volta**,
    con verifica in ufficio a ogni passaggio.
-3. **Quello che viene dopo è già deciso, ed è un cambio di prospettiva.**
-   Annunciato dall'utente l'11 settembre 2026: finiti questi test, quindi
-   indicativamente **entro il 15-20 settembre 2026**, si smette con i dati finti
-   e si **inserisce un cantiere vero**. Da lì si riparte **dal lato
-   amministrazione**.
+3. **Il cambio di prospettiva È AVVENUTO: si lavora sul lato amministrazione.**
+   Il 15 settembre 2026 il punto di vista di `amministrazione@cassia.com` è
+   stato aperto e provato in ufficio, nella data prevista.
 
-   *Perché conta:* finora si è costruito il flusso del tecnico. L'amministrazione
-   è il capo opposto dello stesso flusso e **non vede i rapportini come li vede
-   il tecnico**: vede il totale ore per persona, quello che diventa la busta
-   paga. È il motivo per cui il controllo delle 8 ore era propedeutico — un
-   rapportino con 9 ore ordinarie invece di 8 più 1 di straordinario non è un
-   dettaglio di cantiere, è una paga sbagliata.
+   *Chi è.* Dietro quell'utenza c'è **Stefania Corritore**, l'impiegata
+   amministrativa. Il suo lavoro, nell'ordine: crea **tutte le anagrafiche**
+   (prima il cliente, poi il cantiere, poi gli operai), **riceve le ore** di
+   tutti — incluse quelle del tecnico — e le **elabora per le buste paga**,
+   assegnando le tariffe.
 
-   *Come affrontarlo:* non anticipare costruendo pagine a indovinare. Si parte
-   dal cantiere vero, si guarda cosa l'amministrazione non riesce a fare, e si
-   costruisce quello — un settore per volta, con verifica in ufficio.
+   *La cosa da non sbagliare:* a lei i **rapportini non interessano**, e l'ha
+   detto l'utente provandolo. Il rapportino è lo strumento di chi compila in
+   cantiere; a chi paga serve il **totale per persona**. Per questo la voce
+   Rapportini è uscita dal suo menu, e per questo la vista delle ore per
+   persona è il prossimo pezzo da costruire (vedi i prossimi passi).
 
-   *Da fare a mano prima:* collegare la scheda operaio del tecnico al suo
-   utente del gestionale — è il punto «Le ore del tecnico» fra i prossimi
-   passi — altrimenti le sue ore non entrano nel conto.
+   *Come procedere:* non anticipare costruendo pagine a indovinare. Si guarda
+   cosa lei non riesce a fare, e si costruisce quello — un settore per volta,
+   con verifica in ufficio. Le parole che usa lei valgono più delle ipotesi:
+   i nomi delle cose vanno presi dal suo vocabolario.
+
+   *Cosa NON è lei:* Stefania non va in cantiere e non presta ore. Non deve
+   comparire fra le persone assegnabili alla squadra — vedi il punto 5.
 
 4. **L'ordine di lavoro corrente** va scelto con l'utente: il controllo delle 8 ore è
    chiuso (blocca l'invio in tutti e due i rami, dall'11 settembre 2026) e lo
    spostamento rapido delle ore in straordinario è stato **rimandato** di
    proposito, per provare prima il blocco in ufficio. Il punto 1 e il
    subappalto aspettano l'utente e non vanno anticipati.
-5. **Due cose aperte che aspettano l'utente** e non vanno indovinate: le
+5. **Tre cose decise il 15 settembre 2026**, da non rimettere in discussione:
+   - **`cantieri.assign` resta a owner e admin.** Le assegnazioni dei tecnici
+     ai cantieri le fa **solo Giuseppe**, non l'amministrazione. La matrice
+     attuale è già così: non va toccata.
+   - **Stefania fuori dalla squadra.** La sua scheda operaio era stata
+     collegata a `amministrazione@cassia.com`, e quel collegamento la faceva
+     comparire fra gli assegnabili. Va sciolto o la scheda cancellata: lei
+     riceve le ore, non le presta.
+   - **Il modello del magazzino è deciso** — i luoghi, e nessun «consumato».
+     Vedi il punto 9 dei prossimi passi.
+6. **Due cose aperte che aspettano l'utente** e non vanno indovinate: le
    specifiche del **subappalto**, e come si **ribaltano al cliente** le ore in
-   economia.
-6. **Un difetto da chiudere prima o poi**, registrato fra i difetti noti: le
+   economia. Più gli **attributi della scheda di magazzino**, che l'utente
+   chiede direttamente a Stefania.
+7. **Un difetto da chiudere prima o poi**, registrato fra i difetti noti: le
    policy di `rapportino_foto` sono di wbs-office e non guardano lo stato della
    scheda. Il rimedio è già scritto in
    [`rapportino-foto-stato.sql`](supabase/schema/rapportino-foto-stato.sql) e
@@ -121,6 +139,8 @@ cartello. L'aggancio sta in [`src/App.tsx`](src/App.tsx), sopra `RequireAuth`.
 | Area | Stato |
 |---|---|
 | Login, sessione, tre livelli di permesso | ✅ |
+| Punto di vista **amministrazione** — anagrafiche complete | ✅ provato in ufficio il 2026-09-15 |
+| Vista delle **ore per persona** per le paghe | ❌ da costruire, è il prossimo pezzo |
 | Cantieri — elenco, scheda, creazione, modifica | ✅ |
 | Cantieri — assegnazione della squadra | ✅ |
 | Cantieri — scheda di riepilogo, tappa prima del rapportino | ✅ |
@@ -451,6 +471,37 @@ Da fare **prima** di toccare le policy.
 
 ## Prossimi passi
 
+> **Chiusi il 2026-09-15.** Aperto il **punto di vista dell'amministrazione** e
+> provato in ufficio con Stefania. Non è stato scritto codice nuovo di
+> funzionalità: si è guardato lavorare qualcuno e si è sistemato ciò che
+> intralciava. È il metodo, e ha reso più di una giornata di previsioni.
+>
+> *Cosa è stato messo a posto:*
+>
+> - **La sidebar nell'ordine del lavoro** — Clienti, Cantieri, Operai, poi il
+>   resto. È anche l'ordine obbligato di inserimento: un cantiere vuole il suo
+>   cliente, una squadra vuole gli operai.
+> - **I rapportini fuori dal menu dell'amministrazione** (`rapportini.create`).
+>   La voce era senza cancello *di proposito*, con il ragionamento che
+>   `amministrazione` ha `rapportini.read_all` proprio per leggerli. Provato in
+>   ufficio, l'utente ha detto il contrario: a Stefania non interessano. Il
+>   ragionamento giusto sulla carta ha perso contro l'uso reale.
+> - **La doppia etichetta nei percorsi.** Si leggeva «← Operai   OPERAI ›
+>   NUOVO»: la freccia è il gesto, il percorso è il posto, e ripetere la stessa
+>   parola a tre centimetri è rumore. Corretto su Operai e Fornitori; su
+>   Clienti la tappa resta solo quando si arriva dal modulo di un cantiere,
+>   dove aggiunge un livello vero. La regola è scritta in
+>   [`Percorso.tsx`](src/ui/Percorso.tsx) perché non si ripresenti.
+> - **La fascia della home torna verde**, pallido (`emerald-100`). Era verde,
+>   poi azzurra l'11 settembre perché il verde pieno dice «fatto» in quella
+>   schermata. Provata qualche giorno, l'utente ha detto che l'azzurro non
+>   riposa: chiama troppo. Il verde tenue recupera il riposo senza toccare il
+>   segnale, che è il `lime-300` pieno dei badge.
+>
+> *Un difetto trovato usandola,* e registrato fra i prossimi passi: l'operaio
+> archiviato si riattiva, ma il percorso è nascosto dietro la spunta «Mostra
+> archiviati». Chi non la conosce lo dà per perso.
+>
 > **Chiusi il 2026-09-10 (settimo giro).** Il **magazzino**, in sidebar per
 > tutti quelli che hanno `anagrafiche.read`: sapere cosa c'è in magazzino non è
 > un privilegio, e il tecnico che parte per il cantiere è proprio quello che
@@ -627,6 +678,35 @@ poi quello che ne aggiunge.
 > **Prima di tutto: eseguire i tre SQL** della sezione in cima. Finché non
 > girano, note al titolare e foto di cantiere sono codice che non funziona, e il
 > bucket `rapportini` resta pubblico.
+>
+> ⭐ **PRIMA DI TUTTO IL RESTO: la vista delle ore per persona.** Non è
+> numerata perché non sta in coda a niente: viene prima dei punti qui sotto.
+>
+> **Oggi c'è un buco aperto da noi.** Il 15 settembre 2026 i rapportini sono
+> usciti dal menu dell'amministrazione, e finché questa pagina non esiste
+> Stefania non ha **nessuna** strada per leggere le ore che deve elaborare.
+>
+> *Cos'è.* Il totale delle ore **per persona e per periodo**, su cui lei mette
+> le tariffe e da cui esce la busta paga. Non è l'elenco dei rapportini con un
+> filtro: è l'altro capo del flusso. Il rapportino è il documento della giornata
+> di un cantiere; questa è la riga di una persona su un mese.
+>
+> *Il mattone c'è già:* `v_ore_giornaliere` espone `data`, `cantiere`,
+> `dipendente`, ore ordinarie/straordinarie/trasferta/totali, `tipo_assenza` e
+> `stato` — quindi «solo i validati» è una condizione, non una query nuova. E
+> `v_riepilogo_paghe` esiste: va verificato cosa contiene davvero prima di
+> duplicarla.
+>
+> *Da chiedere a Stefania prima di scriverla,* perché sono decisioni sue e non
+> si indovinano: quale periodo guarda (il mese? la quindicina?); se vuole vedere
+> solo i rapportini validati o anche quelli ancora in corsa; se le serve il
+> dettaglio per cantiere sotto ogni persona o solo il totale; e con quali parole
+> chiama le cose — i suoi nomi valgono più delle nostre ipotesi.
+>
+> *Attenzione al perimetro:* il conto deve passare da `ore_giornata()` o da una
+> funzione `security definer`, non da una somma nel browser. Le viste sono tutte
+> `security_invoker=on`, e sommare nel frontend darebbe un numero plausibile e
+> sbagliato. Vale qui la stessa ragione del controllo delle 8 ore.
 
 1. **Il ribaltamento al cliente delle ore in economia.** Aspetta le specifiche
    dell'utente, che ha detto esplicitamente che dirà lui come si fa: **non
@@ -879,10 +959,25 @@ poi quello che ne aggiunge.
    (es. `/cantieri`). Se torna 404 serve un `vercel.json` con il rewrite verso
    `index.html` — react-router fa il routing lato client, e senza fallback il
    server cerca un file che non esiste. Non ancora provato.
-13. Decidere di `src/assets/logo_new.jpeg`: è il file originale del logo, fuori
+14. Decidere di `src/assets/logo_new.jpeg`: è il file originale del logo, fuori
     dal versionamento. Da tenere come sorgente ad alta risoluzione o da
     cancellare, visto che in `src/assets/logo-edily.png` c'è già il ritaglio
     pronto all'uso.
+15. **Il ritorno dall'archivio degli operai è nascosto.** Trovato dall'utente il
+    2026-09-15 provando il punto di vista dell'amministrazione: archiviato un
+    operaio, non si trova più il modo di farlo tornare.
+
+    *Funziona, ma dietro due passaggi non segnalati:* spuntare «Mostra
+    archiviati» nella pagina Operai, aprire la scheda, e lì il pulsante che
+    diceva «Archivia» dice «Riattiva»
+    ([`DipendenteForm.tsx`](src/modules/anagrafiche/DipendenteForm.tsx)). Chi non
+    conosce la spunta vede solo una persona scomparsa.
+
+    *Il rimedio non è un pulsante in più* ma dire dov'è finita: dopo
+    l'archiviazione un avviso che la scheda è negli archiviati e come si
+    rivedono, oppure un contatore accanto alla spunta («3 archiviati») che
+    dichiara l'esistenza di quelle righe invece di aspettare che qualcuno provi
+    la casella. Stessa famiglia della regola «sapere sempre dove si è».
 
 ---
 
