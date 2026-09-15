@@ -16,22 +16,30 @@ import { oggi } from '../rapportini/campiRapportino'
    perche' tutto quello che c'e' sotto parla di oggi — e il saluto col
    nome.
 
-   L'AZZURRO, e perche' non e' piu' verde. Serve un blocco pieno di
-   colore che non stia dicendo che qualcosa non va: sotto ci sono rossi
-   da compilare e gialli rimasti aperti, e cominciare da quelli e' un
-   modo faticoso di aprire la giornata.
+   IL COLORE, che e' cambiato due volte e vale spiegare perche'.
 
-   Era verde, e il verde qui e' gia' preso. In questa schermata dice
-   «fatto» in tre posti: la fascia «Pronta» sulle card, i puntini
-   dell'avanzamento, il riquadro dell'invio quando la giornata e'
-   completa. Una fascia verde che saluta e basta indebolisce quel
-   segnale, perche' insegna all'occhio che il verde a volte non vuol
-   dire niente.
+   Serve un blocco pieno di colore che non stia dicendo che qualcosa non
+   va: sotto ci sono rossi da compilare e gialli rimasti aperti, e
+   cominciare da quelli e' un modo faticoso di aprire la giornata.
 
-   L'azzurro e' il colore che in questo progetto porta informazione
-   neutra — `Avviso tono="info"`, `Badge variante="info"` — ed e'
-   esattamente cio' che questa fascia e': ti dice che giorno e' e chi
-   sei, non che qualcosa e' andato bene. Cambia il colore, non il ruolo.
+   Era un verde pieno, e il verde pieno qui e' gia' preso: in questa
+   schermata dice «fatto» in piu' posti — la fascia «Pronta» sulle card,
+   i puntini dell'avanzamento, il riquadro dell'invio a giornata
+   completa, il badge VALIDATO (`lime-300`). Una fascia verde piena che
+   saluta e basta indebolisce quel segnale, perche' insegna all'occhio
+   che il verde a volte non vuol dire niente.
+
+   Poi e' stato azzurro, per il motivo giusto sulla carta — l'azzurro qui
+   porta informazione neutra (`Avviso tono="info"`, `Badge colore="info"`)
+   ed e' cio' che questa fascia e'. Ma provato per qualche giorno
+   l'utente ha detto che non riposa: e' un colore che chiama, e questa
+   fascia deve accogliere e poi lasciare andare l'occhio a cio' che c'e'
+   sotto.
+
+   Oggi e' `emerald-100`, un verde molto pallido. Recupera il riposo del
+   verde senza toccare il segnale: il «fatto» e' `lime-300` pieno e
+   saturo, questo e' un fondo tenue — non si confondono nemmeno guardando
+   di sfuggita. Cambia il colore, non il ruolo.
    ══════════════════════════════════════════════════════════════════ */
 
 export function Benvenuto() {
@@ -40,8 +48,8 @@ export function Benvenuto() {
   const chiSei = nomeDi(app?.nome, app?.email)
 
   return (
-    <Card className="bg-sky-200 p-5 sm:p-6">
-      <p className="text-sm font-extrabold uppercase tracking-wide text-sky-900">
+    <Card className="bg-emerald-100 p-5 sm:p-6">
+      <p className="text-sm font-extrabold uppercase tracking-wide text-emerald-900">
         {saluto()}
         {chiSei && `, ${chiSei}`}
       </p>
@@ -53,7 +61,7 @@ export function Benvenuto() {
         {dataLunga(giorno)}
       </p>
 
-      <p className="mt-2 text-xs font-semibold text-sky-900">
+      <p className="mt-2 text-xs font-semibold text-emerald-900">
         {org?.ragioneSociale}
         {org?.ruolo && <span className="lowercase"> · {org.ruolo}</span>}
         {app?.isPlatformAdmin && ' · staff di piattaforma'}

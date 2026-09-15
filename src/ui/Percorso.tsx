@@ -23,6 +23,19 @@ import { cn } from './cn'
    Un link piccolo grigio in cima alla pagina lo trova chi lo cerca; un
    bottone colorato lo vede chi non lo sta cercando, che e' proprio chi
    si e' perso.
+
+   NON RIPETERE LA FRECCIA NEL PERCORSO. Se il passo indietro e' «Operai»,
+   la prima tappa di `qui` non deve essere di nuovo «Operai»: si legge
+   «← Operai   OPERAI › NUOVO» e la stessa parola compare due volte a tre
+   centimetri di distanza. Segnalato dall'utente il 2026-09-15 guardando
+   la scheda operaio.
+
+   La regola: `indietro` e' il GESTO (da dove sei venuto, dove torni),
+   `qui` e' il POSTO (in che punto sei). Su una scheda che si apre da un
+   elenco, `qui` parte da cio' che distingue questa pagina — il nome
+   della persona, «Nuovo» — non dal nome dell'elenco che la freccia sta
+   gia' dicendo. Le tappe intermedie servono quando aggiungono un livello
+   che la freccia non copre (cantiere › giornata › foglio).
    ══════════════════════════════════════════════════════════════════ */
 
 export type Tappa = {

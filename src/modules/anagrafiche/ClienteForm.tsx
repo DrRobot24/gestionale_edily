@@ -196,7 +196,12 @@ export function ClienteForm() {
     <div className="mx-auto grid max-w-3xl gap-4">
       {/* Con `ritorno` si e' arrivati qui dal modulo di un cantiere, per
           creare al volo il cliente che mancava: il passo indietro e'
-          quello, non l'elenco. */}
+          quello, non l'elenco.
+
+          La tappa «Clienti» nel percorso compare solo in quel caso, cioe'
+          quando la freccia NON la sta gia' dicendo: venendo dal cantiere
+          aggiunge un livello vero, venendo dall'elenco ripeterebbe la
+          freccia a tre centimetri di distanza. */}
       <Percorso
         indietro={
           ritorno
@@ -204,7 +209,7 @@ export function ClienteForm() {
             : { etichetta: 'Clienti', a: '/anagrafiche/clienti' }
         }
         qui={[
-          { etichetta: 'Clienti', a: '/anagrafiche/clienti' },
+          ...(ritorno ? [{ etichetta: 'Clienti', a: '/anagrafiche/clienti' }] : []),
           { etichetta: nuovo ? 'Nuovo' : (cliente?.ragione_sociale ?? '—') },
         ]}
       />

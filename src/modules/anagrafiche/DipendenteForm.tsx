@@ -140,7 +140,6 @@ export function DipendenteForm() {
       <Percorso
         indietro={{ etichetta: 'Operai', a: '/anagrafiche/operai' }}
         qui={[
-          { etichetta: 'Operai', a: '/anagrafiche/operai' },
           {
             etichetta: nuovo ? 'Nuovo' : `${dipendente?.cognome ?? ''} ${dipendente?.nome ?? ''}`.trim() || '—',
           },

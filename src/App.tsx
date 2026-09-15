@@ -71,21 +71,61 @@ type Voce = {
  * tecnico l'elenco cantieri, si rimette il cancello e non cambia niente
  * di cio' che puo' leggere.
  *
- * Rapportini invece non ha `perm` di proposito. La voce era protetta da
- * `rapportini.create`, e quindi `amministrazione` — che ha
- * `rapportini.read_all` proprio per leggerli — restava chiusa fuori
- * dalla lista. Il permesso di CREARE non e' il permesso di LEGGERE: il
- * cancello va sul pulsante "Nuovo", non sulla pagina.
+ * Rapportini sta su `rapportini.create`, e la storia di questa riga vale
+ * raccontarla perche' e' cambiata due volte. Prima era cosi', poi il
+ * cancello e' stato tolto: `amministrazione` ha `rapportini.read_all`
+ * proprio per leggerli, e il permesso di CREARE non e' il permesso di
+ * LEGGERE. Ragionamento giusto sulla carta.
+ *
+ * Provato in ufficio il 2026-09-15, l'utente ha detto il contrario: a
+ * Stefania — che tiene l'amministrazione — i rapportini NON interessano.
+ * Lei riceve le ore e le elabora per le paghe, e la vista che le serve e'
+ * il totale per persona, non l'elenco dei documenti di cantiere. Una voce
+ * di menu che non usera' mai e' peso, non possibilita'.
+ *
+ * Quindi la voce la vedono quelli che i rapportini li scrivono o li
+ * validano. Quando esistera' la vista delle ore per persona, quella andra'
+ * in menu al posto suo — e sara' quella la porta dell'amministrazione sui
+ * dati dei rapportini.
+ *
+ * L'ORDINE DELLE VOCI e' quello dell'importanza dichiarata dall'utente il
+ * 2026-09-15: Clienti, Cantieri, Operai, poi il resto. Segue il percorso
+ * vero del lavoro in ufficio — prima il committente, poi il cantiere che
+ * gli appartiene, poi chi ci va a lavorare — che e' anche l'ordine in cui
+ * le cose DEVONO essere inserite, perche' un cantiere senza cliente non
+ * si crea.
  */
 const VOCI: Voce[] = [
   { to: '/', etichetta: 'Home', elemento: <Dashboard /> },
+
+  /* Le tre anagrafiche in testa, nell'ordine dell'importanza dichiarata
+     dall'utente: e' anche l'ordine obbligato di inserimento, perche' un
+     cantiere vuole il suo cliente e una squadra vuole gli operai. */
+  {
+    to: '/anagrafiche/clienti',
+    etichetta: 'Clienti',
+    perm: 'anagrafiche.write',
+    elemento: <ClientiPage />,
+  },
   {
     to: '/cantieri',
     etichetta: 'Cantieri',
     perm: 'cantieri.read_all',
     elemento: <CantieriPage />,
   },
-  { to: '/rapportini', etichetta: 'Rapportini', elemento: <RapportiniPage /> },
+  {
+    to: '/anagrafiche/operai',
+    etichetta: 'Operai',
+    perm: 'anagrafiche.write',
+    elemento: <DipendentiPage />,
+  },
+
+  {
+    to: '/rapportini',
+    etichetta: 'Rapportini',
+    perm: 'rapportini.create',
+    elemento: <RapportiniPage />,
+  },
 
   /* Magazzino sotto `anagrafiche.read`, che ce l'hanno tutti tranne chi
      non e' in azienda: sapere cosa c'e' in magazzino non e' un
@@ -123,22 +163,10 @@ const VOCI: Voce[] = [
   },
 
   {
-    to: '/anagrafiche/clienti',
-    etichetta: 'Clienti',
-    perm: 'anagrafiche.write',
-    elemento: <ClientiPage />,
-  },
-  {
     to: '/anagrafiche/fornitori',
     etichetta: 'Fornitori',
     perm: 'anagrafiche.write',
     elemento: <FornitoriPage />,
-  },
-  {
-    to: '/anagrafiche/operai',
-    etichetta: 'Operai',
-    perm: 'anagrafiche.write',
-    elemento: <DipendentiPage />,
   },
   /* Economia la vede anche il TECNICO, ed è una scelta del 2026-09-10.
      Oggi la pagina sono le ore in economia: le lavorazioni fuori

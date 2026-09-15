@@ -144,10 +144,7 @@ export function FornitoreForm() {
     <div className="mx-auto grid max-w-3xl gap-4">
       <Percorso
         indietro={{ etichetta: 'Fornitori', a: '/anagrafiche/fornitori' }}
-        qui={[
-          { etichetta: 'Fornitori', a: '/anagrafiche/fornitori' },
-          { etichetta: nuovo ? 'Nuovo' : (fornitore?.ragione_sociale ?? '—') },
-        ]}
+        qui={[{ etichetta: nuovo ? 'Nuovo' : (fornitore?.ragione_sociale ?? '—') }]}
       />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
