@@ -502,6 +502,67 @@ Da fare **prima** di toccare le policy.
 > archiviato si riattiva, ma il percorso è nascosto dietro la spunta «Mostra
 > archiviati». Chi non la conosce lo dà per perso.
 >
+> **Poi, nel pomeriggio, la HOME e la SCHEDA CANTIERE.** Stesso metodo:
+> l'utente guarda, segna col rosso quello che non va, si sistema.
+>
+> *In home:*
+>
+> - **Le frecce dei giorni**, ai lati della data nella fascia. Prima la home era
+>   inchiodata a oggi e una giornata dimenticata si recuperava solo passando dal
+>   cantiere e cambiando la data nell'indirizzo. Un giorno per volta e mai nel
+>   futuro; il salto di mese sta nel calendario, non qui. Erano nate in una
+>   barra loro sotto il benvenuto: l'utente le ha volute nella fascia, e aveva
+>   ragione — la data grande era già il titolo della pagina.
+> - **Il default non è più oggi.** La prassi di Edily è che il tecnico compila
+>   **oggi per ieri**: raccoglie le informazioni in giro e le scrive dopo, mai
+>   due giorni indietro. Aprire su oggi voleva dire un click di correzione ogni
+>   mattina, per anni. Ora si apre su ieri se ieri è rimasto incompleto.
+> - **Un calendario da scrivania** al posto di «Giornate rimaste aperte», che
+>   elencava una card per giorno con dentro tutte le schede — informazione
+>   giusta, forma sbagliata. Rosso da chiudere, giallo dal titolare, verde
+>   validata; un giorno senza schede resta bianco, perché domeniche e festivi
+>   non sono giornate da recuperare.
+> - **Una riga di tre riquadri**: calendario, ore della squadra, ore del
+>   tecnico. Nascono perché il calendario stretto lasciava mezza riga bianca —
+>   «è follia», e in una dashboard uno spazio vuoto è spazio che qualcuno ha
+>   dimenticato di usare. Rispondono a tre domande diverse sullo stesso giorno.
+> - **`ControlloOre` ha cambiato natura.** Spariva quando le ore tornavano, ed
+>   era giusto finché stava fra le card e il pulsante di invio. Ora che ha un
+>   posto fisso dice il totale anche quando quadra: un totale serve anche
+>   quando è giusto.
+> - **Le ore del tecnico** (`MieOre`): quante ne risultano segnate, quante ne
+>   mancano alle otto, e un pulsante per ogni cantiere della giornata. **Non
+>   apre una sezione nuova e non deve**: le ore si segnano dentro il rapportino
+>   del cantiere, aggiungendosi alla squadra, ed è l'unico posto dove hanno una
+>   data e un cantiere. Una pagina «le mie ore» che scrivesse dovrebbe comunque
+>   chiedere su quale cantiere — cioè rifare il rapportino con un altro nome.
+>
+> *Nella scheda del cantiere:*
+>
+> - **Via «Chi lavora qui»**: se stai guardando quel cantiere ti è stato
+>   assegnato, quindi leggere il tuo nome è una ripetizione.
+> - **Foto chiuse** dietro un riquadro che dice quante sono. Una giornata ne
+>   produce cinque o sei, e una panoramica che ne carica cento è «un salasso»:
+>   ogni immagine è una richiesta al server, e in cantiere si guarda dal
+>   telefono col campo che va e viene. Aperto ne mostra dodici.
+> - **Un calendario anche qui**, al posto di «Giorni già lavorati». Semaforo
+>   diverso perché la domanda è diversa: su un cantiere la scheda per giorno è
+>   una sola, quindi giallo da chiudere, verde validata, grigio cantiere fermo.
+> - **«Ore in economia» → «Lavori extra»** in tutto il programma, voce di menu
+>   compresa. E nell'elenco il **nome** del cantiere al posto del codice.
+>
+> *Due incidenti che valgono più delle funzionalità, e sono in memoria:*
+>
+> - **Una pagina bianca in produzione.** Ripulendo gli import dopo aver tolto
+>   «Chi lavora qui» ho rimosso anche `StatoRapportino`, che serviva ancora alla
+>   fascia della giornata. La scheda del cantiere non si apriva più.
+> - **Il motivo per cui non me ne sono accorto:** stavo verificando con
+>   `npx tsc --noEmit`, che **su questo progetto non controlla niente** — il
+>   `tsconfig.json` alla radice ha `"files": []` e solo `references`, quindi tsc
+>   esce a zero senza guardare un file. Quattro «type-check pulito» di fila
+>   erano falsi. Il comando giusto era già negli script: **`npm run build`**
+>   (`tsc -b && vite build`). Da usare sempre, più `npx eslint src`.
+>
 > **Chiusi il 2026-09-10 (settimo giro).** Il **magazzino**, in sidebar per
 > tutti quelli che hanno `anagrafiche.read`: sapere cosa c'è in magazzino non è
 > un privilegio, e il tecnico che parte per il cantiere è proprio quello che
@@ -679,8 +740,45 @@ poi quello che ne aggiunge.
 > girano, note al titolare e foto di cantiere sono codice che non funziona, e il
 > bucket `rapportini` resta pubblico.
 >
-> ⭐ **PRIMA DI TUTTO IL RESTO: la vista delle ore per persona.** Non è
-> numerata perché non sta in coda a niente: viene prima dei punti qui sotto.
+> ⭐ **DECISO IL 2026-09-15, NON ANCORA FATTO: togliere le ore dai lavori
+> extra.** È il primo lavoro da riprendere domani, ed è già tutto deciso.
+>
+> *Cosa ha detto l'utente,* ed è un cambio di concetto non un ritocco: **le ore
+> dei lavori extra non interessano a nessuno.** Serve un campo note libero dove
+> il tecnico scrive le lavorazioni extra effettuate — misure, calcoli, appunti,
+> lavori a corpo. La contabilità di quei lavori la fa lui a parte, fuori dal
+> gestionale, e non passa dalle ore.
+>
+> *Il campo libero ESISTE GIÀ e non va creato:* `note_contabili.descrizione` è
+> testo libero senza vincoli di formato (nell'elenco è la colonna
+> «Lavorazione»), e c'è anche `note`. Il lavoro è togliere le ore e dare più
+> spazio al testo.
+>
+> *Sullo schema non si tocca niente* — deciso con l'utente. La colonna
+> `note_contabili.ore` è `numeric(5,2) not null default 0` con un check
+> `0..24`: smettendo di scriverla arriva zero da sola, nessuna migrazione,
+> nessun rischio su un database condiviso con wbs-office e **senza backup**. I
+> dati vecchi restano leggibili, e se un domani le ore servissero la colonna è
+> ancora lì.
+>
+> *I punti da cambiare,* tutti lato applicazione:
+>
+> - [`RiquadroEconomia.tsx`](src/modules/rapportini/RiquadroEconomia.tsx) — il
+>   campo ore nel rapportino, **oggi obbligatorio**: il salvataggio rifiuta se
+>   è zero (`if (!(campi.ore > 0))`).
+> - [`RiquadroNoteContabili.tsx`](src/modules/cantieri/RiquadroNoteContabili.tsx)
+>   — stesso campo nella scheda cantiere, stessa validazione, più il badge
+>   «*n* ore» nella testata.
+> - [`EconomiaPage.tsx`](src/modules/economia/EconomiaPage.tsx) — la colonna
+>   Ore, il «TOTALE NEL PERIODO» che somma le ore, e la ripartizione per
+>   cantiere in ore. Il totale diventa il **conteggio delle lavorazioni**.
+> - [`RapportinoPage.tsx`](src/modules/rapportini/RapportinoPage.tsx) — il
+>   totale ore nel riquadro in sola lettura.
+> - [`noteContabili.ts`](src/modules/cantieri/noteContabili.ts) — `sommaOre()`
+>   resta senza chiamanti: va tolta, non lasciata a marcire.
+>
+> ⭐ **POI: la vista delle ore per persona.** Non è numerata perché non sta in
+> coda a niente: viene prima dei punti qui sotto.
 >
 > **Oggi c'è un buco aperto da noi.** Il 15 settembre 2026 i rapportini sono
 > usciti dal menu dell'amministrazione, e finché questa pagina non esiste
@@ -790,6 +888,18 @@ poi quello che ne aggiunge.
    [`foglio-ore-tecnico.sql`](supabase/schema/foglio-ore-tecnico.sql) impedisce
    di mandare la giornata senza le proprie ore, con l'avviso anche in home
    sopra il pulsante.
+
+   *Da VERIFICARE per prima cosa, il 2026-09-16:* se il collegamento su
+   `tecnico@cassia.com` sia stato fatto davvero. L'utente il 2026-09-15 ha
+   detto di sì, ma non è stato controllato sul database — e da quella riga
+   dipendono due cose visibili: il riquadro **«Le tue ore»** in home, che senza
+   collegamento dice «la tua scheda operaio non è collegata», e il **blocco
+   dell'invio** della giornata, che senza non si accende affatto. Basta
+   aprire la home come tecnico e leggere quel riquadro; oppure:
+
+   ```sql
+   select nominativo, user_id from public.dipendenti where user_id is not null;
+   ```
 
    *Da fare, e lo fa amministrazione:* aprire la scheda operaio del tecnico —
    creandola se non esiste — e collegarla al suo utente. Da quel momento il
