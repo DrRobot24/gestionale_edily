@@ -795,20 +795,62 @@ poi quello che ne aggiunge.
    scrivere: oggi carica `anagrafiche.write` e scarica anche `rapportini.create`,
    ma è una scelta ragionevole presa da noi, non una regola concordata.
 
-9. **Spostamento di materiale da cantiere a cantiere.** Chiesto il 2026-09-10,
-   da discutere un altro giorno. Oggi i movimenti sanno solo entrare (carico dal
-   fornitore) e uscire (scarico su un cantiere), quindi la roba che da un
-   cantiere passa a un altro si può scrivere solo come due movimenti staccati
-   che non sanno di essere la stessa cosa — e nessuno dei due dice da dove
-   viene. Da definire con lui: se serva un terzo tipo (`trasferimento`) con
+9. **Spostamento di materiale da cantiere a cantiere.** Chiesto il 2026-09-10 e
+   **ribadito il 2026-09-15 come mancanza importante**, con la precisazione che
+   cambia il quadro: **lo segna il tecnico**, non l'amministrazione. È lui che
+   sta in cantiere e vede partire il bancale. Deve poter dire *quale materiale*
+   e *in quale quantità* è passato dal cantiere X al cantiere Y.
+
+   *Il nodo non è una tendina, è il modello.* Oggi i movimenti sanno solo
+   entrare (carico dal fornitore) e uscire (scarico su un cantiere): non esiste
+   il concetto di «materiale che **sta** in un cantiere». Quindi «spostato da X
+   a Y» non si può scrivere perché **manca la giacenza per cantiere** — se il
+   materiale appena scaricato esce dai conti, non c'è nessun posto da cui possa
+   partire. È il passaggio da un magazzino con un luogo solo (il capannone) a un
+   magazzino con tanti luoghi (il capannone più ogni cantiere aperto).
+
+   *La conseguenza da decidere con l'utente e con Stefania,* perché non è un
+   dettaglio tecnico: se il materiale resta contato sul cantiere, allora
+   «scaricato su un cantiere» **non significa più «consumato»**, e servono due
+   gesti distinti — il materiale che *arriva* in cantiere e quello che viene
+   *usato*. Senza la distinzione non si sa mai cosa c'è ancora lì da spostare.
+
+   *Le altre domande aperte:* se serva un terzo tipo (`trasferimento`) con
    cantiere di partenza e di arrivo, oppure una coppia di movimenti legati da un
    riferimento comune; se il magazzino centrale sia esso stesso un luogo fra i
-   luoghi, cioè se abbia senso una giacenza **per cantiere** e non solo per
-   impresa; e chi può spostare, visto che qui non c'è nessun fornitore di
-   mezzo ma solo materiale già dell'impresa che cambia posto.
+   luoghi; e se lo spostamento si dichiari dentro il rapportino (dove il tecnico
+   già scrive la giornata) o da una sua schermata.
 
-10. Materiali e mezzi dentro il rapportino (`rapportino_materiali`,
-   `rapportino_mezzi`): le tabelle ci sono, il form no.
+   *Da non fare:* inventare lo schema prima di queste risposte. Migrare dati
+   veri di magazzino per correggere il modello costa più che aspettare una
+   riunione.
+
+10. **Materiali dentro il rapportino: la tendina del magazzino.** Chiesto
+   esplicitamente il 2026-09-15 e definito **fondamentale** dall'utente: serve a
+   sapere cosa ha preso un cantiere e quanto ne ha consumato nel tempo.
+
+   *Come deve funzionare:* il tecnico, compilando la giornata, sceglie il
+   materiale da una **tendina** — la voce esiste già in anagrafica perché l'ha
+   importata Stefania dal punto di vista amministrazione — e ne dichiara
+   **tipologia e quantità**.
+
+   *Una domanda è già sciolta,* e va tenuta ferma: il materiale **esce dal
+   magazzino quando il cantiere lo consuma**, non quando lo carica il camion,
+   perché è il tecnico a dichiararlo dal cantiere. Quindi **un registro solo**,
+   non due: i materiali del rapportino e i movimenti di magazzino sono la stessa
+   cosa, altrimenti lo stesso sacco viene contato due volte. Va incrociata con la
+   decisione del punto 9, che introduce la differenza fra materiale *arrivato* in
+   cantiere e materiale *usato*.
+
+   *Stato di oggi:* in `src/modules/rapportini` la parola `materiali` non
+   compare da nessuna parte — verificato il 2026-09-15. La tabella
+   `rapportino_materiali` esiste dai tempi di wbs-office, il form non la tocca.
+   L'unica strada è la pagina Magazzino, con lo scarico verso un cantiere: il
+   dato «cosa ha preso quel cantiere» è già nel registro dei movimenti, ma il
+   gesto è fuori dal flusso del tecnico, e quello che non è nel flusso non si fa.
+
+   *Mezzi* (`rapportino_mezzi`): tabella presente, form no, nessuna richiesta
+   esplicita finora.
 
 ### Pulizia
 
