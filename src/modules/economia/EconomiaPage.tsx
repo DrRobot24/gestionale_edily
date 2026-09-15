@@ -185,7 +185,12 @@ export function EconomiaPage() {
               <th>Giorno</th>
               <th>Cantiere</th>
               <th>Lavorazione</th>
-              <th className="text-right">Ore</th>
+              {/* `!text-right` con l'important: `Table` applica
+                  `[&_th]:text-left` a tutte le intestazioni, e a parita'
+                  di specificita' vince lui. Senza, l'intestazione resta
+                  a sinistra e il numero a destra — che e' lo scarto che
+                  si vedeva in pagina. */}
+              <th className="!text-right">Ore</th>
               <th />
             </tr>
           </thead>
@@ -193,7 +198,17 @@ export function EconomiaPage() {
             {viste.map((n) => (
               <tr key={n.id}>
                 <td className="numerico whitespace-nowrap font-bold">{fmtData(n.data)}</td>
-                <td className="text-gray-600">{n.cantiere?.codice ?? '—'}</td>
+                {/* Il NOME del cantiere, non il codice. «2026-003» non
+                    dice niente a chi legge: il codice serve sui
+                    documenti, qui serve riconoscere il cantiere. */}
+                <td className="font-semibold text-gray-700">
+                  {n.cantiere?.denominazione ?? 'Cantiere rimosso'}
+                  {n.cantiere?.codice && (
+                    <span className="block text-[11px] font-bold text-gray-400">
+                      {n.cantiere.codice}
+                    </span>
+                  )}
+                </td>
                 <td className="font-semibold">
                   {n.descrizione}
                   {n.note && (
