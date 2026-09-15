@@ -7,7 +7,6 @@ import { useSession } from '../auth/SessionProvider'
 import { useCantieri } from '../cantieri/useCantieri'
 import { useRapportini, type Rapportino } from '../rapportini/useRapportini'
 import { oggi } from '../rapportini/campiRapportino'
-import { ControlloOre } from './ControlloOre'
 import { useMioDipendente } from '../anagrafiche/dipendenti'
 import { useOreGiornata } from '../rapportini/useOreGiornata'
 
@@ -197,10 +196,13 @@ export function CantieriDelGiorno({ giorno }: { giorno: string }) {
         ))}
       </div>
 
-      {/* Le ore non tornano? Si vede qui, un attimo prima di decidere
-          se mandare. Dopo l'invio sarebbe una segnalazione inutile: il
-          foglio e' gia' sul tavolo del titolare. */}
-      <ControlloOre giorno={giorno} />
+      {/* Il controllo delle ore stava QUI, fra le card e il pulsante di
+          invio: era il posto giusto finche' compariva solo quando
+          qualcosa non tornava — un attimo prima di decidere se mandare.
+          Dal 2026-09-15 vive accanto al calendario e dice il totale
+          anche quando le ore quadrano, quindi e' diventato un riquadro
+          fisso e non un avviso: infilarlo qui spezzerebbe la sequenza
+          «guarda le schede, poi mandale». */}
 
       {/* `whitespace-pre-line` non e' un dettaglio estetico: il rifiuto
           per le ore che non tornano elenca una persona per riga, e in

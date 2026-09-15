@@ -50,7 +50,15 @@ export function ControlloOre({ giorno }: { giorno: string }) {
     )
   }
 
-  if (isPending || !data) return null
+  if (isPending) {
+    return (
+      <Card className="p-5">
+        <p className="text-sm font-bold text-gray-600">Controllo le ore…</p>
+      </Card>
+    )
+  }
+
+  if (!data) return null
 
   const anomalie: { persona: OrePersona; anomalia: Anomalia }[] = []
   for (const persona of data) {
@@ -58,7 +66,53 @@ export function ControlloOre({ giorno }: { giorno: string }) {
     if (anomalia) anomalie.push({ persona, anomalia })
   }
 
-  if (anomalie.length === 0) return null
+  /* Quando tutto torna il riquadro RESTA, e dice il totale.
+     E' un cambio rispetto a prima, quando spariva: stava dentro le card
+     della giornata e la sua assenza era gia' il messaggio. Adesso vive
+     accanto al calendario, in una griglia a due colonne, e sparire
+     lascerebbe mezza riga bianca — che e' esattamente cio' che
+     l'utente non vuole vedere in una dashboard.
+     Il tono resta sobrio: nessun verde da «bravo», solo il conto della
+     giornata. La regola «la home mostra cose da fare» vale per i
+     riquadri che CHIEDONO; questo e' un totale, e un totale serve
+     anche quando e' giusto. */
+  if (anomalie.length === 0) {
+    const persone = data.length
+    const ore = data.reduce(
+      (t, p) => t + Number(p.ore_ordinarie) + Number(p.ore_straordinarie),
+      0,
+    )
+
+    return (
+      <Card className="overflow-hidden">
+        <div className="border-b-2 border-black bg-white px-5 py-3">
+          <h2 className="text-sm font-extrabold uppercase tracking-wide text-black">
+            Ore della giornata
+          </h2>
+          <p className="text-xs font-semibold text-gray-600">
+            Il conto è sulla persona, su tutti i cantieri. Il metro sono {ORE_STANDARD} ore.
+          </p>
+        </div>
+
+        <div className="grid gap-1 px-5 py-4">
+          {persone === 0 ? (
+            <p className="text-sm font-semibold text-gray-600">
+              Nessuna ora registrata per questa giornata.
+            </p>
+          ) : (
+            <>
+              <p className="text-2xl font-extrabold leading-none text-black">
+                <span className="numerico">{numero(ore)}</span> ore
+              </p>
+              <p className="text-xs font-semibold text-gray-600">
+                {persone} {persone === 1 ? 'persona' : 'persone'} · le ore tornano per tutti
+              </p>
+            </>
+          )}
+        </div>
+      </Card>
+    )
+  }
 
   return (
     <Card className="overflow-hidden">

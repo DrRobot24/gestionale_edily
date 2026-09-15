@@ -9,6 +9,7 @@ import { useCantieri } from '../cantieri/useCantieri'
 import { Benvenuto } from './Benvenuto'
 import { CalendarioGiornate } from './CalendarioGiornate'
 import { CantieriDelGiorno } from './CantieriDelGiorno'
+import { ControlloOre } from './ControlloOre'
 import { GiornateDaValidare } from './GiornateDaValidare'
 import { oggi } from '../rapportini/campiRapportino'
 
@@ -109,8 +110,20 @@ export function Dashboard() {
                   che con la prassi «oggi per ieri» e' un passo solo.
                   Dentro la sequenza card → invio nemmeno: spezzerebbe
                   in due il «guarda le schede, poi mandale». Qui e' il
-                  contesto che viene dopo il presente. */}
-              <CalendarioGiornate giorno={giorno} onScegli={setGiorno} />
+                  contesto che viene dopo il presente.
+
+                  DUE COLONNE, e non e' una scelta estetica. Da solo, il
+                  calendario stretto lasciava mezza riga bianca — «è
+                  follia», ha detto l'utente, e aveva ragione: in una
+                  dashboard uno spazio vuoto e' spazio che qualcuno ha
+                  dimenticato di usare. Accanto ci stanno le ore della
+                  giornata, che e' l'altra domanda che ci si fa
+                  guardando un giorno: quante ne sono state fatte, e se
+                  tornano. Sul telefono le due si impilano. */}
+              <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
+                <CalendarioGiornate giorno={giorno} onScegli={setGiorno} />
+                <ControlloOre giorno={giorno} />
+              </div>
 
               {/* `vuoto` vuota di proposito: senza righe il riquadro
                   sparisce del tutto. Un pannello verde permanente che
