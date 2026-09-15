@@ -1,16 +1,16 @@
+import { useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router'
-import { Avviso, Badge, Button, Card, Percorso, Vuoto, cn } from '../../ui'
-import { data as fmtData, dataEstesa, euro, numero } from '../../lib/formato'
+import { Avviso, Badge, Button, Card, Percorso, cn } from '../../ui'
+import { data as fmtData, dataEstesa, euro } from '../../lib/formato'
 import { usePermission } from '../auth/usePermission'
 import { useSession } from '../auth/SessionProvider'
-import { StatoRapportino } from '../rapportini/stato'
 import { oggi } from '../rapportini/campiRapportino'
 import { useFotoCantiere } from '../rapportini/useFoto'
 import {
   useRapportiniCantiere,
   type RapportinoCantiere,
 } from '../rapportini/useRapportini'
-import { assegnazioneInCorso, useAssegnazioni, useMembri } from './assegnazioni'
+import { CalendarioCantiere } from './CalendarioCantiere'
 import { useCantiere } from './cantieri'
 import { RiquadroNoteContabili } from './RiquadroNoteContabili'
 import { StatoCantiere } from './stato'
@@ -46,7 +46,6 @@ export function CantiereScheda() {
   const puoModificare = usePermission('cantieri.write')
   // Chi ha l'elenco dei cantieri in menu ci e' passato per arrivare qui.
   const vedeElenco = usePermission('cantieri.read_all')
-  const puoAssegnare = usePermission('cantieri.assign')
   const puoCompilare = usePermission('rapportini.create')
   // Le note contabili le scrivono il tecnico sui cantieri suoi e il
   // titolare ovunque. `rapportini.validate` e' il modo di dire "il
@@ -89,7 +88,6 @@ export function CantiereScheda() {
     .join(' — ')
 
   const delGiorno = piuAvanti((rapportini ?? []).filter((r) => r.data === giorno))
-  const storico = (rapportini ?? []).filter((r) => r.data !== giorno)
 
   return (
     <div className="mx-auto grid max-w-7xl gap-4">
@@ -148,15 +146,25 @@ export function CantiereScheda() {
           lettura sul telefono. */}
       <div className="grid gap-4 lg:grid-cols-3 lg:items-start">
         <div className="grid gap-4 lg:col-span-2">
-          <SquadraAssegnata cantiereId={id!} puoAssegnare={puoAssegnare} />
+          {/* «Chi lavora qui» non c'e' piu', e il motivo lo ha dato
+              l'utente il 2026-09-15: se stai guardando questo cantiere
+              vuol dire che ti e' stato assegnato, quindi leggere il tuo
+              nome in un riquadro e' una ripetizione. Chi deve cambiare
+              la squadra passa da «Modifica anagrafica», dove c'e' il
+              componente `Squadra` completo con assegna e termina. */}
 
-          {/* Sopra lo storico di proposito. Lo storico dice cosa e'
-              successo; questa dice dove sta il lavoro adesso, ed e' la
-              domanda che ci si fa aprendo la pagina. Il passato viene
-              dopo il presente. */}
+          {/* Sopra il calendario di proposito. Il calendario dice cosa
+              e' successo; questa dice dove sta il lavoro adesso, ed e'
+              la domanda che ci si fa aprendo la pagina. Il passato
+              viene dopo il presente. */}
           <RiquadroNoteContabili cantiereId={id!} puoScrivere={puoCompilare || eIlTitolare} />
 
-          <Storico righe={storico} caricando={caricoSchede} />
+          <CalendarioCantiere
+            righe={rapportini ?? []}
+            caricando={caricoSchede}
+            giorno={giorno}
+            onScegliGiorno={cambiaGiorno}
+          />
         </div>
 
         <div className="grid gap-4">
@@ -312,172 +320,6 @@ function FasciaGiornata({
   )
 }
 
-/* ── squadra ───────────────────────────────────────────────────── */
-
-/**
- * Chi e' assegnato oggi, in sola lettura.
- *
- * Non riusa il componente `Squadra`: quello e' una tabella larga con
- * assegna, termina e riapri, e vive giustamente dentro il modulo
- * dell'anagrafica. Qui serve l'altra meta' della domanda — chi ci
- * lavora — senza le leve per cambiarla.
- *
- * Restano solo le assegnazioni in corso. Quelle chiuse sono storia, e la
- * storia si legge nel modulo: in una panoramica farebbero sembrare in
- * squadra chi non c'e' piu'.
- */
-function SquadraAssegnata({
-  cantiereId,
-  puoAssegnare,
-}: {
-  cantiereId: string
-  puoAssegnare: boolean
-}) {
-  const navigate = useNavigate()
-  const { data: assegnazioni, isPending } = useAssegnazioni(cantiereId)
-  const { data: membri, error: erroreMembri } = useMembri()
-
-  const inCorso = (assegnazioni ?? []).filter((a) => assegnazioneInCorso(a))
-
-  return (
-    <Card className="grid gap-3 p-5">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h2 className="text-lg font-extrabold text-black">Chi lavora qui</h2>
-          <p className="text-xs font-semibold text-gray-600">
-            Assegnazioni in corso. Chi è in questo elenco vede il cantiere e può compilarci i
-            rapportini.
-          </p>
-        </div>
-        {puoAssegnare && (
-          <Button dimensione="sm" onClick={() => navigate(`/cantieri/${cantiereId}/modifica`)}>
-            Gestisci
-          </Button>
-        )}
-      </div>
-
-      {isPending ? (
-        <p className="text-sm font-bold text-gray-600">Carico la squadra…</p>
-      ) : inCorso.length === 0 ? (
-        <Vuoto>Nessuno è assegnato a questo cantiere in questo momento.</Vuoto>
-      ) : (
-        <ul className="grid gap-2 sm:grid-cols-2">
-          {inCorso.map((a) => {
-            const m = membri?.find((x) => x.userId === a.user_id)
-            return (
-              <li
-                key={a.id}
-                className="flex items-center justify-between gap-3 rounded-xl border-2 border-black bg-amber-50 px-3 py-2"
-              >
-                <div className="min-w-0">
-                  {/* Se l'elenco dei membri non e' arrivato non si scrive
-                      "utente non piu' in azienda": sarebbe una bugia
-                      detta con sicurezza. Si dice che il nome manca. */}
-                  <p className="truncate text-sm font-bold text-black">
-                    {m?.nome ?? (erroreMembri ? 'Nome non disponibile' : '…')}
-                  </p>
-                  <p className="truncate text-[11px] font-semibold uppercase tracking-wide text-gray-600">
-                    {a.ruolo_cantiere}
-                  </p>
-                </div>
-                <span className="shrink-0 text-[11px] font-semibold text-gray-600">
-                  dal {fmtData(a.dal)}
-                </span>
-              </li>
-            )
-          })}
-        </ul>
-      )}
-    </Card>
-  )
-}
-
-/* ── storico ───────────────────────────────────────────────────── */
-
-/** Somma le ore di una scheda e conta le persone che c'erano davvero.
- *  Chi ha un `tipo_assenza` e' registrato ma non era in cantiere: sta
- *  nella riga per le paghe, non nel conto della giornata. */
-function conto(r: RapportinoCantiere) {
-  const righe = r.rapportino_ore ?? []
-  const presenti = righe.filter((o) => !o.tipo_assenza)
-  const ore = presenti.reduce(
-    (t, o) => t + Number(o.ore_ordinarie ?? 0) + Number(o.ore_straordinarie ?? 0),
-    0,
-  )
-  return { persone: presenti.length, ore }
-}
-
-function Storico({ righe, caricando }: { righe: RapportinoCantiere[]; caricando: boolean }) {
-  const navigate = useNavigate()
-  const mostrate = righe.slice(0, 15)
-
-  return (
-    <Card className="overflow-hidden">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b-2 border-black bg-sky-100 px-5 py-3">
-        <h2 className="text-sm font-extrabold uppercase tracking-wide text-black">
-          Giorni già lavorati
-        </h2>
-        {righe.length > 0 && (
-          <span className="rounded-full border-2 border-black bg-white px-2.5 py-0.5 text-xs font-extrabold">
-            {righe.length}
-          </span>
-        )}
-      </div>
-
-      {caricando ? (
-        <p className="px-5 py-4 text-sm font-bold text-gray-600">Carico lo storico…</p>
-      ) : mostrate.length === 0 ? (
-        <p className="px-5 py-4 text-sm font-semibold text-gray-600">
-          Nessun&rsquo;altra giornata registrata su questo cantiere.
-        </p>
-      ) : (
-        <>
-          <ul className="divide-y-2 divide-black">
-            {mostrate.map((r) => {
-              const { persone, ore } = conto(r)
-              return (
-                <li key={r.id}>
-                  <button
-                    type="button"
-                    onClick={() => navigate(`/rapportini/${r.id}`)}
-                    className="neo-press flex w-full cursor-pointer flex-wrap items-center justify-between gap-3 px-5 py-3 text-left hover:bg-amber-50"
-                  >
-                    <div className="min-w-0">
-                      <p className="text-sm font-bold text-black">{fmtData(r.data)}</p>
-                      <p className="truncate text-xs font-semibold text-gray-600">
-                        {r.nessuna_attivita
-                          ? 'nessuna attività'
-                          : persone === 0
-                            ? 'nessuna ora registrata'
-                            : `${persone} ${persone === 1 ? 'persona' : 'persone'} · ${numero(ore)} ore`}
-                      </p>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-2">
-                      {r.numero && (
-                        <Badge className="px-2 py-0.5 text-[10px]">
-                          n. {r.numero}/{r.anno}
-                        </Badge>
-                      )}
-                      <StatoRapportino stato={r.stato} />
-                    </div>
-                  </button>
-                </li>
-              )
-            })}
-          </ul>
-
-          {righe.length > mostrate.length && (
-            <p className="border-t-2 border-black px-5 py-3 text-xs font-semibold text-gray-600">
-              Ci sono altre {righe.length - mostrate.length} giornate più vecchie. Si trovano
-              nell&rsquo;elenco dei rapportini.
-            </p>
-          )}
-        </>
-      )}
-    </Card>
-  )
-}
-
 /* ── anagrafica e foto ─────────────────────────────────────────── */
 
 function Anagrafica({
@@ -521,12 +363,28 @@ function Dato({ etichetta, valore }: { etichetta: string; valore: string }) {
 }
 
 /**
- * Le ultime foto del cantiere, di tutte le giornate insieme.
+ * Le foto del cantiere, CHIUSE fino a che non si chiedono.
  *
- * Si guardano e basta: si aggiungono dal rapportino del giorno, che e'
- * l'unico posto dove una foto ha una data che vuol dire qualcosa.
+ * Prima si aprivano tutte insieme, in una griglia a tre colonne. Su un
+ * cantiere vero le foto sono centinaia — una giornata di lavoro ne
+ * produce cinque o sei — e una panoramica che ne carica cento non e' una
+ * panoramica: e' un salasso, come l'ha chiamato l'utente il 2026-09-15.
+ * Ogni immagine e' una richiesta al server, e in cantiere si guarda dal
+ * telefono col campo che va e viene.
+ *
+ * Quindi qui resta solo il FATTO che ci sono, e quante: chi vuole
+ * vederle le chiede. Chiuso il riquadro costa una riga di testo; aperto
+ * mostra le piu' recenti, non tutte, perche' oltre un certo numero
+ * l'utilita' finisce e resta il peso.
+ *
+ * Si aggiungono dal rapportino del giorno, che e' l'unico posto dove una
+ * foto ha una data che vuol dire qualcosa. Lo dice anche quando sono
+ * zero, altrimenti sembra che manchi il pulsante per caricarle.
  */
+const FOTO_MOSTRATE = 12
+
 function FotoDelCantiere({ cantiereId }: { cantiereId: string }) {
+  const [aperto, setAperto] = useState(false)
   const { data: foto, isPending, error } = useFotoCantiere(cantiereId)
 
   if (error) {
@@ -538,48 +396,83 @@ function FotoDelCantiere({ cantiereId }: { cantiereId: string }) {
     )
   }
 
-  return (
-    <Card className="grid gap-3 p-5">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-lg font-extrabold text-black">Foto</h2>
-        {foto && foto.length > 0 && (
-          <p className="text-xs font-bold text-gray-600">le più recenti</p>
-        )}
-      </div>
+  const quante = foto?.length ?? 0
+  const mostrate = (foto ?? []).slice(0, FOTO_MOSTRATE)
 
-      {isPending ? (
-        <p className="text-sm font-bold text-gray-600">Carico le foto…</p>
-      ) : !foto || foto.length === 0 ? (
-        <p className="rounded-xl border-2 border-dashed border-gray-400 px-4 py-6 text-center text-sm font-semibold text-gray-500">
-          Nessuna foto su questo cantiere. Si aggiungono dal rapportino della giornata.
-        </p>
-      ) : (
-        <ul className="grid grid-cols-3 gap-2">
-          {foto.map((f) => (
-            <li key={f.id}>
-              {f.url ? (
-                <a
-                  href={f.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  title={f.giorno ? `Scattata il ${fmtData(f.giorno)}` : undefined}
-                  className="neo-press block aspect-square overflow-hidden rounded-xl border-2 border-black bg-gray-100"
-                >
-                  <img
-                    src={f.url}
-                    alt={f.didascalia ?? 'Foto del cantiere'}
-                    loading="lazy"
-                    className="h-full w-full object-cover"
-                  />
-                </a>
-              ) : (
-                <div className="flex aspect-square items-center justify-center rounded-xl border-2 border-black bg-gray-100 px-1 text-center text-[10px] font-bold text-gray-500">
-                  non visibile
-                </div>
-              )}
-            </li>
-          ))}
-        </ul>
+  return (
+    <Card className="overflow-hidden">
+      {/* Tutta la testa e' il comando, non solo una freccina: da telefono
+          un bersaglio grande e' la differenza fra aprirlo e riprovarci. */}
+      <button
+        type="button"
+        onClick={() => setAperto((v) => !v)}
+        disabled={isPending || quante === 0}
+        aria-expanded={aperto}
+        className={cn(
+          'flex w-full flex-wrap items-center justify-between gap-2 px-5 py-4 text-left',
+          quante > 0 && 'neo-press cursor-pointer hover:bg-amber-50',
+        )}
+      >
+        <div className="min-w-0">
+          <h2 className="text-lg font-extrabold text-black">Foto</h2>
+          <p className="text-xs font-semibold text-gray-600">
+            {isPending
+              ? 'Carico…'
+              : quante === 0
+                ? 'Nessuna. Si aggiungono dal rapportino della giornata.'
+                : `${quante} ${quante === 1 ? 'foto' : 'foto'} su questo cantiere`}
+          </p>
+        </div>
+
+        {quante > 0 && (
+          <span className="flex shrink-0 items-center gap-2">
+            <Badge className="px-2.5 py-1 text-xs">{quante}</Badge>
+            <span
+              aria-hidden="true"
+              className="rounded-lg border-2 border-black bg-white px-2 py-0.5 text-sm font-extrabold"
+            >
+              {aperto ? '−' : '+'}
+            </span>
+          </span>
+        )}
+      </button>
+
+      {aperto && quante > 0 && (
+        <div className="border-t-2 border-black p-4">
+          <ul className="grid grid-cols-3 gap-2">
+            {mostrate.map((f) => (
+              <li key={f.id}>
+                {f.url ? (
+                  <a
+                    href={f.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    title={f.giorno ? `Scattata il ${fmtData(f.giorno)}` : undefined}
+                    className="neo-press block aspect-square overflow-hidden rounded-xl border-2 border-black bg-gray-100"
+                  >
+                    <img
+                      src={f.url}
+                      alt={f.didascalia ?? 'Foto del cantiere'}
+                      loading="lazy"
+                      className="h-full w-full object-cover"
+                    />
+                  </a>
+                ) : (
+                  <div className="flex aspect-square items-center justify-center rounded-xl border-2 border-black bg-gray-100 px-1 text-center text-[10px] font-bold text-gray-500">
+                    non visibile
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+
+          {quante > mostrate.length && (
+            <p className="mt-3 text-xs font-semibold text-gray-600">
+              Ci sono altre {quante - mostrate.length} foto più vecchie. Si vedono aprendo il
+              rapportino della giornata in cui sono state scattate.
+            </p>
+          )}
+        </div>
       )}
     </Card>
   )

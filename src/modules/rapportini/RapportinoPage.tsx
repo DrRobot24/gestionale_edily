@@ -446,7 +446,7 @@ function Economia({ cantiereId, giorno }: { cantiereId: string | null; giorno: s
       <div className="flex flex-wrap items-center justify-between gap-2 border-b-2 border-black bg-lime-100 px-5 py-3">
         <div>
           <h2 className="text-sm font-extrabold uppercase tracking-wide text-black">
-            Ore in economia
+            Lavori extra
           </h2>
           <p className="text-xs font-semibold text-gray-700">
             Lavorazioni fuori progetto, da fatturare a parte. Non si sommano alle ore qui

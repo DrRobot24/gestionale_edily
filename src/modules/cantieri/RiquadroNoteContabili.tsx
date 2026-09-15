@@ -104,7 +104,7 @@ export function RiquadroNoteContabili({
       <div className="flex flex-wrap items-center justify-between gap-3 border-b-2 border-black bg-lime-100 px-5 py-3">
         <div>
           <h2 className="text-sm font-extrabold uppercase tracking-wide text-black">
-            Note contabili — ore in economia
+            Lavori extra
           </h2>
           <p className="text-xs font-semibold text-gray-700">
             Lavorazioni extra non previste dal progetto, da ribaltare al cliente.
@@ -141,7 +141,7 @@ export function RiquadroNoteContabili({
               onChange={(e) => setCampi((c) => ({ ...c, data: e.target.value }))}
             />
             <Campo
-              etichetta="Ore in economia"
+              etichetta="Ore extra"
               type="number"
               min={0}
               max={24}

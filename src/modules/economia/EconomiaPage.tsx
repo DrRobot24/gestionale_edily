@@ -62,7 +62,7 @@ export function EconomiaPage() {
   const { data: note, isPending, error } = useOreEconomia(da, a)
 
   if (error) {
-    return <Avviso tono="errore">Non riesco a leggere le ore in economia: {error.message}</Avviso>
+    return <Avviso tono="errore">Non riesco a leggere i lavori extra: {error.message}</Avviso>
   }
 
   const tutte = note ?? []
@@ -84,7 +84,7 @@ export function EconomiaPage() {
   return (
     <div className="mx-auto grid max-w-7xl gap-4">
       <div>
-        <h1 className="text-2xl font-extrabold text-black">Ore in economia</h1>
+        <h1 className="text-2xl font-extrabold text-black">Lavori extra</h1>
         <p className="text-sm font-semibold text-gray-600">
           Le lavorazioni fuori progetto di tutti i cantieri. Si segnano compilando il
           rapportino della giornata; qui si guardano insieme.
@@ -170,7 +170,7 @@ export function EconomiaPage() {
       <Riepilogo note={viste} />
 
       {isPending ? (
-        <p className="text-sm font-bold text-gray-600">Carico le ore in economia…</p>
+        <p className="text-sm font-bold text-gray-600">Carico i lavori extra…</p>
       ) : tutte.length === 0 ? (
         <Vuoto>
           Nessuna ora in economia in questo periodo. Si segnano compilando il rapportino

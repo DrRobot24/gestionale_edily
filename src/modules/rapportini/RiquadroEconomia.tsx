@@ -124,7 +124,7 @@ export function RiquadroEconomia({
     <Card className="grid gap-3 p-5">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h2 className="text-lg font-extrabold text-black">Ore in economia</h2>
+          <h2 className="text-lg font-extrabold text-black">Lavori extra</h2>
           {/* Questa frase e' il pezzo piu' importante del riquadro: senza,
               qualcuno ci scrive dentro il lavoro della giornata. */}
           <p className="text-xs font-semibold text-gray-600">

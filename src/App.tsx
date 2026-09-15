@@ -184,7 +184,7 @@ const VOCI: Voce[] = [
      pagina, non spostando questo cancello. */
   {
     to: '/economia',
-    etichetta: 'Economia',
+    etichetta: 'Lavori extra',
     perm: ['rapportini.create', 'economics.read'],
     elemento: <EconomiaPage />,
   },
