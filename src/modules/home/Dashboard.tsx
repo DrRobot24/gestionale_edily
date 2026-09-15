@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router'
 import { Avviso, Badge, Button, Card, cn } from '../../ui'
 import { useSession } from '../auth/SessionProvider'
@@ -6,9 +6,11 @@ import { useRapportini, type Rapportino } from '../rapportini/useRapportini'
 import { StatoRapportino } from '../rapportini/stato'
 import { data as formattaData } from '../../lib/formato'
 import { Benvenuto } from './Benvenuto'
+import { BarraGiorno } from './BarraGiorno'
+import { CalendarioGiornate } from './CalendarioGiornate'
 import { CantieriDelGiorno } from './CantieriDelGiorno'
-import { GiornateAperte } from './GiornateAperte'
 import { GiornateDaValidare } from './GiornateDaValidare'
+import { oggi } from '../rapportini/campiRapportino'
 
 /* ══════════════════════════════════════════════════════════════════
    La home mostra cosa aspetta TE, non cosa sai fare.
@@ -33,6 +35,13 @@ import { GiornateDaValidare } from './GiornateDaValidare'
 export function Dashboard() {
   const { app, can } = useSession()
   const { data: rapportini, isPending, error } = useRapportini()
+
+  /* Il giorno guardato vive QUI e non dentro le card, perche' e' uno
+     solo per tutta la pagina: le frecce, le schede dei cantieri, il
+     controllo delle ore e il calendario devono parlare dello stesso
+     giorno. Tenerlo in ognuno di loro vorrebbe dire quattro idee di
+     «oggi» che si separano al primo click. */
+  const [giorno, setGiorno] = useState(oggi())
 
   const puoValidare = can('rapportini.validate')
   const puoCompilare = can('rapportini.create')
@@ -64,10 +73,11 @@ export function Dashboard() {
           {/* ── Chi valida: le giornate, non le schede sciolte ── */}
           {puoValidare && <GiornateDaValidare />}
 
-          {/* ── Chi compila: prima la giornata di oggi, poi le code ── */}
+          {/* ── Chi compila: prima la giornata, poi le code ── */}
           {puoCompilare && (
             <>
-              <CantieriDelGiorno />
+              <BarraGiorno giorno={giorno} onCambia={setGiorno} />
+              <CantieriDelGiorno giorno={giorno} />
 
               {/* `vuoto` vuota di proposito: senza righe il riquadro
                   sparisce del tutto. Un pannello verde permanente che
@@ -94,13 +104,17 @@ export function Dashboard() {
                 ))}
               </Riquadro>
 
-              {/* Le giornate dei giorni scorsi rimaste a meta'. Ha
-                  preso il posto di "Bozze da inviare", che prometteva un
-                  invio singolo non piu' esistente, e di "Ultimi esiti",
-                  che mostrava al tecnico cose gia' andate bene: una
-                  bacheca dei complimenti, non qualcosa che aspetta lui.
-                  Questa home dice cosa devi fare adesso. */}
-              <GiornateAperte />
+              {/* Il calendario da scrivania ha preso il posto di
+                  «Giornate rimaste aperte», che elencava una card per
+                  giorno con dentro tutte le schede. L'informazione era
+                  giusta, la forma no: mezza schermata di righe per un
+                  fatto che si legge a colpo d'occhio. Detto dall'utente
+                  il 2026-09-15 — «questa e' una dashboard, non un
+                  elenco di uno schema di database».
+
+                  Il dettaglio non e' sparito: si clicca un giorno e le
+                  card qui sopra diventano quella giornata. */}
+              <CalendarioGiornate giorno={giorno} onScegli={setGiorno} />
             </>
           )}
 

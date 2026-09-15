@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router'
 import { supabase } from '../../lib/supabase'
 import { Avviso, Button, Card, cn } from '../../ui'
+import { dataEstesa } from '../../lib/formato'
 import { useSession } from '../auth/SessionProvider'
 import { useCantieri } from '../cantieri/useCantieri'
 import { useRapportini, type Rapportino } from '../rapportini/useRapportini'
@@ -58,11 +59,10 @@ function semaforoDi(r: Rapportino | undefined): Semaforo {
   return 'verde'
 }
 
-export function CantieriDelGiorno() {
+export function CantieriDelGiorno({ giorno }: { giorno: string }) {
   const navigate = useNavigate()
   const { org } = useSession()
   const qc = useQueryClient()
-  const giorno = oggi()
 
   /**
    * L'invio passa da una funzione del database, non da una serie di
@@ -127,9 +127,9 @@ export function CantieriDelGiorno() {
     )
   }
 
-  // Il rapportino di OGGI per quel cantiere. Se per errore ce ne fosse
-  // piu' d'uno vince quello piu' avanti nel flusso, cosi' una bozza
-  // dimenticata non fa sembrare rossa una giornata gia' inviata.
+  // Il rapportino del GIORNO GUARDATO per quel cantiere. Se per errore
+  // ce ne fosse piu' d'uno vince quello piu' avanti nel flusso, cosi'
+  // una bozza dimenticata non fa sembrare rossa una giornata inviata.
   const ordine: Record<string, number> = {
     bozza: 0,
     respinto: 1,
@@ -159,10 +159,13 @@ export function CantieriDelGiorno() {
     <div className="grid gap-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          {/* Senza la data: sta grande nella fascia di benvenuto, qui
-              sopra. Scriverla due volte nella stessa schermata la rende
-              rumore invece che riferimento. */}
-          <h2 className="text-lg font-extrabold text-black">I cantieri di oggi</h2>
+          {/* Il titolo dice OGGI solo quando e' oggi. Da quando si
+              sfoglia il calendario, «I cantieri di oggi» su una giornata
+              di tre giorni fa e' semplicemente falso, e chi ci lavora
+              sopra crede di star compilando la giornata di adesso. */}
+          <h2 className="text-lg font-extrabold capitalize text-black">
+            {giorno === oggi() ? 'I cantieri di oggi' : `I cantieri di ${dataEstesa(giorno)}`}
+          </h2>
           <p className="text-xs font-semibold text-gray-600">
             Ogni cantiere attivo vuole la sua scheda, anche quelli fermi.
           </p>
