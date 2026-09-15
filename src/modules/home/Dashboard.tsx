@@ -4,7 +4,8 @@ import { Avviso, Badge, Button, Card, cn } from '../../ui'
 import { useSession } from '../auth/SessionProvider'
 import { useRapportini, type Rapportino } from '../rapportini/useRapportini'
 import { StatoRapportino } from '../rapportini/stato'
-import { data as formattaData } from '../../lib/formato'
+import { data as formattaData, giornoPiu } from '../../lib/formato'
+import { useCantieri } from '../cantieri/useCantieri'
 import { Benvenuto } from './Benvenuto'
 import { CalendarioGiornate } from './CalendarioGiornate'
 import { CantieriDelGiorno } from './CantieriDelGiorno'
@@ -40,7 +41,26 @@ export function Dashboard() {
      controllo delle ore e il calendario devono parlare dello stesso
      giorno. Tenerlo in ognuno di loro vorrebbe dire quattro idee di
      «oggi» che si separano al primo click. */
-  const [giorno, setGiorno] = useState(oggi())
+  const { data: cantieri } = useCantieri()
+
+  /* IL DEFAULT NON E' SEMPRE OGGI, ed e' la prassi vera di Edily detta
+     dall'utente il 2026-09-15: il tecnico compila OGGI il giorno
+     PRECEDENTE — raccoglie le informazioni in giro per i cantieri e la
+     sera o la mattina dopo le scrive. Il giorno corrente lo rapporta di
+     rado, e mai due giorni indietro.
+
+     Aprire sempre su oggi voleva dire un click di correzione ogni
+     mattina, per anni, per tutti. Ora si apre su IERI se ieri e'
+     rimasto incompleto, su oggi se ieri e' a posto.
+
+     Il giorno e' DERIVATO, non impostato da un effetto: `scelta` resta
+     null finche' nessuno tocca le frecce, e il suggerimento si ricalcola
+     dai dati. Con un `useEffect` che chiamava `setGiorno` il lint
+     segnalava render a cascata — ed era giusto: qui non serve un
+     effetto, serve un valore. */
+  const [scelta, setScelta] = useState<string | null>(null)
+  const giorno = scelta ?? suggerisciGiorno(rapportini, cantieri)
+  const setGiorno = setScelta
 
   const puoValidare = can('rapportini.validate')
   const puoCompilare = can('rapportini.create')
@@ -81,6 +101,17 @@ export function Dashboard() {
             <>
               <CantieriDelGiorno giorno={giorno} />
 
+              {/* Il calendario sta SOTTO le card e SOPRA le code, e la
+                  posizione e' ragionata. Sopra le card no: chi apre
+                  l'app alle sette deve incontrare cosa fare adesso, non
+                  una griglia di quaranta caselle da interpretare — e le
+                  frecce nella fascia fanno gia' il gesto quotidiano,
+                  che con la prassi «oggi per ieri» e' un passo solo.
+                  Dentro la sequenza card → invio nemmeno: spezzerebbe
+                  in due il «guarda le schede, poi mandale». Qui e' il
+                  contesto che viene dopo il presente. */}
+              <CalendarioGiornate giorno={giorno} onScegli={setGiorno} />
+
               {/* `vuoto` vuota di proposito: senza righe il riquadro
                   sparisce del tutto. Un pannello verde permanente che
                   dice "nessun rapportino respinto" occupa mezza
@@ -106,17 +137,6 @@ export function Dashboard() {
                 ))}
               </Riquadro>
 
-              {/* Il calendario da scrivania ha preso il posto di
-                  «Giornate rimaste aperte», che elencava una card per
-                  giorno con dentro tutte le schede. L'informazione era
-                  giusta, la forma no: mezza schermata di righe per un
-                  fatto che si legge a colpo d'occhio. Detto dall'utente
-                  il 2026-09-15 — «questa e' una dashboard, non un
-                  elenco di uno schema di database».
-
-                  Il dettaglio non e' sparito: si clicca un giorno e le
-                  card qui sopra diventano quella giornata. */}
-              <CalendarioGiornate giorno={giorno} onScegli={setGiorno} />
             </>
           )}
 
@@ -147,6 +167,35 @@ export function Dashboard() {
 }
 
 /* ── pezzi ─────────────────────────────────────────────────────── */
+
+/**
+ * Il giorno su cui aprire la home, quando nessuno ha ancora scelto.
+ *
+ * Ieri se ieri e' rimasto incompleto — mancano schede, o ce n'e' una in
+ * bozza o respinta — altrimenti oggi. Segue la prassi: si compila oggi
+ * per ieri.
+ *
+ * Mentre i dati non ci sono ancora risponde oggi, che e' la risposta
+ * giusta da dare senza informazioni: il caso «ieri e' rimasto aperto»
+ * e' l'eccezione da riconoscere, non il punto di partenza da
+ * indovinare.
+ */
+function suggerisciGiorno(
+  rapportini: Rapportino[] | undefined,
+  cantieri: { stato: string }[] | undefined,
+): string {
+  const adesso = oggi()
+  if (!rapportini || !cantieri) return adesso
+
+  const ieri = giornoPiu(adesso, -1)
+  const attivi = cantieri.filter((c) => c.stato === 'attivo').length
+  const diIeri = rapportini.filter((r) => r.data === ieri)
+
+  const incompleto =
+    diIeri.length < attivi || diIeri.some((r) => r.stato === 'bozza' || r.stato === 'respinto')
+
+  return incompleto ? ieri : adesso
+}
 
 type Tono = 'attesa' | 'errore' | 'successo' | 'info' | 'neutro'
 

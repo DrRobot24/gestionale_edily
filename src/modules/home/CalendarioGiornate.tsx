@@ -98,8 +98,13 @@ export function CalendarioGiornate({
   const celle = griglieDelMese(giorno)
   const adesso = oggi()
 
+  /* `max-w-sm` non e' un vezzo: a tutta larghezza le caselle
+     `aspect-square` diventano quadroni vuoti su desktop, che e' proprio
+     l'aria da tabella di database che questo riquadro doveva togliere.
+     Stretto somiglia al calendarietto da scrivania che l'utente aveva
+     in mente. */
   return (
-    <Card className="overflow-hidden">
+    <Card className="w-full max-w-sm overflow-hidden">
       <div className="flex items-center justify-between gap-2 border-b-2 border-black bg-white px-4 py-2">
         <button
           type="button"
