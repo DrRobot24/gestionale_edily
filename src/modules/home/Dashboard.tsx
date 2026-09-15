@@ -6,7 +6,6 @@ import { useRapportini, type Rapportino } from '../rapportini/useRapportini'
 import { StatoRapportino } from '../rapportini/stato'
 import { data as formattaData } from '../../lib/formato'
 import { Benvenuto } from './Benvenuto'
-import { BarraGiorno } from './BarraGiorno'
 import { CalendarioGiornate } from './CalendarioGiornate'
 import { CantieriDelGiorno } from './CantieriDelGiorno'
 import { GiornateDaValidare } from './GiornateDaValidare'
@@ -61,7 +60,11 @@ export function Dashboard() {
 
   return (
     <div className="mx-auto grid max-w-5xl gap-6">
-      <Benvenuto />
+      {/* Le frecce stanno nella fascia, ai lati della data: la data
+          grande e' il titolo della pagina, e il posto per cambiarla e'
+          quello dove la si legge. Chi non compila la riceve senza
+          frecce — sfogliare le giornate del tecnico non gli serve. */}
+      {puoCompilare ? <Benvenuto giorno={giorno} onCambia={setGiorno} /> : <Benvenuto />}
 
       {error && (
         <Avviso tono="errore">Non riesco a leggere i rapportini: {error.message}</Avviso>
@@ -76,7 +79,6 @@ export function Dashboard() {
           {/* ── Chi compila: prima la giornata, poi le code ── */}
           {puoCompilare && (
             <>
-              <BarraGiorno giorno={giorno} onCambia={setGiorno} />
               <CantieriDelGiorno giorno={giorno} />
 
               {/* `vuoto` vuota di proposito: senza righe il riquadro

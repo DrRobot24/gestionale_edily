@@ -1,5 +1,5 @@
-import { Card } from '../../ui'
-import { dataLunga } from '../../lib/formato'
+import { Card, cn } from '../../ui'
+import { dataLunga, giornoPiu } from '../../lib/formato'
 import { useSession } from '../auth/SessionProvider'
 import { oggi } from '../rapportini/campiRapportino'
 
@@ -42,24 +42,84 @@ import { oggi } from '../rapportini/campiRapportino'
    di sfuggita. Cambia il colore, non il ruolo.
    ══════════════════════════════════════════════════════════════════ */
 
-export function Benvenuto() {
+/**
+ * `giorno` e `onCambia` arrivano insieme o non arrivano affatto.
+ *
+ * Senza, la fascia e' solo un saluto con la data di oggi: e' cosi' per
+ * chi non compila rapportini — il titolare, l'amministrazione — a cui
+ * sfogliare le giornate del tecnico non serve.
+ *
+ * Con, la data diventa il comando: le frecce ai suoi lati muovono il
+ * giorno di tutta la home. Stavano in una barra loro, sotto; l'utente
+ * le ha volute qui il 2026-09-15, e aveva ragione — la data grande era
+ * gia' il titolo della pagina, e il posto naturale per cambiarla e'
+ * quello dove la si legge, non un riquadro piu' in basso che ripeteva
+ * l'informazione per poterla modificare.
+ */
+export function Benvenuto({
+  giorno,
+  onCambia,
+}: {
+  giorno?: string
+  onCambia?: (g: string) => void
+} = {}) {
   const { app, org } = useSession()
-  const giorno = oggi()
+  const adesso = oggi()
+  const mostrato = giorno ?? adesso
   const chiSei = nomeDi(app?.nome, app?.email)
+
+  const sfogliabile = Boolean(giorno && onCambia)
+  const eOggi = mostrato === adesso
 
   return (
     <Card className="bg-emerald-100 p-5 sm:p-6">
+      {/* Il saluto guarda l'OROLOGIO, non il giorno mostrato: e' rivolto
+          alla persona che sta leggendo adesso. «Buongiorno» sopra la
+          data di lunedi' scorso non e' un errore da correggere — lo
+          sarebbe cambiarlo, perche' nessuno sta salutando lunedi'. */}
       <p className="text-sm font-extrabold uppercase tracking-wide text-emerald-900">
         {saluto()}
         {chiSei && `, ${chiSei}`}
       </p>
 
-      {/* `capitalize` perche' Intl in italiano scrive "giovedi 10
-          settembre 2026" tutto minuscolo, e in cima a una pagina la
-          minuscola sembra un refuso. */}
-      <p className="mt-1 text-3xl font-extrabold capitalize leading-tight text-black sm:text-4xl">
-        {dataLunga(giorno)}
-      </p>
+      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-2">
+        {sfogliabile && (
+          <FrecciaGiorno
+            verso="indietro"
+            onClick={() => onCambia!(giornoPiu(mostrato, -1))}
+          />
+        )}
+
+        {/* `capitalize` perche' Intl in italiano scrive "giovedi 10
+            settembre 2026" tutto minuscolo, e in cima a una pagina la
+            minuscola sembra un refuso. */}
+        <p className="text-3xl font-extrabold capitalize leading-tight text-black sm:text-4xl">
+          {dataLunga(mostrato)}
+        </p>
+
+        {/* Avanti si spegne su oggi: una giornata non ancora lavorata
+            non si compila. */}
+        {sfogliabile && (
+          <FrecciaGiorno
+            verso="avanti"
+            disabled={eOggi}
+            onClick={() => onCambia!(giornoPiu(mostrato, 1))}
+          />
+        )}
+
+        {/* Il ritorno a oggi compare solo quando sei altrove. Sempre
+            acceso sarebbe un pulsante che non fa niente, e quelli si
+            imparano a ignorare. */}
+        {sfogliabile && !eOggi && (
+          <button
+            type="button"
+            onClick={() => onCambia!(adesso)}
+            className="neo-press rounded-xl border-2 border-black bg-amber-400 px-3 py-1.5 text-xs font-extrabold text-black shadow-neo-sm"
+          >
+            Torna a oggi
+          </button>
+        )}
+      </div>
 
       <p className="mt-2 text-xs font-semibold text-emerald-900">
         {org?.ragioneSociale}
@@ -67,6 +127,38 @@ export function Benvenuto() {
         {app?.isPlatformAdmin && ' · staff di piattaforma'}
       </p>
     </Card>
+  )
+}
+
+/** Le frecce sono grandi come la data che affiancano: in cantiere si
+ *  usa il telefono con le mani sporche, e un bersaglio da 44px non e'
+ *  generosita' ma la misura minima perche' si riesca a premerlo. */
+function FrecciaGiorno({
+  verso,
+  disabled = false,
+  onClick,
+}: {
+  verso: 'indietro' | 'avanti'
+  disabled?: boolean
+  onClick: () => void
+}) {
+  const indietro = verso === 'indietro'
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={indietro ? 'Giorno precedente' : 'Giorno successivo'}
+      className={cn(
+        'h-11 w-11 shrink-0 rounded-xl border-2 border-black text-xl font-extrabold leading-none',
+        disabled
+          ? 'cursor-not-allowed bg-white/50 text-gray-300'
+          : 'neo-press cursor-pointer bg-white text-black shadow-neo-sm hover:bg-amber-100',
+      )}
+    >
+      {indietro ? '‹' : '›'}
+    </button>
   )
 }
 
