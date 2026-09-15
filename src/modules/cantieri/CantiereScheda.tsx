@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router'
-import { Avviso, Badge, Button, Card, Percorso, cn } from '../../ui'
+import { Avviso, Badge, Button, Card, Percorso, Vuoto, cn } from '../../ui'
 import { data as fmtData, dataEstesa, euro } from '../../lib/formato'
 import { usePermission } from '../auth/usePermission'
 import { useSession } from '../auth/SessionProvider'
@@ -11,6 +11,7 @@ import {
   useRapportiniCantiere,
   type RapportinoCantiere,
 } from '../rapportini/useRapportini'
+import { assegnazioneInCorso, useAssegnazioni, useMembri } from './assegnazioni'
 import { CalendarioCantiere } from './CalendarioCantiere'
 import { useCantiere } from './cantieri'
 import { RiquadroNoteContabili } from './RiquadroNoteContabili'
@@ -47,6 +48,9 @@ export function CantiereScheda() {
   const puoModificare = usePermission('cantieri.write')
   // Chi ha l'elenco dei cantieri in menu ci e' passato per arrivare qui.
   const vedeElenco = usePermission('cantieri.read_all')
+  /* Chi assegna e' anche l'unico a cui serve LEGGERE la squadra qui:
+     vedi il commento sul riquadro piu' sotto. */
+  const puoAssegnare = usePermission('cantieri.assign')
   const puoCompilare = usePermission('rapportini.create')
   // Le note contabili le scrivono il tecnico sui cantieri suoi e il
   // titolare ovunque. `rapportini.validate` e' il modo di dire "il
@@ -147,12 +151,26 @@ export function CantiereScheda() {
           lettura sul telefono. */}
       <div className="grid gap-4 lg:grid-cols-3 lg:items-start">
         <div className="grid gap-4 lg:col-span-2">
-          {/* «Chi lavora qui» non c'e' piu', e il motivo lo ha dato
-              l'utente il 2026-09-15: se stai guardando questo cantiere
-              vuol dire che ti e' stato assegnato, quindi leggere il tuo
-              nome in un riquadro e' una ripetizione. Chi deve cambiare
-              la squadra passa da «Modifica anagrafica», dove c'e' il
-              componente `Squadra` completo con assegna e termina. */}
+          {/* «Chi lavora qui» LO VEDE SOLO CHI ASSEGNA, e la storia di
+              questo riquadro dice una regola del progetto.
+
+              Il 2026-09-15 l'utente ha chiesto di toglierlo: «se vede
+              quel cantiere vuol dire che gli e' stato assegnato, quindi
+              e' una ripetizione». Vero — PER IL TECNICO, che vede solo i
+              cantieri suoi e ci trova scritto il proprio nome. L'ho
+              tolto per tutti, ed era sbagliato: poche ore dopo lo stesso
+              utente ha notato che dal punto di vista del titolare era
+              sparita un'informazione che gli serve. Giuseppe vede TUTTI
+              i cantieri dell'impresa ed e' lui che assegna i tecnici:
+              per lui la squadra non e' una ripetizione, e' il dato su
+              cui decide.
+
+              La regola generale, che vale oltre questo riquadro: **ogni
+              profilo ha una schermata diversa**, e «questa informazione
+              e' inutile» va sempre chiesto «a chi». Il cancello e'
+              `cantieri.assign` perche' chi assegna e' esattamente chi
+              deve sapere chi c'e' gia'. */}
+          {puoAssegnare && <SquadraAssegnata cantiereId={id!} />}
 
           {/* Sopra il calendario di proposito. Il calendario dice cosa
               e' successo; questa dice dove sta il lavoro adesso, ed e'
@@ -317,6 +335,83 @@ function FasciaGiornata({
           </>
         )}
       </div>
+    </Card>
+  )
+}
+
+/* ── squadra ───────────────────────────────────────────────────── */
+
+/**
+ * Chi e' assegnato oggi, in sola lettura.
+ *
+ * Lo monta solo chi ha `cantieri.assign` — owner e admin — perche' e'
+ * l'unico a cui dice qualcosa: vede tutti i cantieri dell'impresa ed e'
+ * lui che decide chi ci va. Al tecnico, che vede solo i cantieri
+ * assegnati a lui, ripeterebbe il suo stesso nome.
+ *
+ * Non riusa il componente `Squadra`: quello e' una tabella larga con
+ * assegna, termina e riapri, e vive giustamente dentro il modulo
+ * dell'anagrafica. Qui serve l'altra meta' della domanda — chi ci
+ * lavora — senza le leve per cambiarla.
+ *
+ * Restano solo le assegnazioni in corso. Quelle chiuse sono storia, e la
+ * storia si legge nel modulo: in una panoramica farebbero sembrare in
+ * squadra chi non c'e' piu'.
+ */
+function SquadraAssegnata({ cantiereId }: { cantiereId: string }) {
+  const navigate = useNavigate()
+  const { data: assegnazioni, isPending } = useAssegnazioni(cantiereId)
+  const { data: membri, error: erroreMembri } = useMembri()
+
+  const inCorso = (assegnazioni ?? []).filter((a) => assegnazioneInCorso(a))
+
+  return (
+    <Card className="grid gap-3 p-5">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h2 className="text-lg font-extrabold text-black">Chi lavora qui</h2>
+          <p className="text-xs font-semibold text-gray-600">
+            Assegnazioni in corso. Chi è in questo elenco vede il cantiere e può compilarci i
+            rapportini.
+          </p>
+        </div>
+        <Button dimensione="sm" onClick={() => navigate(`/cantieri/${cantiereId}/modifica`)}>
+          Gestisci
+        </Button>
+      </div>
+
+      {isPending ? (
+        <p className="text-sm font-bold text-gray-600">Carico la squadra…</p>
+      ) : inCorso.length === 0 ? (
+        <Vuoto>Nessuno è assegnato a questo cantiere in questo momento.</Vuoto>
+      ) : (
+        <ul className="grid gap-2 sm:grid-cols-2">
+          {inCorso.map((a) => {
+            const m = membri?.find((x) => x.userId === a.user_id)
+            return (
+              <li
+                key={a.id}
+                className="flex items-center justify-between gap-3 rounded-xl border-2 border-black bg-amber-50 px-3 py-2"
+              >
+                <div className="min-w-0">
+                  {/* Se l'elenco dei membri non e' arrivato non si scrive
+                      "utente non piu' in azienda": sarebbe una bugia
+                      detta con sicurezza. Si dice che il nome manca. */}
+                  <p className="truncate text-sm font-bold text-black">
+                    {m?.nome ?? (erroreMembri ? 'Nome non disponibile' : '…')}
+                  </p>
+                  <p className="truncate text-[11px] font-semibold uppercase tracking-wide text-gray-600">
+                    {a.ruolo_cantiere}
+                  </p>
+                </div>
+                <span className="shrink-0 text-[11px] font-semibold text-gray-600">
+                  dal {fmtData(a.dal)}
+                </span>
+              </li>
+            )
+          })}
+        </ul>
+      )}
     </Card>
   )
 }
