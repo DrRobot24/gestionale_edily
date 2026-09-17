@@ -189,6 +189,35 @@ export function FormRapportino({
     >
       {errore && <Avviso tono="errore">{errore}</Avviso>}
 
+      {/* LA BARRA DEL SALVATAGGIO, IN ALTO E APPICCICATA.
+
+          Chiesta dall'utente il 2026-09-17: «uno giustamente puo'
+          dimenticarsi di premerlo». Il rapportino e' lungo — squadra,
+          lavori extra, foto, note — e il pulsante in fondo si vede solo
+          arrivando in fondo. Chi tocca le ore in cima e poi cambia
+          schermata non lo incontra mai.
+
+          `sticky` e non un secondo pulsante fermo: scorrendo resta
+          attaccata sotto il bordo e segue chi lavora, che e' l'unico
+          modo perche' il pulsante sia li' quando serve invece che dove
+          e' stato messo.
+
+          COMPARE SOLO A FORM SPORCO, ed e' la stessa regola del
+          cartello in fondo: finche' non hai toccato niente non c'e'
+          niente da salvare, e una barra sempre accesa ruberebbe spazio
+          alla scheda per non dire nulla. Quando appare, il suo apparire
+          E' il messaggio. */}
+      {isDirty && (
+        <div className="sticky top-2 z-20 flex flex-wrap items-center justify-between gap-3 rounded-xl border-2 border-black bg-amber-300 px-4 py-2.5 shadow-neo">
+          <span className="text-sm font-extrabold text-black">
+            Modifiche non salvate
+          </span>
+          <Button type="submit" variante="primario" disabled={isSubmitting || inCorso}>
+            {inCorso ? 'Salvo…' : etichettaSalva}
+          </Button>
+        </div>
+      )}
+
       {/* La fascia di testa, a tutta larghezza.
 
           Dice DI CHI e' la scheda — quale cantiere, quale giorno, cosa si
@@ -654,25 +683,11 @@ export function FormRapportino({
         </div>
       </div>
 
-      {/* IL CARTELLO DELLE MODIFICHE NON SALVATE.
-
-          Aggiunto il 2026-09-17 dopo che l'utente ha tolto tre righe
-          con la ×, premuto F5, e se le e' ritrovate tutte. Non era un
-          difetto del salvataggio: e' che la × agisce SOLO nel form, e
-          il database si tocca premendo Salva. Comportamento normale di
-          qualunque form — ma niente lo diceva, e una modifica che
-          sembra fatta e non lo e' e' peggio di una che non si puo'
-          fare.
-
-          Compare solo quando c'e' davvero qualcosa da perdere: un
-          avviso perenne diventa arredamento e smette di essere letto. */}
-      {isDirty && !inCorso && (
-        <Avviso tono="info">
-          Ci sono modifiche <strong>non ancora salvate</strong>. Ricaricando la pagina si
-          perdono: premi «{etichettaSalva}» qui sotto.
-        </Avviso>
-      )}
-
+      {/* Qui NON si ripete il cartello «modifiche non salvate»: lo dice
+          gia' la barra in cima, che a questo punto della pagina e'
+          ancora appiccicata sotto il bordo e visibile. Dirlo due volte
+          in una schermata sola insegna a non leggerlo nessuna delle
+          due. */}
       <div className="flex gap-3">
         <Button type="submit" variante="primario" disabled={isSubmitting || inCorso}>
           {inCorso ? 'Salvo…' : etichettaSalva}
