@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useNavigate, useParams } from 'react-router'
 import { z } from 'zod'
@@ -33,6 +33,7 @@ const schema = z.object({
   codice_fiscale: z
     .string()
     .refine((v) => v === '' || v.trim().length === 16, 'Il codice fiscale ha 16 caratteri'),
+  tipo: z.enum(['operaio', 'tecnico', 'impiegato']),
   mansione: z.string(),
   livello_ccnl: z.string(),
   tipo_contratto: z.string(),
@@ -50,6 +51,7 @@ const VUOTO: Campi = {
   nome: '',
   matricola: '',
   codice_fiscale: '',
+  tipo: 'operaio' as const,
   mansione: '',
   livello_ccnl: '',
   tipo_contratto: '',
@@ -79,8 +81,14 @@ export function DipendenteForm() {
     register,
     handleSubmit,
     reset,
+    control,
     formState: { errors, isDirty },
   } = useForm<Campi>({ resolver: zodResolver(schema), defaultValues: VUOTO })
+
+  /* Il tipo scelto ADESSO, non quello salvato: la tendina dell'utente
+     deve comparire nel momento in cui si sceglie «tecnico», non dopo
+     aver salvato e riaperto la scheda. */
+  const tipoScelto = useWatch({ control, name: 'tipo' })
 
   const giaCollegati = new Set(
     (tutti ?? []).filter((d) => d.user_id && d.id !== id).map((d) => d.user_id as string),
@@ -94,6 +102,7 @@ export function DipendenteForm() {
       nome: dipendente.nome,
       matricola: dipendente.matricola ?? '',
       codice_fiscale: dipendente.codice_fiscale ?? '',
+      tipo: dipendente.tipo ?? 'operaio',
       mansione: dipendente.mansione ?? '',
       livello_ccnl: dipendente.livello_ccnl ?? '',
       tipo_contratto: dipendente.tipo_contratto ?? '',
@@ -118,6 +127,7 @@ export function DipendenteForm() {
         nome: c.nome.trim(),
         matricola: vuotoSeVuoto(c.matricola),
         codice_fiscale: vuotoSeVuoto(c.codice_fiscale)?.toUpperCase() ?? null,
+        tipo: c.tipo,
         mansione: vuotoSeVuoto(c.mansione),
         livello_ccnl: vuotoSeVuoto(c.livello_ccnl),
         tipo_contratto: vuotoSeVuoto(c.tipo_contratto),
@@ -207,6 +217,24 @@ export function DipendenteForm() {
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
+            {/* IL TIPO decide, la mansione racconta.
+
+                «Muratore» e «geometra» dicono il mestiere; questo campo
+                risponde a una domanda sola: le sue ore stanno su un
+                cantiere o in un foglio suo? Solo l'operaio compare nella
+                squadra di un rapportino — per gli altri lo rifiuta un
+                trigger, non questa tendina. */}
+            <CampoSelect
+              etichetta="Tipo di risorsa"
+              disabled={!puoScrivere}
+              suggerimento="L'operaio va in cantiere e le sue ore stanno nel rapportino. Tecnico e impiegato dichiarano le proprie in «Le mie ore»."
+              errore={errors.tipo?.message}
+              {...register('tipo')}
+            >
+              <option value="operaio">Operaio — va in cantiere</option>
+              <option value="tecnico">Tecnico — segue i cantieri</option>
+              <option value="impiegato">Impiegato — ufficio</option>
+            </CampoSelect>
             <Campo
               etichetta="Mansione"
               placeholder="capo squadra, muratore, manovale…"
@@ -275,20 +303,34 @@ export function DipendenteForm() {
               La tendina mostra solo le persone non ancora collegate a
               un'altra anagrafica: due schede sullo stesso utente
               conterebbero le sue ore due volte. */}
-          <CampoSelect
-            etichetta="Utente del gestionale"
-            disabled={!puoScrivere}
-            suggerimento="Collegalo se questa persona entra nel programma e deve segnare le proprie ore. Serve per il tecnico; per un operaio che non usa il gestionale si lascia vuoto."
-            errore={errors.user_id?.message}
-            {...register('user_id')}
-          >
-            <option value="">— nessun utente collegato —</option>
-            {collegabili.map((m) => (
-              <option key={m.userId} value={m.userId}>
-                {m.nome} ({m.ruolo})
-              </option>
-            ))}
-          </CampoSelect>
+          {/* LA TENDINA COMPARE SOLO PER CHI NEL GESTIONALE CI ENTRA.
+
+              Deciso con l'utente il 2026-09-17: «un operaio non avra'
+              mai la possibilita' di accedere al gestionale aziendale,
+              quindi per evitare che qualcuno crei qualcosa che non sia
+              nelle logiche togliamola subito».
+
+              Nasconderla non e' cosmesi: finche' c'era, la strada per
+              collegare per sbaglio un muratore a un'utenza era aperta e
+              nessuno avvisava. Togliendola, quella strada non esiste
+              proprio — e chi cambia idea mette «tecnico» e la ritrova
+              subito, senza salvare. */}
+          {tipoScelto !== 'operaio' && (
+            <CampoSelect
+              etichetta="Utente del gestionale"
+              disabled={!puoScrivere}
+              suggerimento="Collegalo se questa persona entra nel programma: da lì dichiara le proprie ore in «Le mie ore» e, se è il tecnico, manda la giornata al titolare."
+              errore={errors.user_id?.message}
+              {...register('user_id')}
+            >
+              <option value="">— nessun utente collegato —</option>
+              {collegabili.map((m) => (
+                <option key={m.userId} value={m.userId}>
+                  {m.nome} ({m.ruolo})
+                </option>
+              ))}
+            </CampoSelect>
+          )}
         </Card>
 
         {puoScrivere && (

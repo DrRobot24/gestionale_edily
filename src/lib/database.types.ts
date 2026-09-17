@@ -367,6 +367,220 @@ export type Database = {
           },
         ]
       }
+      ddt: {
+        Row: {
+          caricato_da: string | null
+          created_at: string
+          data: string | null
+          fornitore_id: string | null
+          id: string
+          imponibile: number | null
+          iva: number | null
+          nota_estrazione: string | null
+          numero: string | null
+          org_id: string
+          stato: Database["public"]["Enums"]["stato_ddt"]
+          storage_path: string
+          updated_at: string
+        }
+        Insert: {
+          caricato_da?: string | null
+          created_at?: string
+          data?: string | null
+          fornitore_id?: string | null
+          id?: string
+          imponibile?: number | null
+          iva?: number | null
+          nota_estrazione?: string | null
+          numero?: string | null
+          org_id: string
+          stato?: Database["public"]["Enums"]["stato_ddt"]
+          storage_path: string
+          updated_at?: string
+        }
+        Update: {
+          caricato_da?: string | null
+          created_at?: string
+          data?: string | null
+          fornitore_id?: string | null
+          id?: string
+          imponibile?: number | null
+          iva?: number | null
+          nota_estrazione?: string | null
+          numero?: string | null
+          org_id?: string
+          stato?: Database["public"]["Enums"]["stato_ddt"]
+          storage_path?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ddt_fornitore_id_fkey"
+            columns: ["fornitore_id"]
+            isOneToOne: false
+            referencedRelation: "fornitori"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ddt_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ddt_riga_cantieri: {
+        Row: {
+          cantiere_id: string
+          created_at: string
+          ddt_riga_id: string
+          id: string
+          org_id: string
+          quantita: number
+          wbs_task_id: string | null
+        }
+        Insert: {
+          cantiere_id: string
+          created_at?: string
+          ddt_riga_id: string
+          id?: string
+          org_id: string
+          quantita: number
+          wbs_task_id?: string | null
+        }
+        Update: {
+          cantiere_id?: string
+          created_at?: string
+          ddt_riga_id?: string
+          id?: string
+          org_id?: string
+          quantita?: number
+          wbs_task_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ddt_riga_cantieri_cantiere_id_fkey"
+            columns: ["cantiere_id"]
+            isOneToOne: false
+            referencedRelation: "cantieri"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ddt_riga_cantieri_cantiere_id_fkey"
+            columns: ["cantiere_id"]
+            isOneToOne: false
+            referencedRelation: "v_margine_cantiere"
+            referencedColumns: ["cantiere_id"]
+          },
+          {
+            foreignKeyName: "ddt_riga_cantieri_cantiere_id_fkey"
+            columns: ["cantiere_id"]
+            isOneToOne: false
+            referencedRelation: "v_rapportini_mancanti"
+            referencedColumns: ["cantiere_id"]
+          },
+          {
+            foreignKeyName: "ddt_riga_cantieri_ddt_riga_id_fkey"
+            columns: ["ddt_riga_id"]
+            isOneToOne: false
+            referencedRelation: "ddt_righe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ddt_riga_cantieri_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ddt_riga_cantieri_wbs_task_id_fkey"
+            columns: ["wbs_task_id"]
+            isOneToOne: false
+            referencedRelation: "v_avanzamento_wbs"
+            referencedColumns: ["wbs_task_id"]
+          },
+          {
+            foreignKeyName: "ddt_riga_cantieri_wbs_task_id_fkey"
+            columns: ["wbs_task_id"]
+            isOneToOne: false
+            referencedRelation: "wbs_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ddt_righe: {
+        Row: {
+          da_estrazione: boolean
+          ddt_id: string
+          descrizione: string
+          id: string
+          importo: number | null
+          materiale_id: string | null
+          org_id: string
+          prezzo_unitario: number | null
+          quantita: number
+          riga: number
+          unita_misura: string | null
+        }
+        Insert: {
+          da_estrazione?: boolean
+          ddt_id: string
+          descrizione: string
+          id?: string
+          importo?: number | null
+          materiale_id?: string | null
+          org_id: string
+          prezzo_unitario?: number | null
+          quantita: number
+          riga: number
+          unita_misura?: string | null
+        }
+        Update: {
+          da_estrazione?: boolean
+          ddt_id?: string
+          descrizione?: string
+          id?: string
+          importo?: number | null
+          materiale_id?: string | null
+          org_id?: string
+          prezzo_unitario?: number | null
+          quantita?: number
+          riga?: number
+          unita_misura?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ddt_righe_ddt_id_fkey"
+            columns: ["ddt_id"]
+            isOneToOne: false
+            referencedRelation: "ddt"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ddt_righe_materiale_id_fkey"
+            columns: ["materiale_id"]
+            isOneToOne: false
+            referencedRelation: "materiali"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ddt_righe_materiale_id_fkey"
+            columns: ["materiale_id"]
+            isOneToOne: false
+            referencedRelation: "v_giacenze_magazzino"
+            referencedColumns: ["materiale_id"]
+          },
+          {
+            foreignKeyName: "ddt_righe_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dipendente_costi: {
         Row: {
           costo_orario: number
@@ -434,6 +648,7 @@ export type Database = {
           nome: string
           org_id: string
           telefono: string | null
+          tipo: Database["public"]["Enums"]["tipo_risorsa"]
           tipo_contratto: string | null
           updated_at: string
           user_id: string | null
@@ -453,6 +668,7 @@ export type Database = {
           nome: string
           org_id: string
           telefono?: string | null
+          tipo?: Database["public"]["Enums"]["tipo_risorsa"]
           tipo_contratto?: string | null
           updated_at?: string
           user_id?: string | null
@@ -472,6 +688,7 @@ export type Database = {
           nome?: string
           org_id?: string
           telefono?: string | null
+          tipo?: Database["public"]["Enums"]["tipo_risorsa"]
           tipo_contratto?: string | null
           updated_at?: string
           user_id?: string | null
@@ -786,50 +1003,6 @@ export type Database = {
           },
         ]
       }
-      org_inviti: {
-        Row: {
-          accettato_il: string | null
-          created_at: string
-          creato_da: string
-          email: string
-          id: string
-          org_id: string
-          ruolo: Database["public"]["Enums"]["org_role"]
-          scade_il: string
-          token: string
-        }
-        Insert: {
-          accettato_il?: string | null
-          created_at?: string
-          creato_da: string
-          email: string
-          id?: string
-          org_id: string
-          ruolo?: Database["public"]["Enums"]["org_role"]
-          scade_il?: string
-          token?: string
-        }
-        Update: {
-          accettato_il?: string | null
-          created_at?: string
-          creato_da?: string
-          email?: string
-          id?: string
-          org_id?: string
-          ruolo?: Database["public"]["Enums"]["org_role"]
-          scade_il?: string
-          token?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "org_inviti_org_id_fkey"
-            columns: ["org_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       movimenti_magazzino: {
         Row: {
           cantiere_id: string | null
@@ -872,6 +1045,27 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "movimenti_magazzino_cantiere_id_fkey"
+            columns: ["cantiere_id"]
+            isOneToOne: false
+            referencedRelation: "cantieri"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimenti_magazzino_cantiere_id_fkey"
+            columns: ["cantiere_id"]
+            isOneToOne: false
+            referencedRelation: "v_margine_cantiere"
+            referencedColumns: ["cantiere_id"]
+          },
+          {
+            foreignKeyName: "movimenti_magazzino_cantiere_id_fkey"
+            columns: ["cantiere_id"]
+            isOneToOne: false
+            referencedRelation: "v_rapportini_mancanti"
+            referencedColumns: ["cantiere_id"]
+          },
+          {
             foreignKeyName: "movimenti_magazzino_materiale_id_fkey"
             columns: ["materiale_id"]
             isOneToOne: false
@@ -879,10 +1073,17 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "movimenti_magazzino_cantiere_id_fkey"
-            columns: ["cantiere_id"]
+            foreignKeyName: "movimenti_magazzino_materiale_id_fkey"
+            columns: ["materiale_id"]
             isOneToOne: false
-            referencedRelation: "cantieri"
+            referencedRelation: "v_giacenze_magazzino"
+            referencedColumns: ["materiale_id"]
+          },
+          {
+            foreignKeyName: "movimenti_magazzino_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -933,7 +1134,140 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "note_contabili_cantiere_id_fkey"
+            columns: ["cantiere_id"]
+            isOneToOne: false
+            referencedRelation: "v_margine_cantiere"
+            referencedColumns: ["cantiere_id"]
+          },
+          {
+            foreignKeyName: "note_contabili_cantiere_id_fkey"
+            columns: ["cantiere_id"]
+            isOneToOne: false
+            referencedRelation: "v_rapportini_mancanti"
+            referencedColumns: ["cantiere_id"]
+          },
+          {
             foreignKeyName: "note_contabili_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ore_personali: {
+        Row: {
+          compilato_da: string
+          created_at: string
+          data: string
+          descrizione: string | null
+          dipendente_id: string
+          id: string
+          inviato_at: string | null
+          motivo_rifiuto: string | null
+          ore_assenza: number
+          ore_ordinarie: number
+          ore_straordinarie: number
+          org_id: string
+          stato: string
+          tipo_assenza: string | null
+          updated_at: string
+          validato_at: string | null
+          validato_da: string | null
+        }
+        Insert: {
+          compilato_da?: string
+          created_at?: string
+          data: string
+          descrizione?: string | null
+          dipendente_id: string
+          id?: string
+          inviato_at?: string | null
+          motivo_rifiuto?: string | null
+          ore_assenza?: number
+          ore_ordinarie?: number
+          ore_straordinarie?: number
+          org_id: string
+          stato?: string
+          tipo_assenza?: string | null
+          updated_at?: string
+          validato_at?: string | null
+          validato_da?: string | null
+        }
+        Update: {
+          compilato_da?: string
+          created_at?: string
+          data?: string
+          descrizione?: string | null
+          dipendente_id?: string
+          id?: string
+          inviato_at?: string | null
+          motivo_rifiuto?: string | null
+          ore_assenza?: number
+          ore_ordinarie?: number
+          ore_straordinarie?: number
+          org_id?: string
+          stato?: string
+          tipo_assenza?: string | null
+          updated_at?: string
+          validato_at?: string | null
+          validato_da?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ore_personali_dipendente_id_fkey"
+            columns: ["dipendente_id"]
+            isOneToOne: false
+            referencedRelation: "dipendenti"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ore_personali_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      org_inviti: {
+        Row: {
+          accettato_il: string | null
+          created_at: string
+          creato_da: string
+          email: string
+          id: string
+          org_id: string
+          ruolo: Database["public"]["Enums"]["org_role"]
+          scade_il: string
+          token: string
+        }
+        Insert: {
+          accettato_il?: string | null
+          created_at?: string
+          creato_da: string
+          email: string
+          id?: string
+          org_id: string
+          ruolo?: Database["public"]["Enums"]["org_role"]
+          scade_il?: string
+          token?: string
+        }
+        Update: {
+          accettato_il?: string | null
+          created_at?: string
+          creato_da?: string
+          email?: string
+          id?: string
+          org_id?: string
+          ruolo?: Database["public"]["Enums"]["org_role"]
+          scade_il?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_inviti_org_id_fkey"
             columns: ["org_id"]
             isOneToOne: false
             referencedRelation: "organizations"
@@ -1192,8 +1526,8 @@ export type Database = {
       }
       rapportini: {
         Row: {
-          annotazioni: string | null
           anno: number
+          annotazioni: string | null
           cantiere_id: string
           compilato_da: string
           contabilizzato_at: string | null
@@ -1216,8 +1550,8 @@ export type Database = {
           validato_da: string | null
         }
         Insert: {
-          annotazioni?: string | null
           anno?: number
+          annotazioni?: string | null
           cantiere_id: string
           compilato_da: string
           contabilizzato_at?: string | null
@@ -1240,8 +1574,8 @@ export type Database = {
           validato_da?: string | null
         }
         Update: {
-          annotazioni?: string | null
           anno?: number
+          annotazioni?: string | null
           cantiere_id?: string
           compilato_da?: string
           contabilizzato_at?: string | null
@@ -1390,6 +1724,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "materiali"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rapportino_materiali_materiale_id_fkey"
+            columns: ["materiale_id"]
+            isOneToOne: false
+            referencedRelation: "v_giacenze_magazzino"
+            referencedColumns: ["materiale_id"]
           },
           {
             foreignKeyName: "rapportino_materiali_org_id_fkey"
@@ -1882,7 +2223,15 @@ export type Database = {
           ultimo_movimento: string | null
           unita_misura: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "materiali_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       v_margine_cantiere: {
         Row: {
@@ -2047,19 +2396,20 @@ export type Database = {
         Args: { p_giorno: string; p_org: string }
         Returns: number
       }
+      is_admin: { Args: { uid: string }; Returns: boolean }
       ore_giornata: {
         Args: { p_giorno: string; p_org: string }
         Returns: {
+          assenze: string
           dipendente_id: string
           nominativo: string
+          ore_assenza: number
           ore_ordinarie: number
           ore_straordinarie: number
-          ore_assenza: number
           ore_visibili: number
-          assenze: string | null
         }[]
       }
-      is_admin: { Args: { uid: string }; Returns: boolean }
+      ore_in_lettere: { Args: { p_ore: number }; Returns: string }
     }
     Enums: {
       cantiere_stato:
@@ -2081,7 +2431,9 @@ export type Database = {
         | "respinto"
         | "validato"
         | "contabilizzato"
-      user_role: "admin" | "moderator" | "user"
+      stato_ddt: "caricato" | "estratto" | "verificato" | "fatturato"
+      tipo_risorsa: "operaio" | "tecnico" | "impiegato"
+      user_role: "admin" | "moderator" | "user" | "superadmin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2097,12 +2449,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2126,11 +2478,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2151,11 +2503,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2176,11 +2528,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2193,11 +2545,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2231,7 +2583,9 @@ export const Constants = {
         "validato",
         "contabilizzato",
       ],
-      user_role: ["admin", "moderator", "user"],
+      stato_ddt: ["caricato", "estratto", "verificato", "fatturato"],
+      tipo_risorsa: ["operaio", "tecnico", "impiegato"],
+      user_role: ["admin", "moderator", "user", "superadmin"],
     },
   },
 } as const

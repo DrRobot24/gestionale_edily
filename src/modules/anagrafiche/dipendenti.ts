@@ -15,7 +15,7 @@ import { useSession } from '../auth/SessionProvider'
 
 const CAMPI =
   'id, matricola, nome, cognome, codice_fiscale, mansione, livello_ccnl, tipo_contratto, ' +
-  'data_assunzione, data_cessazione, telefono, email, attivo, user_id'
+  'data_assunzione, data_cessazione, telefono, email, attivo, user_id, tipo'
 
 const CAMPI_CON_COSTI = `${CAMPI}, dipendente_costi ( id, valido_dal, costo_orario, costo_orario_straordinario, tariffa_vendita_oraria, note )`
 
@@ -78,7 +78,13 @@ export function useDipendente(id: string | undefined) {
   })
 }
 
+export type TipoRisorsa = 'operaio' | 'tecnico' | 'impiegato'
+
 export type DatiDipendente = {
+  /** Operaio = va in cantiere e le sue ore stanno nel rapportino.
+   *  Tecnico e impiegato dichiarano le proprie in `ore_personali`, e un
+   *  trigger li rifiuta nelle ore di un cantiere. */
+  tipo: TipoRisorsa
   matricola: string | null
   nome: string
   cognome: string

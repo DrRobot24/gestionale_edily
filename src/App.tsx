@@ -19,6 +19,7 @@ import { FornitoreForm } from './modules/anagrafiche/FornitoreForm'
 import { Dashboard } from './modules/home/Dashboard'
 import { EconomiaPage } from './modules/economia/EconomiaPage'
 import { MagazzinoPage } from './modules/magazzino/MagazzinoPage'
+import { MieOrePage } from './modules/oreproprie/MieOrePage'
 import { DipendenteForm } from './modules/anagrafiche/DipendenteForm'
 import type { Permission } from './modules/auth/session'
 import { env } from './lib/env'
@@ -133,6 +134,24 @@ const VOCI: Voce[] = [
     etichetta: 'Rapportini',
     perm: ['rapportini.create', 'rapportini.validate'],
     elemento: <RapportiniPage />,
+  },
+
+  /* «Le mie ore» NON ha `perm`, ed e' deliberato.
+
+     Il cancello giusto sarebbe «hai una scheda personale collegata a
+     questa utenza», che non e' un permesso: e' un fatto che si sa solo
+     interrogando `dipendenti`, e metterlo qui vorrebbe dire una query
+     nel menu per ogni pagina caricata. La pagina stessa se ne occupa —
+     senza scheda collegata dice cosa fare e a chi chiederlo, che e'
+     piu' utile di una voce che non compare e lascia a indovinare.
+
+     Chi ci finisce senza averne bisogno? Nessuno che possa fare danni:
+     la RLS lascia scrivere solo la propria riga, e senza scheda non
+     c'e' nessuna riga da scrivere. */
+  {
+    to: '/mie-ore',
+    etichetta: 'Le mie ore',
+    elemento: <MieOrePage />,
   },
 
   /* Magazzino sotto `anagrafiche.read`, che ce l'hanno tutti tranne chi
