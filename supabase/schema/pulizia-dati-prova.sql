@@ -89,6 +89,22 @@ join public.rapportini r on r.id = f.rapportino_id
 where r.org_id = '0d989cd9-d077-48f6-8ab9-6b5434229394'::uuid;
 
 
+-- ── PASSO 2-bis. I GUARDIANI (facoltativo, di sola lettura) ─────────
+-- Elenca i trigger che proteggono queste tabelle. Utile solo se la
+-- cancellazione si inceppa e si vuole capire chi l'ha fermata: i nomi
+-- che compaiono qui sono gli stessi che appaiono nei messaggi P0001.
+-- Nessuno di questi e' nel repository: vengono da wbs-office.
+
+select c.relname as tabella, t.tgname as trigger, p.proname as funzione
+from pg_trigger t
+join pg_class c on c.oid = t.tgrelid
+join pg_proc  p on p.oid = t.tgfoid
+where not t.tgisinternal
+  and c.relname in ('rapportini', 'rapportino_ore', 'rapportino_foto',
+                    'rapportino_materiali', 'rapportino_mezzi')
+order by c.relname, t.tgname;
+
+
 -- ── PASSO 3. LA CANCELLAZIONE, IN UN BLOCCO SOLO ────────────────────
 -- Da eseguire TUTTO INSIEME, dal `do` al `$$;` finale: e' una
 -- transazione unica, quindi o passa tutto o non passa niente. Meta'
@@ -99,6 +115,25 @@ where r.org_id = '0d989cd9-d077-48f6-8ab9-6b5434229394'::uuid;
 -- genitori. Se qualcosa manca da questo elenco, Postgres si ferma con
 -- un 23503 che NOMINA la tabella: aggiungerla qui e rieseguire. Il
 -- rollback avra' gia' rimesso tutto a posto da solo.
+--
+-- ⚠️  SE SI INCEPPA SU UN TRIGGER — messaggi tipo "Il rapportino e'
+-- chiuso", "transizione non ammessa", e in generale qualunque P0001
+-- che arriva da una funzione in `app.` — vuol dire che la macchina a
+-- stati sta difendendo i dati, che e' il suo mestiere. Qui stiamo
+-- demolendo apposta, quindi la si mette a tacere per il tempo della
+-- pulizia:
+--
+--   1. eseguire, PRIMA del blocco `do`:
+--        set session_replication_role = 'replica';
+--   2. eseguire il blocco `do`;
+--   3. eseguire SUBITO DOPO, e non dimenticarlo MAI:
+--        set session_replication_role = 'origin';
+--
+-- Quel comando spegne TUTTI i trigger della sessione, compresi quelli
+-- che tengono in piedi le regole: va riacceso subito, e non si usa mai
+-- su dati veri. Se la sessione si chiude prima del punto 3 non e' un
+-- dramma — l'impostazione vale solo per quella connessione — ma
+-- riaccenderlo a mano e' l'abitudine giusta.
 
 do $$
 declare
@@ -118,6 +153,25 @@ begin
   end if;
 
   raise notice 'Sto per svuotare: %', nome;
+
+  -- ⚠️  PRIMA DI TUTTO: RIAPRIRE I RAPPORTINI CHIUSI.
+  --
+  -- Su `rapportino_ore` c'e' un trigger di wbs-office,
+  -- `app.riga_rapportino_modificabile()`, che rifiuta ogni modifica
+  -- alle righe di un rapportino non piu' in bozza: "Il rapportino e'
+  -- chiuso: righe non modificabili". E' la macchina a stati che
+  -- protegge i dati gia' validati, e fa il suo mestiere — un
+  -- rapportino contabilizzato NON deve poter cambiare ore alle spalle
+  -- di chi l'ha approvato.
+  --
+  -- Qui pero' stiamo demolendo apposta, quindi si riportano tutti in
+  -- `bozza` e poi si cancella. E' l'unico punto del file che TOCCA i
+  -- dati invece di toglierli, ed e' sicuro solo perche' un attimo dopo
+  -- quelle righe non esistono piu': in qualunque altro contesto,
+  -- riaprire un contabilizzato con un update diretto sarebbe
+  -- esattamente cio' che il trigger esiste per impedire.
+  update public.rapportini set stato = 'bozza'
+  where org_id = org and stato <> 'bozza';
 
   -- i figli del rapportino
   delete from public.rapportino_foto
