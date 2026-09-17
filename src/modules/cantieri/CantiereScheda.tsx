@@ -315,22 +315,34 @@ function FasciaGiornata({
               </Avviso>
             )}
 
+            {/* UN PULSANTE SOLO, che porta dove serve adesso.
+
+                Fino al 2026-09-17 ce n'erano due: «Apri la scheda del
+                giorno» verso la lettura e, sul respinto, «Correggi»
+                verso il form. Destinazioni diverse — quindi non un
+                doppione tecnico — ma chi guardava doveva scegliere fra
+                due pulsanti vicini senza niente che dicesse in cosa
+                differiscono. E la scorciatoia era di troppo comunque:
+                dentro la scheda in lettura c'e' gia' «Modifica».
+
+                Su una scheda RESPINTA la domanda e' una sola — come la
+                sistemo — e il motivo del rifiuto sta scritto qui sopra:
+                chi lo ha appena letto vuole il form, non un'altra
+                pagina che glielo ripete. Negli altri stati si va in
+                lettura, che e' il posto da cui si puo' fare tutto. */}
             <div className="flex flex-wrap gap-2">
               <Button
                 variante={respinto ? 'primario' : 'secondario'}
-                onClick={() => navigate(`/rapportini/${rapportino.id}?ritorno=${ritorno}`)}
+                onClick={() =>
+                  navigate(
+                    respinto && mio && puoCompilare
+                      ? `/rapportini/${rapportino.id}/modifica?ritorno=${ritorno}`
+                      : `/rapportini/${rapportino.id}?ritorno=${ritorno}`,
+                  )
+                }
               >
-                Apri la scheda del giorno
+                {respinto && mio && puoCompilare ? 'Correggi la scheda' : 'Apri la scheda del giorno'}
               </Button>
-              {respinto && mio && puoCompilare && (
-                <Button
-                  onClick={() =>
-                    navigate(`/rapportini/${rapportino.id}/modifica?ritorno=${ritorno}`)
-                  }
-                >
-                  Correggi
-                </Button>
-              )}
             </div>
           </>
         )}
