@@ -99,3 +99,90 @@ export function useTransizione() {
     },
   })
 }
+
+/**
+ * Cancella un rapportino, e con lui tutto quello che ci pende.
+ *
+ * Chiesto dall'utente il 2026-09-17. Fino a ieri una scheda aperta per
+ * sbaglio — sul cantiere sbagliato, sul giorno sbagliato — non si poteva
+ * togliere: restava li' a sporcare il calendario e a far contare una
+ * giornata che non era mai esistita.
+ *
+ * QUANDO: solo in `bozza` o `respinto`, la regola sta in
+ * `cancellabile()`. Finche' il foglio e' sulla scrivania di chi lo
+ * scrive e' suo; da quando parte e' un documento consegnato.
+ *
+ * PERCHE' I FIGLI A MANO. Le foreign key di `rapportino_ore` e sorelle
+ * sono `restrict`, non `cascade`: Postgres rifiuta di cancellare il
+ * padre finche' esistono le righe. Le togliamo qui, nell'ordine, come
+ * fa lo script di pulizia. Non e' una svista dello schema — `restrict`
+ * e' la scelta giusta per un documento contabile, dove una cascata
+ * silenziosa e' peggio di un errore.
+ *
+ * LE FOTO sono il punto delicato: la riga se ne va, il FILE nello
+ * storage no. Si cancellano prima i file, e se quel passo fallisce ci
+ * si ferma invece di proseguire — meglio un rapportino ancora li' che
+ * un bucket pieno di immagini che nessuna query trova piu'.
+ */
+export function useEliminaRapportino() {
+  const { org } = useSession()
+  const qc = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      // I path dei file PRIMA di togliere le righe: dopo non ci sarebbe
+      // piu' modo di sapere quali file erano suoi.
+      const { data: foto, error: erroreFoto } = await supabase
+        .from('rapportino_foto')
+        .select('storage_path')
+        .eq('rapportino_id', id)
+
+      if (erroreFoto) throw erroreFoto
+
+      const percorsi = (foto ?? []).map((f) => f.storage_path).filter(Boolean)
+      if (percorsi.length > 0) {
+        const { error } = await supabase.storage.from('rapportini').remove(percorsi)
+        // Ci si ferma: un file orfano non lo trova piu' nessuno, mentre
+        // un rapportino ancora in elenco si ricancella.
+        if (error) {
+          throw new Error(
+            `Non riesco a togliere le foto dallo spazio file: ${error.message}. Il rapportino non e' stato cancellato.`,
+          )
+        }
+      }
+
+      // I figli, poi il padre: le foreign key sono `restrict`.
+      for (const tabella of [
+        'rapportino_foto',
+        'rapportino_ore',
+        'rapportino_materiali',
+        'rapportino_mezzi',
+      ] as const) {
+        const { error } = await supabase.from(tabella).delete().eq('rapportino_id', id)
+        if (error) throw error
+      }
+
+      const { data, error } = await supabase
+        .from('rapportini')
+        .delete()
+        .eq('id', id)
+        .eq('org_id', org!.id)
+        .select('id')
+        .maybeSingle()
+
+      if (error) throw error
+      // Zero righe senza errore = la RLS ha filtrato. Senza questo
+      // controllo si vedrebbe un successo e la scheda resterebbe li'.
+      if (!data) {
+        throw new Error(
+          'Il database non ti permette di cancellare questo rapportino: controlla che sia ancora una bozza.',
+        )
+      }
+      return id
+    },
+    onSuccess: (id) => {
+      qc.invalidateQueries({ queryKey: ['rapportino', id] })
+      qc.invalidateQueries({ queryKey: ['rapportini'] })
+    },
+  })
+}

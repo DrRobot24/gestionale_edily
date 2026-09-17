@@ -157,15 +157,22 @@ export function CalendarioCantiere({
                 key={cella}
                 type="button"
                 disabled={futuro}
-                title={titolo(stato)}
+                title={cella === adesso ? `Oggi — ${titolo(stato)}` : titolo(stato)}
                 /* Con la scheda si va a leggerla; senza, si porta la
                    fascia in cima su quel giorno — che e' il posto da cui
                    si compila. */
                 onClick={() =>
                   r ? navigate(`/rapportini/${r.id}`) : onScegliGiorno(cella)
                 }
+                /* Altezza FISSA e non `aspect-square`: la casella
+                   quadrata seguiva la larghezza della colonna, e nella
+                   scheda del cantiere — dove il calendario occupa due
+                   terzi della pagina — diventava una griglia alta quanto
+                   lo schermo per dire trenta numeri. Qui l'informazione
+                   e' il colore del giorno, e per quella bastano due
+                   righe di testo. */
                 className={cn(
-                  'relative aspect-square rounded-lg border-2 text-xs font-bold',
+                  'relative h-9 rounded-lg border-2 text-xs font-bold',
                   stato === 'vuoto' ? 'bg-white' : COLORE[stato],
                   scelto ? 'border-black ring-2 ring-black ring-offset-1' : 'border-black/30',
                   futuro
@@ -174,10 +181,12 @@ export function CalendarioCantiere({
                 )}
               >
                 {Number(cella.slice(8, 10))}
+                {/* Su una casella bassa la parola "oggi" non ci sta piu'
+                    sotto il numero: diventa un punto nell'angolo, che
+                    dice la stessa cosa occupando niente. Il `title` del
+                    bottone la nomina per esteso. */}
                 {cella === adesso && (
-                  <span className="absolute inset-x-0 bottom-0.5 text-[8px] font-extrabold uppercase">
-                    oggi
-                  </span>
+                  <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-black" />
                 )}
               </button>
             )

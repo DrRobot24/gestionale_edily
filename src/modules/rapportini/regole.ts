@@ -31,3 +31,29 @@ export function modificabile(stato: RapportinoStato): boolean {
 export function inAttesaDiValidazione(stato: RapportinoStato): boolean {
   return stato === 'inviato'
 }
+
+/**
+ * Si cancella quando si puo' ancora modificare, e per la stessa ragione.
+ *
+ * Chiesto dall'utente il 2026-09-17: «diamogli la possibilita' al tecnico
+ * di poter eliminare un rapportino di un cantiere oltre che di poterlo
+ * modificare prima dell'invio al titolare».
+ *
+ * La regola coincide con `modificabile()` e NON e' un caso: finche' il
+ * foglio e' sulla scrivania di chi lo scrive, e' suo — puo' correggerlo
+ * o buttarlo. Dal momento in cui parte diventa un documento consegnato,
+ * e un documento consegnato non si fa sparire: se il titolare l'ha gia'
+ * letto e respinto, la storia di quel respingimento e' informazione, non
+ * ingombro. Da li' in poi la strada e' correggere e rimandare.
+ *
+ * Il `respinto` resta cancellabile ed e' voluto: e' tornato in mano
+ * all'autore, e una scheda aperta per sbaglio sul cantiere sbagliato si
+ * butta invece di trascinarsela.
+ *
+ * Volutamente una funzione a se' e non un alias: il giorno che le due
+ * regole divergessero — per esempio "il respinto si corregge ma non si
+ * cancella" — si cambia qui senza andare a cercare chi chiamava cosa.
+ */
+export function cancellabile(stato: RapportinoStato): boolean {
+  return modificabile(stato)
+}

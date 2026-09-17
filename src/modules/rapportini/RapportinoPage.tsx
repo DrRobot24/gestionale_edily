@@ -6,9 +6,9 @@ import { foglio, risali, strada } from './percorso'
 import { useNoteContabili } from '../cantieri/noteContabili'
 import { useSession } from '../auth/SessionProvider'
 import { usePermission } from '../auth/usePermission'
-import { useRapportino, useTransizione } from './rapportino'
+import { useEliminaRapportino, useRapportino, useTransizione } from './rapportino'
 import { useFoto } from './useFoto'
-import { modificabile } from './regole'
+import { cancellabile, modificabile } from './regole'
 import { StatoRapportino } from './stato'
 
 export function RapportinoPage() {
@@ -19,6 +19,7 @@ export function RapportinoPage() {
   const { app } = useSession()
   const { data: r, isPending, error } = useRapportino(id)
   const transizione = useTransizione()
+  const elimina = useEliminaRapportino()
 
   const puoValidare = usePermission('rapportini.validate')
   const puoRiaprire = usePermission('rapportini.reopen')
@@ -50,6 +51,7 @@ export function RapportinoPage() {
 
   const [motivo, setMotivo] = useState('')
   const [chiedoMotivo, setChiedoMotivo] = useState(false)
+  const [chiedoConferma, setChiedoConferma] = useState(false)
 
   if (isPending) return <p className="text-sm font-bold text-gray-600">Carico il rapportino…</p>
   if (error) return <Avviso tono="errore">Non trovo questo rapportino: {error.message}</Avviso>
@@ -255,6 +257,39 @@ export function RapportinoPage() {
                   <Button onClick={() => setChiedoMotivo(false)}>Annulla</Button>
                 </div>
               </div>
+            ) : chiedoConferma ? (
+              /* La conferma PRENDE IL POSTO dei pulsanti invece di
+                 aprirsi come finestra sopra: chi ha appena premuto
+                 Elimina non deve poter premere anche Invia. E dice cosa
+                 se ne va davvero — ore, foto, materiali — perche'
+                 «sei sicuro?» non e' un'informazione, e' un ostacolo. */
+              <div className="grid gap-3">
+                <Avviso tono="errore">
+                  <strong>Elimino questa scheda?</strong> Se ne vanno anche le ore, le foto e
+                  i materiali che contiene. Non si torna indietro.
+                </Avviso>
+                {elimina.isError && (
+                  <Avviso tono="errore">{(elimina.error as Error).message}</Avviso>
+                )}
+                <div className="flex gap-2">
+                  <Button
+                    variante="danger"
+                    disabled={elimina.isPending}
+                    onClick={() =>
+                      elimina.mutate(r.id, {
+                        // Si torna da dove si era entrati: restare sulla
+                        // pagina di una scheda che non esiste piu'
+                        // mostrerebbe "non trovo questo rapportino",
+                        // cioe' un errore al posto di un risultato.
+                        onSuccess: () => navigate(risali(ritorno).a),
+                      })
+                    }
+                  >
+                    {elimina.isPending ? 'Elimino…' : 'Sì, elimina'}
+                  </Button>
+                  <Button onClick={() => setChiedoConferma(false)}>Annulla</Button>
+                </div>
+              </div>
             ) : (
               <div className="flex flex-wrap gap-3">
                 {/* correzione e invio: solo l'autore, solo da bozza o
@@ -272,6 +307,28 @@ export function RapportinoPage() {
                     }
                   >
                     Modifica
+                  </Button>
+                )}
+
+                {/* Eliminare sta accanto a Modificare perche' rispondono
+                    alla stessa domanda — «questa scheda non va bene» — e
+                    la seconda risposta e' «non doveva proprio esistere»:
+                    aperta sul cantiere sbagliato, o sul giorno
+                    sbagliato. Prima si poteva solo svuotarla e lasciarla
+                    li' a far contare una giornata mai avvenuta.
+
+                    E' l'ULTIMO pulsante della fila, dopo l'invio, e non
+                    e' primario: la fila si legge da sinistra come la
+                    sequenza normale del lavoro — correggi, manda — e
+                    l'uscita di sicurezza sta in fondo, dove non la si
+                    incontra per sbaglio. */}
+                {mio && cancellabile(r.stato) && (
+                  <Button
+                    variante="danger"
+                    disabled={elimina.isPending}
+                    onClick={() => setChiedoConferma(true)}
+                  >
+                    {elimina.isPending ? 'Elimino…' : 'Elimina'}
                   </Button>
                 )}
 
