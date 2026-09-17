@@ -5,6 +5,7 @@ import { useClienti } from '../anagrafiche/clienti'
 import { useDipendenti } from '../anagrafiche/dipendenti'
 import { useFornitori } from '../anagrafiche/fornitori'
 import { useCantieri } from '../cantieri/useCantieri'
+import { useGiacenze } from '../magazzino/magazzino'
 
 /* ══════════════════════════════════════════════════════════════════
    I registri di chi tiene l'amministrazione.
@@ -42,6 +43,7 @@ export function IlSuoLavoro() {
   const { data: cantieri } = useCantieri()
   const { data: operai } = useDipendenti()
   const { data: fornitori } = useFornitori()
+  const { data: giacenze } = useGiacenze()
 
   if (!tieneIRegistri) return null
 
@@ -80,6 +82,26 @@ export function IlSuoLavoro() {
       colore: 'bg-rose-300',
       nota: 'Da chi compriamo',
     },
+    {
+      etichetta: 'Magazzino',
+      a: '/magazzino',
+      quanti: giacenze?.length,
+      colore: 'bg-white',
+      nota: 'Voci a registro',
+    },
+    /* Subappalti non ha ancora una tabella: la voce di menu e' un
+       segnaposto. Il conteggio percio' NON e' zero ma un trattino, e la
+       differenza e' tutta: zero direbbe «non ne hai nessuno», che e'
+       falso — non c'e' ancora il posto dove metterli. Sta qui, a
+       richiesta dell'utente, perche' alla riunione del 21 settembre
+       serve far vedere che il posto e' previsto. */
+    {
+      etichetta: 'Subappalti',
+      a: '/subappalti',
+      quanti: undefined,
+      colore: 'bg-white',
+      nota: 'Da costruire',
+    },
   ]
 
   return (
@@ -89,12 +111,17 @@ export function IlSuoLavoro() {
           I registri
         </h2>
         <p className="mt-0.5 text-xs font-semibold text-gray-600">
-          L'ordine è anche quello di inserimento: un cantiere vuole il suo cliente,
+          I primi tre nell'ordine di inserimento: un cantiere vuole il suo cliente,
           una squadra vuole gli operai.
         </p>
       </div>
 
-      <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Tre per riga e non quattro: con sei riquadri, quattro colonne
+          ne lascerebbero due spaiati in fondo, e mezza riga bianca in
+          una dashboard e' spazio che qualcuno ha dimenticato di usare.
+          Due righe piene da tre si leggono meglio di una piena e una
+          mezza. */}
+      <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3">
         {registri.map((r) => (
           <Riquadro key={r.a} {...r} />
         ))}
