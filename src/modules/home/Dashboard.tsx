@@ -4,8 +4,7 @@ import { Avviso, Badge, Button, Card, cn } from '../../ui'
 import { useSession } from '../auth/SessionProvider'
 import { useRapportini, type Rapportino } from '../rapportini/useRapportini'
 import { StatoRapportino } from '../rapportini/stato'
-import { data as formattaData, giornoPiu } from '../../lib/formato'
-import { useCantieri } from '../cantieri/useCantieri'
+import { data as formattaData } from '../../lib/formato'
 import { Benvenuto } from './Benvenuto'
 import { CalendarioGiornate } from './CalendarioGiornate'
 import { CantieriDelGiorno } from './CantieriDelGiorno'
@@ -44,25 +43,25 @@ export function Dashboard() {
      controllo delle ore e il calendario devono parlare dello stesso
      giorno. Tenerlo in ognuno di loro vorrebbe dire quattro idee di
      «oggi» che si separano al primo click. */
-  const { data: cantieri } = useCantieri()
 
-  /* IL DEFAULT NON E' SEMPRE OGGI, ed e' la prassi vera di Edily detta
-     dall'utente il 2026-09-15: il tecnico compila OGGI il giorno
-     PRECEDENTE — raccoglie le informazioni in giro per i cantieri e la
-     sera o la mattina dopo le scrive. Il giorno corrente lo rapporta di
-     rado, e mai due giorni indietro.
+  /* IL DEFAULT E' SEMPRE OGGI, e ci si torna dopo averlo cambiato.
+     Richiesto dall'utente il 2026-09-17: «se oggi e' 17 settembre io
+     DEVO potere vedere 17 settembre».
 
-     Aprire sempre su oggi voleva dire un click di correzione ogni
-     mattina, per anni, per tutti. Ora si apre su IERI se ieri e'
-     rimasto incompleto, su oggi se ieri e' a posto.
+     Dal 2026-09-15 al 2026-09-17 qui c'era `suggerisciGiorno()`, che
+     apriva su IERI quando ieri era rimasto incompleto. Il ragionamento
+     era la prassi «si compila oggi per ieri», e sulla carta risparmiava
+     un click ogni mattina. Provato, si e' rivelato sbagliato per un
+     motivo che le previsioni non avevano visto: una dashboard che si
+     apre su una data diversa da oggi fa DUBITARE di quello che mostra —
+     chi guarda deve prima accorgersi di che giorno sta leggendo, e ogni
+     numero sotto va reinterpretato. Il click risparmiato non vale la
+     certezza persa.
 
-     Il giorno e' DERIVATO, non impostato da un effetto: `scelta` resta
-     null finche' nessuno tocca le frecce, e il suggerimento si ricalcola
-     dai dati. Con un `useEffect` che chiamava `setGiorno` il lint
-     segnalava render a cascata — ed era giusto: qui non serve un
-     effetto, serve un valore. */
+     Le frecce nella fascia restano, e sono la strada per andare a ieri:
+     un gesto esplicito, dove sai sempre dove sei. */
   const [scelta, setScelta] = useState<string | null>(null)
-  const giorno = scelta ?? suggerisciGiorno(rapportini, cantieri)
+  const giorno = scelta ?? oggi()
   const setGiorno = setScelta
 
   const puoValidare = can('rapportini.validate')
@@ -177,35 +176,6 @@ export function Dashboard() {
 }
 
 /* ── pezzi ─────────────────────────────────────────────────────── */
-
-/**
- * Il giorno su cui aprire la home, quando nessuno ha ancora scelto.
- *
- * Ieri se ieri e' rimasto incompleto — mancano schede, o ce n'e' una in
- * bozza o respinta — altrimenti oggi. Segue la prassi: si compila oggi
- * per ieri.
- *
- * Mentre i dati non ci sono ancora risponde oggi, che e' la risposta
- * giusta da dare senza informazioni: il caso «ieri e' rimasto aperto»
- * e' l'eccezione da riconoscere, non il punto di partenza da
- * indovinare.
- */
-function suggerisciGiorno(
-  rapportini: Rapportino[] | undefined,
-  cantieri: { stato: string }[] | undefined,
-): string {
-  const adesso = oggi()
-  if (!rapportini || !cantieri) return adesso
-
-  const ieri = giornoPiu(adesso, -1)
-  const attivi = cantieri.filter((c) => c.stato === 'attivo').length
-  const diIeri = rapportini.filter((r) => r.data === ieri)
-
-  const incompleto =
-    diIeri.length < attivi || diIeri.some((r) => r.stato === 'bozza' || r.stato === 'respinto')
-
-  return incompleto ? ieri : adesso
-}
 
 type Tono = 'attesa' | 'errore' | 'successo' | 'info' | 'neutro'
 
