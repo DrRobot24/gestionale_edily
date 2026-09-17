@@ -12,6 +12,7 @@ import { CantieriDelGiorno } from './CantieriDelGiorno'
 import { ControlloOre } from './ControlloOre'
 import { MieOre } from './MieOre'
 import { GiornateDaValidare } from './GiornateDaValidare'
+import { IlSuoLavoro } from './IlSuoLavoro'
 import { oggi } from '../rapportini/campiRapportino'
 
 /* ══════════════════════════════════════════════════════════════════
@@ -67,18 +68,10 @@ export function Dashboard() {
   const puoValidare = can('rapportini.validate')
   const puoCompilare = can('rapportini.create')
 
-  // Stessa separazione dei compiti applicata al pulsante "Contabilizza"
-  // in RapportinoPage: chi approva non registra. Per il titolare la coda
-  // della contabilita' non e' un suo compito, e questa home mostra
-  // quello che aspetta te - non tutto quello che potresti guardare.
-  const vedeConti = can('economics.read') && !puoValidare
-
   const tutti = rapportini ?? []
   const miei = tutti.filter((r) => r.compilato_da === app?.userId)
 
   const daCorreggere = miei.filter((r) => r.stato === 'respinto')
-
-  const daContabilizzare = tutti.filter((r) => r.stato === 'validato')
 
   return (
     <div className="mx-auto grid max-w-5xl gap-6">
@@ -163,26 +156,20 @@ export function Dashboard() {
             </>
           )}
 
-          {/* ── Chi tiene i conti ── */}
-          {vedeConti && (
-            <Riquadro
-              titolo="Validati, non ancora in contabilità"
-              conteggio={daContabilizzare.length}
-              tono={daContabilizzare.length > 0 ? 'info' : 'successo'}
-              vuoto="Niente in attesa di essere contabilizzato."
-              azione={{ etichetta: 'Vai a Economia', a: '/economia' }}
-            >
-              {daContabilizzare.slice(0, 6).map((r) => (
-                <Riga
-                  key={r.id}
-                  rapportino={r}
-                  dettaglio={
-                    r.validato_at ? `validato il ${formattaData(r.validato_at)}` : 'validato'
-                  }
-                />
-              ))}
-            </Riquadro>
-          )}
+          {/* ── Chi tiene i registri: le anagrafiche, non i rapportini ──
+
+              Qui c'era «Validati, non ancora in contabilità», una coda
+              di RAPPORTINI. Tolta il 2026-09-17 su indicazione
+              dell'utente, ed e' la stessa decisione del 2026-09-15 che
+              li ha tolti dal menu di Stefania, arrivata fin qui: il
+              rapportino e' il documento di chi compila in cantiere, e a
+              chi tiene l'amministrazione non dice niente su cosa deve
+              fare adesso. Elencarli in home era chiederle di guardare
+              ogni mattina una lista su cui non ha nessuna azione.
+
+              Al suo posto il punto di partenza del suo lavoro vero: i
+              registri che riempie lei, con quanti ne ha dentro. */}
+          <IlSuoLavoro />
         </div>
       )}
     </div>
