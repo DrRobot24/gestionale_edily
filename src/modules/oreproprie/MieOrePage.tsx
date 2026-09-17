@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Avviso, Badge, Button, Campo, Card, Input, Percorso, Select, Table, Vuoto, cn } from '../../ui'
+import { Avviso, Badge, Button, Campo, CampoArea, CampoSelect, Card, Percorso, Table, Vuoto, cn } from '../../ui'
 import { useMioDipendente } from '../anagrafiche/dipendenti'
 import { ASSENZE, oggi } from '../rapportini/campiRapportino'
 import { data as fmtData, giornoPiu } from '../../lib/formato'
@@ -204,73 +204,65 @@ function FormGiornata({
           )}
 
           <div className="grid gap-3 sm:grid-cols-3">
-            <Campo etichetta="Ore ordinarie">
-              <Input
-                type="number"
-                step="0.5"
-                min="0"
-                max="24"
-                value={ordinarie}
-                disabled={!apribile || futuro}
-                onChange={(e) => setOrdinarie(e.target.value)}
-              />
-            </Campo>
-            <Campo etichetta="Straordinarie">
-              <Input
-                type="number"
-                step="0.5"
-                min="0"
-                max="24"
-                value={straordinarie}
-                disabled={!apribile || futuro}
-                onChange={(e) => setStraordinarie(e.target.value)}
-              />
-            </Campo>
-            <Campo etichetta="Ore di assenza">
-              <Input
-                type="number"
-                step="0.5"
-                min="0"
-                max="24"
-                value={assenza}
-                disabled={!apribile || futuro}
-                onChange={(e) => setAssenza(e.target.value)}
-              />
-            </Campo>
+            <Campo
+              etichetta="Ore ordinarie"
+              type="number"
+              step="0.5"
+              min="0"
+              max="24"
+              value={ordinarie}
+              disabled={!apribile || futuro}
+              onChange={(e) => setOrdinarie(e.target.value)}
+            />
+            <Campo
+              etichetta="Straordinarie"
+              type="number"
+              step="0.5"
+              min="0"
+              max="24"
+              value={straordinarie}
+              disabled={!apribile || futuro}
+              onChange={(e) => setStraordinarie(e.target.value)}
+            />
+            <Campo
+              etichetta="Ore di assenza"
+              type="number"
+              step="0.5"
+              min="0"
+              max="24"
+              value={assenza}
+              disabled={!apribile || futuro}
+              onChange={(e) => setAssenza(e.target.value)}
+            />
           </div>
 
           {/* Il motivo compare solo quando serve: una tendina sempre
               accesa su una giornata normale e' una domanda a cui non
               c'e' niente da rispondere. */}
           {num(assenza) > 0 && (
-            <Campo etichetta="Perché eri assente">
-              <Select
-                value={tipoAssenza}
-                disabled={!apribile || futuro}
-                onChange={(e) => setTipoAssenza(e.target.value)}
-              >
-                <option value="">Scegli…</option>
-                {ASSENZE.map((a) => (
-                  <option key={a} value={a}>
-                    {a}
-                  </option>
-                ))}
-              </Select>
-            </Campo>
+            <CampoSelect
+              etichetta="Perché eri assente"
+              value={tipoAssenza}
+              disabled={!apribile || futuro}
+              onChange={(e) => setTipoAssenza(e.target.value)}
+            >
+              <option value="">Scegli…</option>
+              {ASSENZE.map((a) => (
+                <option key={a} value={a}>
+                  {a}
+                </option>
+              ))}
+            </CampoSelect>
           )}
 
-          <Campo
+          <CampoArea
             etichetta="Cosa hai fatto"
             suggerimento="Il giro dei cantieri, l'ufficio, un sopralluogo. Senza un cantiere a dirlo, è questo che lo racconta."
-          >
-            <textarea
-              value={descrizione}
-              disabled={!apribile || futuro}
-              onChange={(e) => setDescrizione(e.target.value)}
-              placeholder="Giro dei tre cantieri, poi ufficio per il preventivo Giarrizzo"
-              className="min-h-20 w-full rounded-xl border-2 border-black bg-white px-4 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:bg-gray-100"
-            />
-          </Campo>
+            value={descrizione}
+            disabled={!apribile || futuro}
+            onChange={(e) => setDescrizione(e.target.value)}
+            placeholder="Giro dei tre cantieri, poi ufficio per il preventivo Giarrizzo"
+          />
 
           <div className="flex flex-wrap items-center justify-between gap-3 border-t-2 border-black pt-4">
             <p className="text-sm font-extrabold">
