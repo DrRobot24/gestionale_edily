@@ -402,12 +402,26 @@ export function FormRapportino({
                           !presente ? 'bg-gray-100' : motivo ? 'bg-amber-50' : 'bg-white',
                         )}
                       >
-                        <div className="flex flex-wrap items-center gap-3">
+                        {/* ALLINEATI IN BASSO, non al centro.
+
+                            I campi ore portano l'etichetta ORD./STR.
+                            sopra il riquadro, la tendina e i due
+                            pulsanti no: sono alti diversi. Centrandoli
+                            le basi cadevano a tre quote diverse e la
+                            riga sembrava storta. Appoggiandoli in basso
+                            tutti i controlli poggiano sulla stessa
+                            linea, e le etichettine sporgono in alto —
+                            che e' il posto giusto per una didascalia.
+
+                            Il nome torna centrato per conto suo:
+                            `self-center` su un testo alto una riga, o
+                            resterebbe incollato al fondo. */}
+                        <div className="flex flex-wrap items-end gap-3">
                           <span
                             className={
                               presente
-                                ? 'flex-1 text-sm font-bold text-black'
-                                : 'flex-1 text-sm font-bold text-gray-500'
+                                ? 'flex-1 self-center text-sm font-bold text-black'
+                                : 'flex-1 self-center text-sm font-bold text-gray-500'
                             }
                           >
                             {campo.nominativo}
@@ -418,7 +432,7 @@ export function FormRapportino({
                               "assente per ferie" e "assente e basta" non
                               sono la stessa cosa per chi fa le paghe. */}
                           <select
-                            className="cursor-pointer rounded-lg border-2 border-black bg-white px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-amber-400"
+                            className="h-8 cursor-pointer rounded-lg border-2 border-black bg-white px-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-amber-400"
                             {...register(`ore.${i}.tipo_assenza`, {
                               onChange: (e) => {
                                 if (e.target.value === '') {
@@ -476,7 +490,7 @@ export function FormRapportino({
                             ))}
                           </select>
 
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-end gap-2">
                             {/* Le ore lavorate si vedono SEMPRE, anche su una
                                 riga con un motivo addosso: e' scrivendo qui
                                 le ore fatte davvero che si dichiara mezza
@@ -713,7 +727,7 @@ function CampoOre({
         max={24}
         step={0.5}
         inputMode="decimal"
-        className="numerico w-16 px-2 py-1.5 text-center text-sm"
+        className="numerico h-8 w-16 px-2 py-0 text-center text-sm"
         {...props}
       />
     </label>
