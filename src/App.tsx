@@ -88,6 +88,14 @@ type Voce = {
  * in menu al posto suo — e sara' quella la porta dell'amministrazione sui
  * dati dei rapportini.
  *
+ * Il cancello e' in OR dal 2026-09-17, e prima era solo
+ * `rapportini.create`. Finche' l'owner aveva ANCHE quel permesso i due
+ * insiemi coincidevano e nessuno se ne accorgeva; tolto a Giuseppe —
+ * «lui solo vede, valida o respinge» — la voce sarebbe sparita proprio
+ * a chi i rapportini li deve leggere per firmarli. Il pulsante «Nuovo
+ * rapportino» dentro la pagina resta su `create`, dove e' sempre stato:
+ * il diritto di LEGGERE non e' il diritto di SCRIVERE.
+ *
  * L'ORDINE DELLE VOCI e' quello dell'importanza dichiarata dall'utente il
  * 2026-09-15: Clienti, Cantieri, Operai, poi il resto. Segue il percorso
  * vero del lavoro in ufficio — prima il committente, poi il cantiere che
@@ -123,7 +131,7 @@ const VOCI: Voce[] = [
   {
     to: '/rapportini',
     etichetta: 'Rapportini',
-    perm: 'rapportini.create',
+    perm: ['rapportini.create', 'rapportini.validate'],
     elemento: <RapportiniPage />,
   },
 
