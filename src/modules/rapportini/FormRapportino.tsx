@@ -123,12 +123,25 @@ export function FormRapportino({
    */
   const conIndice = fields.map((campo, i) => {
     const riga = righe?.[i] ?? valoriIniziali.ore[i]
+    const presente = Boolean(riga?.presente)
+    const motivo = String(riga?.tipo_assenza ?? '')
+    const lavorate = Number(riga?.ore_ordinarie ?? 0) + Number(riga?.ore_straordinarie ?? 0)
+    const assenza = Number(riga?.ore_assenza ?? 0)
+
     return {
       campo,
       i,
-      presente: Boolean(riga?.presente),
-      motivo: String(riga?.tipo_assenza ?? ''),
-      scelto: Boolean(riga?.presente) || Boolean(riga?.tipo_assenza),
+      presente,
+      motivo,
+      scelto: presente || Boolean(motivo),
+      /* LA RIGA DICE QUALCOSA, ed e' la condizione del segno verde.
+
+         Non e' «confermata da qualcuno»: e' completa da se'. O ha ore
+         lavorate, o ha un motivo con le sue ore di assenza. Una riga a
+         zero e senza motivo e' una persona messa in elenco e poi
+         lasciata li', che al salvataggio viene scartata — ed e'
+         esattamente il caso in cui il verde NON deve comparire. */
+      completa: lavorate > 0 || (motivo !== '' && assenza > 0),
     }
   })
   const inSquadra = conIndice.filter((r) => r.scelto)
@@ -332,7 +345,7 @@ export function FormRapportino({
                   </p>
                 ) : (
                   <ul className="grid gap-2">
-                    {inSquadra.map(({ campo, i, presente, motivo }) => (
+                    {inSquadra.map(({ campo, i, presente, motivo, completa }) => (
                       <li
                         key={campo.id}
                         /* Tre stati, non due: in cantiere, in cantiere
@@ -442,6 +455,43 @@ export function FormRapportino({
                               <CampoOre etichetta="assenza" {...register(`ore.${i}.ore_assenza`)} />
                             )}
                           </div>
+
+                          {/* IL SEGNO VERDE — chiesto dall'utente il
+                              2026-09-17, che accanto alla sola × rossa
+                              vedeva righe dall'aria provvisoria.
+
+                              NON E' UN INTERRUTTORE, e la differenza e'
+                              il punto: compare da solo quando la riga e'
+                              completa, e non si clicca. Una spunta da
+                              flaggare avrebbe creato un passaggio
+                              dimenticabile — chi non la preme perde le
+                              ore di quell'operaio senza capire perche' —
+                              dove oggi sbagliare non si puo': la riga
+                              nasce gia' valida dalla tendina.
+
+                              Quando manca, e' il segnale che qualcosa
+                              non torna: zero ore, o un motivo senza le
+                              sue ore. La riga resterebbe scartata al
+                              salvataggio, e adesso lo si vede prima. */}
+                          <span
+                            aria-hidden={!completa}
+                            title={
+                              completa
+                                ? 'Ore a posto: questa riga finisce nel rapportino'
+                                : undefined
+                            }
+                            className={cn(
+                              'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border-2 text-base font-extrabold leading-none',
+                              completa
+                                ? 'border-black bg-lime-300 text-black'
+                                : // Invisibile ma presente: se sparisse,
+                                  // la × ballerebbe di otto pixel a ogni
+                                  // cifra digitata.
+                                  'border-transparent bg-transparent text-transparent',
+                            )}
+                          >
+                            ✓
+                          </span>
 
                           <button
                             type="button"
