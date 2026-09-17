@@ -25,51 +25,53 @@
 --   - `profiles`       le persone dietro le utenze
 --
 -- IL DATABASE E' CONDIVISO CON wbs-office. Ogni istruzione e' filtrata
--- sull'azienda tramite il suo SLUG: senza quel filtro si
--- cancellerebbero i dati dell'altro frontend e di ogni altra azienda
--- sulla stessa istanza.
+-- sull'azienda: senza quel filtro si cancellerebbero i dati dell'altro
+-- frontend e di ogni altra azienda sulla stessa istanza.
 --
--- ⚠️  UNA COSA SOLA DA CAMBIARE, ed e' lo slug. Compare come
--- `where slug = 'edily'` dentro ogni blocco. Se al passo 0 leggi uno
--- slug diverso, fai Sostituisci tutto (Ctrl+H) da 'edily' al tuo, UNA
--- volta, e poi non tocchi piu' niente.
+-- ✅ NIENTE DA SOSTITUIRE. L'id dell'azienda e' gia' scritto dentro,
+-- fornito dall'utente il 2026-09-17:
 --
--- Perche' lo slug e non l'id: un id e' trentasei caratteri che nessuno
--- rilegge, e incollato storto in uno solo dei blocchi cancellerebbe
--- l'azienda sbagliata. Lo slug si legge e si riconosce.
+--     0d989cd9-d077-48f6-8ab9-6b5434229394
+--
+-- Il PASSO 1 lo mostra in chiaro con la ragione sociale accanto: quella
+-- riga e' la verifica che si stia svuotando l'azienda giusta e non
+-- wbs-office. Leggerla prima di proseguire.
 --
 -- Nomi verificati il 2026-09-17 contro `src/lib/database.types.ts`.
 -- =====================================================================
 
 
 -- ── PASSO 0. QUALE AZIENDA STO PER SVUOTARE ─────────────────────────
--- Di sola lettura. Serve a leggere lo SLUG. Se compare piu' di una
--- riga, guardare bene: su questa istanza c'e' anche wbs-office.
+-- Di sola lettura, e ormai facoltativo: l'id e' gia' nel file. Serve
+-- solo a rivedere l'elenco — su questa istanza c'e' anche wbs-office.
 
 select id, slug, ragione_sociale from public.organizations order by ragione_sociale;
 
 
 -- ── PASSO 1. COSA STO PER CANCELLARE ────────────────────────────────
 -- Di sola lettura, e l'ultimo momento in cui i numeri si guardano senza
--- conseguenze. La riga `azienda` in cima deve dire UNA sola azienda, e
--- deve essere quella giusta: se e' vuota lo slug e' sbagliato, e tutti
--- gli zeri sotto sarebbero solo il risultato di un filtro che non
--- trova niente.
+-- conseguenze.
+--
+-- ⚠️  LA PRIMA RIGA E' LA VERIFICA PIU' IMPORTANTE del file: dice
+-- «AZIENDA: <ragione sociale>». Deve essere EDILY. Se dice wbs-office o
+-- un altro nome, FERMARSI — l'id e' quello sbagliato. Se la riga manca
+-- del tutto, l'id non esiste e tutti gli zeri sotto non sarebbero una
+-- pulizia riuscita, ma un filtro che non trova niente.
 
 select 'AZIENDA: ' || ragione_sociale as tabella, 1::bigint as quante
-  from public.organizations where slug = 'edily'
-union all select 'cantieri',            count(*) from public.cantieri              where org_id = (select id from public.organizations where slug = 'edily')
-union all select 'rapportini',          count(*) from public.rapportini            where org_id = (select id from public.organizations where slug = 'edily')
-union all select 'rapportino_ore',      count(*) from public.rapportino_ore        where org_id = (select id from public.organizations where slug = 'edily')
-union all select 'note_contabili',      count(*) from public.note_contabili        where org_id = (select id from public.organizations where slug = 'edily')
-union all select 'costi_cantiere',      count(*) from public.costi_cantiere        where org_id = (select id from public.organizations where slug = 'edily')
-union all select 'ricavi_cantiere',     count(*) from public.ricavi_cantiere       where org_id = (select id from public.organizations where slug = 'edily')
-union all select 'movimenti_magazzino', count(*) from public.movimenti_magazzino   where org_id = (select id from public.organizations where slug = 'edily')
-union all select 'clienti',             count(*) from public.clienti               where org_id = (select id from public.organizations where slug = 'edily')
-union all select 'dipendenti',          count(*) from public.dipendenti            where org_id = (select id from public.organizations where slug = 'edily')
-union all select 'fornitori',           count(*) from public.fornitori             where org_id = (select id from public.organizations where slug = 'edily')
-union all select 'materiali',           count(*) from public.materiali             where org_id = (select id from public.organizations where slug = 'edily')
-union all select 'mezzi',               count(*) from public.mezzi                 where org_id = (select id from public.organizations where slug = 'edily');
+  from public.organizations where id = '0d989cd9-d077-48f6-8ab9-6b5434229394'::uuid
+union all select 'cantieri',            count(*) from public.cantieri              where org_id = '0d989cd9-d077-48f6-8ab9-6b5434229394'::uuid
+union all select 'rapportini',          count(*) from public.rapportini            where org_id = '0d989cd9-d077-48f6-8ab9-6b5434229394'::uuid
+union all select 'rapportino_ore',      count(*) from public.rapportino_ore        where org_id = '0d989cd9-d077-48f6-8ab9-6b5434229394'::uuid
+union all select 'note_contabili',      count(*) from public.note_contabili        where org_id = '0d989cd9-d077-48f6-8ab9-6b5434229394'::uuid
+union all select 'costi_cantiere',      count(*) from public.costi_cantiere        where org_id = '0d989cd9-d077-48f6-8ab9-6b5434229394'::uuid
+union all select 'ricavi_cantiere',     count(*) from public.ricavi_cantiere       where org_id = '0d989cd9-d077-48f6-8ab9-6b5434229394'::uuid
+union all select 'movimenti_magazzino', count(*) from public.movimenti_magazzino   where org_id = '0d989cd9-d077-48f6-8ab9-6b5434229394'::uuid
+union all select 'clienti',             count(*) from public.clienti               where org_id = '0d989cd9-d077-48f6-8ab9-6b5434229394'::uuid
+union all select 'dipendenti',          count(*) from public.dipendenti            where org_id = '0d989cd9-d077-48f6-8ab9-6b5434229394'::uuid
+union all select 'fornitori',           count(*) from public.fornitori             where org_id = '0d989cd9-d077-48f6-8ab9-6b5434229394'::uuid
+union all select 'materiali',           count(*) from public.materiali             where org_id = '0d989cd9-d077-48f6-8ab9-6b5434229394'::uuid
+union all select 'mezzi',               count(*) from public.mezzi                 where org_id = '0d989cd9-d077-48f6-8ab9-6b5434229394'::uuid;
 
 
 -- ── PASSO 2. LE FOTO: I FILE PRIMA DELLE RIGHE ──────────────────────
@@ -84,7 +86,7 @@ union all select 'mezzi',               count(*) from public.mezzi              
 select f.storage_path
 from public.rapportino_foto f
 join public.rapportini r on r.id = f.rapportino_id
-where r.org_id = (select id from public.organizations where slug = 'edily');
+where r.org_id = '0d989cd9-d077-48f6-8ab9-6b5434229394'::uuid;
 
 
 -- ── PASSO 3. LA CANCELLAZIONE, IN UN BLOCCO SOLO ────────────────────
@@ -100,18 +102,22 @@ where r.org_id = (select id from public.organizations where slug = 'edily');
 
 do $$
 declare
-  org uuid;
+  org  uuid;
+  nome text;
 begin
-  select id into org from public.organizations where slug = 'edily';
-
-  -- La rete di sicurezza: senza azienda non si cancella NIENTE. Senza
-  -- questo controllo, uno slug scritto male renderebbe `org` nullo e
-  -- ogni `where org_id = null` non toccherebbe alcuna riga — il che
-  -- sembrerebbe un successo silenzioso, e si scoprirebbe l'errore
+  -- L'id NON si da' per buono: si va a leggere l'azienda che nomina.
+  -- Se non esiste, `org` resta nullo e ogni `where org_id = null` non
+  -- toccherebbe una riga — un successo silenzioso, scoperto solo
   -- aprendo l'app e ritrovando tutti i dati al loro posto.
+  select id, ragione_sociale into org, nome
+  from public.organizations
+  where id = '0d989cd9-d077-48f6-8ab9-6b5434229394'::uuid;
+
   if org is null then
-    raise exception 'Nessuna azienda con questo slug: controlla il passo 0. Non ho cancellato niente.';
+    raise exception 'Nessuna azienda con questo id. Non ho cancellato niente: controlla il passo 0.';
   end if;
+
+  raise notice 'Sto per svuotare: %', nome;
 
   -- i figli del rapportino
   delete from public.rapportino_foto
@@ -167,7 +173,7 @@ begin
   -- sapendo cos'e'.
   delete from public.activity_log where org_id = org;
 
-  raise notice 'Fatto. Azienda svuotata: %', org;
+  raise notice 'Fatto. Azienda svuotata: % (%)', nome, org;
 end $$;
 
 
