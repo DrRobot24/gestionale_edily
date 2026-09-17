@@ -40,6 +40,19 @@ const rigaOre = z.object({
    *  rispondibile la domanda del controllo, «perche' meno di otto». */
   ore_assenza: z.coerce.number().min(0, 'Mai negativo').max(24, 'Al massimo 24'),
   tipo_assenza: z.string(),
+  /** La spunta verde accanto alla riga: chi compila dichiara di aver
+   *  controllato QUESTE ore.
+   *
+   *  Chiesta dall'utente il 2026-09-17. Non e' un dato del rapportino —
+   *  nel database non ci va — ma uno stato del form: serve a fermare la
+   *  mano su una riga aggiunta e mai guardata, che e' il modo tipico in
+   *  cui in un rapportino finiscono otto ore a caso.
+   *
+   *  Le righe che ARRIVANO dal database nascono gia' confermate: sono
+   *  gia' state scritte e salvate una volta, e chiedere di riconfermarle
+   *  a ogni modifica vorrebbe dire ricontrollare l'intera squadra per
+   *  cambiare una virgola nella descrizione. */
+  confermata: z.boolean(),
 })
   // Ore di assenza senza un motivo sono ore sparite: il controllo le
   // conterebbe come coperte senza sapere da cosa.
@@ -91,6 +104,23 @@ export const schemaRapportino = z
     message: 'Hai dichiarato nessuna attività: togli le presenze segnate',
     path: ['ore'],
   })
+  /* OGNI RIGA IN SQUADRA VA CONFERMATA, col segno verde.
+  
+     Il blocco sta QUI e non nel form perche' e' una regola, non un
+     suggerimento: senza, una riga non confermata verrebbe salvata
+     ugualmente e la spunta sarebbe un ornamento.
+  
+     E soprattutto AVVISA invece di scartare in silenzio. Il rischio di
+     una conferma obbligatoria e' che chi la dimentica perda le ore di
+     quell'operaio senza capire perche': qui non succede, perche' il
+     salvataggio si ferma e dice quali righe mancano. */
+  .refine(
+    (v) => v.nessuna_attivita || v.ore.every((o) => !o.presente || o.confermata),
+    {
+      message: 'Conferma con la spunta verde le righe che hai compilato',
+      path: ['ore'],
+    },
+  )
 
 export type CampiRapportino = z.infer<typeof schemaRapportino>
 export type RigaOre = CampiRapportino['ore'][number]

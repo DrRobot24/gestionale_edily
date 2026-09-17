@@ -204,6 +204,9 @@ export function NuovoRapportino() {
       ore_trasferta: 0,
       ore_assenza: 0,
       tipo_assenza: '',
+      // Su una scheda nuova nessuna riga e' confermata: la spunta verde
+      // la mette chi compila, riga per riga.
+      confermata: false,
     })),
   }
 

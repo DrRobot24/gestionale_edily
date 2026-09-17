@@ -134,14 +134,12 @@ export function FormRapportino({
       presente,
       motivo,
       scelto: presente || Boolean(motivo),
-      /* LA RIGA DICE QUALCOSA, ed e' la condizione del segno verde.
-
-         Non e' «confermata da qualcuno»: e' completa da se'. O ha ore
-         lavorate, o ha un motivo con le sue ore di assenza. Una riga a
-         zero e senza motivo e' una persona messa in elenco e poi
-         lasciata li', che al salvataggio viene scartata — ed e'
-         esattamente il caso in cui il verde NON deve comparire. */
+      /* La riga dice qualcosa: o ha ore lavorate, o ha un motivo con le
+         sue ore di assenza. Non decide piu' il colore del segno — lo
+         decide `confermata` — ma serve ancora a impedire di confermare
+         una riga vuota. */
       completa: lavorate > 0 || (motivo !== '' && assenza > 0),
+      confermata: Boolean(riga?.confermata),
     }
   })
   const inSquadra = conIndice.filter((r) => r.scelto)
@@ -345,7 +343,7 @@ export function FormRapportino({
                   </p>
                 ) : (
                   <ul className="grid gap-2">
-                    {inSquadra.map(({ campo, i, presente, motivo, completa }) => (
+                    {inSquadra.map(({ campo, i, presente, motivo, completa, confermata }) => (
                       <li
                         key={campo.id}
                         /* Tre stati, non due: in cantiere, in cantiere
@@ -440,58 +438,95 @@ export function FormRapportino({
                                 Nasconderle finche' non e' "presente"
                                 lascerebbe la mezza giornata senza una porta
                                 da cui entrare. */}
+                            {/* CAMBIARE LE ORE FA CADERE LA CONFERMA.
+
+                                Senza questo, si potrebbe confermare 8
+                                ore, scrivere 12 e salvare con la spunta
+                                verde ancora accesa: confermerebbe dei
+                                numeri che nessuno ha guardato, ed e'
+                                proprio cio' contro cui la spunta esiste.
+                                Ogni campo che cambia il totale la
+                                spegne. */}
                             <CampoOre
                               etichetta="ord."
                               {...register(`ore.${i}.ore_ordinarie`, {
-                                onChange: (e) =>
-                                  setValue(`ore.${i}.presente`, Number(e.target.value) > 0),
+                                onChange: (e) => {
+                                  setValue(`ore.${i}.presente`, Number(e.target.value) > 0)
+                                  setValue(`ore.${i}.confermata`, false)
+                                },
                               })}
                             />
-                            <CampoOre etichetta="str." {...register(`ore.${i}.ore_straordinarie`)} />
+                            <CampoOre
+                              etichetta="str."
+                              {...register(`ore.${i}.ore_straordinarie`, {
+                                onChange: () => setValue(`ore.${i}.confermata`, false),
+                              })}
+                            />
                             {mostraTrasferta && (
-                              <CampoOre etichetta="trasf." {...register(`ore.${i}.ore_trasferta`)} />
+                              <CampoOre
+                                etichetta="trasf."
+                                {...register(`ore.${i}.ore_trasferta`, {
+                                  onChange: () => setValue(`ore.${i}.confermata`, false),
+                                })}
+                              />
                             )}
                             {motivo !== '' && (
-                              <CampoOre etichetta="assenza" {...register(`ore.${i}.ore_assenza`)} />
+                              <CampoOre
+                                etichetta="assenza"
+                                {...register(`ore.${i}.ore_assenza`, {
+                                  onChange: () => setValue(`ore.${i}.confermata`, false),
+                                })}
+                              />
                             )}
                           </div>
 
-                          {/* IL SEGNO VERDE — chiesto dall'utente il
-                              2026-09-17, che accanto alla sola × rossa
-                              vedeva righe dall'aria provvisoria.
+                          {/* LA SPUNTA DI CONFERMA — chiesta dall'utente
+                              il 2026-09-17.
 
-                              NON E' UN INTERRUTTORE, e la differenza e'
-                              il punto: compare da solo quando la riga e'
-                              completa, e non si clicca. Una spunta da
-                              flaggare avrebbe creato un passaggio
-                              dimenticabile — chi non la preme perde le
-                              ore di quell'operaio senza capire perche' —
-                              dove oggi sbagliare non si puo': la riga
-                              nasce gia' valida dalla tendina.
+                              Nasce BIANCA e diventa verde quando ci si
+                              clicca: chi compila dichiara di aver
+                              guardato QUESTE ore. Senza, la riga non
+                              parte — il blocco e' nello schema, non qui,
+                              perche' e' una regola e non un consiglio.
 
-                              Quando manca, e' il segnale che qualcosa
-                              non torna: zero ore, o un motivo senza le
-                              sue ore. La riga resterebbe scartata al
-                              salvataggio, e adesso lo si vede prima. */}
-                          <span
-                            aria-hidden={!completa}
+                              Il rischio di una conferma obbligatoria e'
+                              che chi la dimentica perda le ore di un
+                              operaio senza capire perche'. Qui non
+                              succede: il salvataggio si ferma e dice
+                              quali righe mancano, invece di scartarle in
+                              silenzio.
+
+                              Disabilitata finche' la riga e' vuota:
+                              confermare zero ore non vuol dire niente, e
+                              il `title` spiega perche' non si preme. */}
+                          <button
+                            type="button"
+                            disabled={!completa}
+                            aria-pressed={confermata}
+                            onClick={() => setValue(`ore.${i}.confermata`, !confermata)}
+                            aria-label={
+                              confermata
+                                ? `Togli la conferma a ${campo.nominativo}`
+                                : `Conferma le ore di ${campo.nominativo}`
+                            }
                             title={
-                              completa
-                                ? 'Ore a posto: questa riga finisce nel rapportino'
-                                : undefined
+                              !completa
+                                ? 'Scrivi prima le ore, o il motivo dell’assenza'
+                                : confermata
+                                  ? 'Ore confermate — clicca per rimetterle in dubbio'
+                                  : 'Conferma queste ore'
                             }
                             className={cn(
-                              'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border-2 text-base font-extrabold leading-none',
-                              completa
-                                ? 'border-black bg-lime-300 text-black'
-                                : // Invisibile ma presente: se sparisse,
-                                  // la × ballerebbe di otto pixel a ogni
-                                  // cifra digitata.
-                                  'border-transparent bg-transparent text-transparent',
+                              'h-8 w-8 shrink-0 rounded-lg border-2 border-black text-base font-extrabold leading-none',
+                              confermata
+                                ? 'neo-press cursor-pointer bg-lime-300 text-black'
+                                : completa
+                                  ? 'neo-press cursor-pointer bg-white text-gray-300 hover:bg-lime-100 hover:text-lime-700'
+                                  : 'cursor-not-allowed border-gray-300 bg-gray-50 text-gray-200',
                             )}
                           >
                             ✓
-                          </span>
+                          </button>
 
                           <button
                             type="button"
