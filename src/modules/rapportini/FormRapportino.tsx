@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm, useFieldArray, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Avviso, Button, CampoArea, Campo, CampoSelect, Card, Input, cn } from '../../ui'
@@ -50,13 +50,30 @@ export function FormRapportino({
     control,
     handleSubmit,
     setValue,
-    formState: { errors, isSubmitting },
+    formState: { errors, isSubmitting, isDirty },
   } = useForm<CampiRapportino>({
     resolver: zodResolver(schemaRapportino),
     defaultValues: valoriIniziali,
   })
 
   const { fields } = useFieldArray({ control, name: 'ore' })
+
+  /* E il browser avvisa prima di buttare via il lavoro.
+  
+     Copre il caso che il cartello qui sotto non prende: F5, la freccia
+     indietro, la scheda chiusa per sbaglio. Il testo lo decide il
+     browser e non si puo' cambiare — `preventDefault()` e' tutto cio'
+     che serve, il resto e' cerimonia storica.
+  
+     Solo a form sporco: registrarlo sempre vorrebbe dire chiedere
+     conferma per uscire da una pagina che non si e' toccata. */
+  useEffect(() => {
+    if (!isDirty || inCorso) return
+
+    const avvisa = (e: BeforeUnloadEvent) => e.preventDefault()
+    window.addEventListener('beforeunload', avvisa)
+    return () => window.removeEventListener('beforeunload', avvisa)
+  }, [isDirty, inCorso])
 
   /**
    * La trasferta parte nascosta.
@@ -636,6 +653,25 @@ export function FormRapportino({
           </Card>
         </div>
       </div>
+
+      {/* IL CARTELLO DELLE MODIFICHE NON SALVATE.
+
+          Aggiunto il 2026-09-17 dopo che l'utente ha tolto tre righe
+          con la ×, premuto F5, e se le e' ritrovate tutte. Non era un
+          difetto del salvataggio: e' che la × agisce SOLO nel form, e
+          il database si tocca premendo Salva. Comportamento normale di
+          qualunque form — ma niente lo diceva, e una modifica che
+          sembra fatta e non lo e' e' peggio di una che non si puo'
+          fare.
+
+          Compare solo quando c'e' davvero qualcosa da perdere: un
+          avviso perenne diventa arredamento e smette di essere letto. */}
+      {isDirty && !inCorso && (
+        <Avviso tono="info">
+          Ci sono modifiche <strong>non ancora salvate</strong>. Ricaricando la pagina si
+          perdono: premi «{etichettaSalva}» qui sotto.
+        </Avviso>
+      )}
 
       <div className="flex gap-3">
         <Button type="submit" variante="primario" disabled={isSubmitting || inCorso}>
