@@ -66,40 +66,53 @@ alter table public.dipendenti
 comment on column public.dipendenti.tipo is
   'Operaio = assegnabile alla squadra di un cantiere. Tecnico e impiegato no: le loro ore stanno in ore_personali.';
 
--- Chi NON e' operaio non puo' stare in una squadra, e la regola vale nel
--- database e non solo nella tendina: una tendina si aggira, un trigger
--- no.
+-- ⚠️  ATTENZIONE A DOVE VA MESSA LA REGOLA — corretto il 2026-09-17
+-- dopo che l'esecuzione ha risposto 42703.
 --
--- UN TRIGGER E NON UNA CHECK CONSTRAINT, ed e' una differenza tecnica
--- che conta: una `check` deve essere immutabile e non puo' leggere
--- un'altra tabella. Postgres lascia scrivere `check (funzione(col))` ma
--- il risultato non e' affidabile — la constraint viene valutata solo
--- quando cambia QUESTA riga, quindi un `update dipendenti set tipo` che
--- promuove un operaio a tecnico non farebbe scattare niente e le sue
--- assegnazioni resterebbero li'. Il trigger e' onesto su cosa controlla:
--- l'inserimento in squadra, non lo stato del mondo.
-create or replace function app.solo_operai_in_squadra()
+-- La prima stesura metteva un trigger su `cantiere_assegnazioni`
+-- cercando una colonna `dipendente_id` che NON ESISTE: quella tabella
+-- ha `user_id`. E non e' un dettaglio di nomi, e' che sono due cose
+-- diverse e le avevo confuse:
+--
+--   cantiere_assegnazioni   CHI PUO' ENTRARE nel cantiere. Utenti del
+--                           gestionale, non schede operaio. E' l'atto
+--                           che apre la porta: «chi e' in questo elenco
+--                           vede il cantiere e puo' compilarci i
+--                           rapportini».
+--
+--   rapportino_ore          CHI HA LAVORATO li' quel giorno. Schede
+--                           dipendente, una riga per persona. E'
+--                           QUESTA la squadra.
+--
+-- Il tecnico DEVE restare in `cantiere_assegnazioni` — e' come vede i
+-- suoi cantieri, e il trigger sbagliato glielo avrebbe impedito. Quello
+-- da cui deve sparire e' `rapportino_ore`: le sue ore non stanno sul
+-- cantiere.
+--
+-- UN TRIGGER E NON UNA CHECK CONSTRAINT: una `check` deve essere
+-- immutabile e non puo' leggere un'altra tabella in modo affidabile.
+create or replace function app.solo_operai_nelle_ore()
 returns trigger
 language plpgsql
 security definer
 set search_path = public, pg_temp
 as $fn$
 declare
-  t public.tipo_risorsa;
+  t   public.tipo_risorsa;
   chi text;
 begin
   select d.tipo, d.nome || ' ' || d.cognome into t, chi
   from public.dipendenti d
   where d.id = new.dipendente_id;
 
-  -- Dipendente inesistente: non e' affare di questa regola, se ne occupa
-  -- la foreign key con un messaggio migliore del nostro.
+  -- Dipendente inesistente: se ne occupa la foreign key, con un
+  -- messaggio migliore del nostro.
   if t is null then
     return new;
   end if;
 
   if t <> 'operaio' then
-    raise exception '% non si assegna a un cantiere: e'' %. Le sue ore vanno nel foglio ore personale, non nella squadra.',
+    raise exception '% non va nelle ore di un cantiere: e'' %. Le sue ore si dichiarano nel foglio ore personale.',
       chi, t
       using errcode = 'P0001';
   end if;
@@ -107,14 +120,13 @@ begin
   return new;
 end $fn$;
 
-drop trigger if exists trg_solo_operai_in_squadra on public.cantiere_assegnazioni;
-create trigger trg_solo_operai_in_squadra
-  before insert or update of dipendente_id on public.cantiere_assegnazioni
-  for each row execute function app.solo_operai_in_squadra();
+drop trigger if exists trg_solo_operai_nelle_ore on public.rapportino_ore;
+create trigger trg_solo_operai_nelle_ore
+  before insert or update of dipendente_id on public.rapportino_ore
+  for each row execute function app.solo_operai_nelle_ore();
 
--- Le assegnazioni GIA' scritte non vengono toccate: il trigger vale da
--- ora in avanti. Se il tecnico e' gia' in qualche squadra va sciolto a
--- mano — il blocco 4 in fondo dice come trovarle.
+-- Le righe GIA' scritte non vengono toccate: il trigger vale da ora in
+-- avanti. Il blocco 4 in fondo dice come trovare quelle vecchie.
 
 
 -- =====================================================================
@@ -331,22 +343,26 @@ order by d.cognome, d.nome;
 --     and cognome = 'Corritore';
 
 
--- ── Chi e' rimasto in squadra senza esserne piu' degno ──────────────
+-- ── Chi e' rimasto nelle ore di un cantiere senza doverci stare ─────
 -- Il trigger vale da ora in avanti e non tocca le righe gia' scritte.
--- Dopo aver sistemato i tipi, questa dice se qualche non-operaio e'
--- ancora assegnato a un cantiere.
+-- Dopo aver sistemato i tipi, questa dice se un non-operaio ha ore su
+-- qualche rapportino.
+--
+-- ⚠️  NON cancellarle a cuor leggero: sono ore gia' dichiarate, e se
+-- quel rapportino e' gia' stato validato sono anche ore gia' passate
+-- alle paghe. Vanno guardate una per una e, semmai, riportate a mano
+-- nel foglio personale della persona prima di toglierle.
 
-select c.codice, c.denominazione, d.nome, d.cognome, d.tipo, a.dal, a.al
-from public.cantiere_assegnazioni a
-join public.dipendenti d on d.id = a.dipendente_id
-join public.cantieri    c on c.id = a.cantiere_id
+select r.data, c.codice, d.nome, d.cognome, d.tipo,
+       o.ore_ordinarie, o.ore_straordinarie, o.ore_assenza, r.stato
+from public.rapportino_ore o
+join public.dipendenti d on d.id = o.dipendente_id
+join public.rapportini  r on r.id = o.rapportino_id
+join public.cantieri    c on c.id = r.cantiere_id
 where d.org_id = '0d989cd9-d077-48f6-8ab9-6b5434229394'::uuid
   and d.tipo <> 'operaio'
-order by c.codice, d.cognome;
+order by r.data desc, d.cognome;
 
--- Si sciolgono chiudendo l'assegnazione, non cancellando la riga: e' la
--- regola gia' stabilita del progetto — `app.puo_vedere_cantiere()`
--- rispetta `al`, e l'accesso vale fino alla data compresa.
---
---   update public.cantiere_assegnazioni set al = current_date - 1
---   where dipendente_id = '<id>' and (al is null or al >= current_date);
+-- L'accesso ai cantieri invece NON si tocca: il tecnico deve continuare
+-- a vedere i suoi. Quello passa da `cantiere_assegnazioni`, che assegna
+-- UTENTI e non schede operaio, e resta com'e'.
