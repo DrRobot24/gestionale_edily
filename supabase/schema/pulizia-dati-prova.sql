@@ -116,24 +116,31 @@ order by c.relname, t.tgname;
 -- un 23503 che NOMINA la tabella: aggiungerla qui e rieseguire. Il
 -- rollback avra' gia' rimesso tutto a posto da solo.
 --
--- ⚠️  SE SI INCEPPA SU UN TRIGGER — messaggi tipo "Il rapportino e'
--- chiuso", "transizione non ammessa", e in generale qualunque P0001
--- che arriva da una funzione in `app.` — vuol dire che la macchina a
--- stati sta difendendo i dati, che e' il suo mestiere. Qui stiamo
--- demolendo apposta, quindi la si mette a tacere per il tempo della
--- pulizia:
+-- I TRIGGER SONO GIA' GESTITI DENTRO IL BLOCCO. La macchina a stati si
+-- difende su due fronti — non si toccano le ore di un rapportino
+-- chiuso, non si riapre cio' che e' validato — e sono stati incontrati
+-- tutti e due provando. Il blocco li spegne con
+-- `set local session_replication_role`, che vale SOLO per quella
+-- transazione e si annulla da solo alla fine, anche in caso di errore.
 --
---   1. eseguire, PRIMA del blocco `do`:
---        set session_replication_role = 'replica';
---   2. eseguire il blocco `do`;
---   3. eseguire SUBITO DOPO, e non dimenticarlo MAI:
---        set session_replication_role = 'origin';
+-- ⚠️  SE QUEL COMANDO VENISSE RIFIUTATO ("permission denied to set
+-- parameter"), vuol dire che l'utenza non e' superuser. Nel SQL Editor
+-- di Supabase si gira come `postgres` e passa; da un'altra connessione
+-- potrebbe non passare. In quel caso, il piano B e' disabilitare i due
+-- trigger per nome — eseguire PRIMA del blocco `do`:
 --
--- Quel comando spegne TUTTI i trigger della sessione, compresi quelli
--- che tengono in piedi le regole: va riacceso subito, e non si usa mai
--- su dati veri. Se la sessione si chiude prima del punto 3 non e' un
--- dramma — l'impostazione vale solo per quella connessione — ma
--- riaccenderlo a mano e' l'abitudine giusta.
+--     alter table public.rapportini     disable trigger user;
+--     alter table public.rapportino_ore disable trigger user;
+--
+-- ...e SUBITO DOPO, senza dimenticarlo mai:
+--
+--     alter table public.rapportini     enable trigger user;
+--     alter table public.rapportino_ore enable trigger user;
+--
+-- A differenza di `set local`, questo NON si annulla da solo: se la
+-- pulizia fallisce a meta' i trigger restano spenti sul database, per
+-- tutti. Va rimesso a mano, ed e' il motivo per cui e' il piano B e
+-- non il primo.
 
 do $$
 declare
@@ -154,24 +161,34 @@ begin
 
   raise notice 'Sto per svuotare: %', nome;
 
-  -- ⚠️  PRIMA DI TUTTO: RIAPRIRE I RAPPORTINI CHIUSI.
+  -- ⚠️  I GUARDIANI VANNO MESSI A TACERE, ed e' il cuore di questo
+  -- blocco. La macchina a stati dei rapportini si difende su DUE
+  -- fronti, e li abbiamo incontrati tutti e due provando:
   --
-  -- Su `rapportino_ore` c'e' un trigger di wbs-office,
-  -- `app.riga_rapportino_modificabile()`, che rifiuta ogni modifica
-  -- alle righe di un rapportino non piu' in bozza: "Il rapportino e'
-  -- chiuso: righe non modificabili". E' la macchina a stati che
-  -- protegge i dati gia' validati, e fa il suo mestiere — un
-  -- rapportino contabilizzato NON deve poter cambiare ore alle spalle
-  -- di chi l'ha approvato.
+  --   app.riga_rapportino_modificabile()
+  --     "Il rapportino e' chiuso: righe non modificabili"
+  --     vieta di toccare le ore di un rapportino non piu' in bozza
   --
-  -- Qui pero' stiamo demolendo apposta, quindi si riportano tutti in
-  -- `bozza` e poi si cancella. E' l'unico punto del file che TOCCA i
-  -- dati invece di toglierli, ed e' sicuro solo perche' un attimo dopo
-  -- quelle righe non esistono piu': in qualunque altro contesto,
-  -- riaprire un contabilizzato con un update diretto sarebbe
-  -- esattamente cio' che il trigger esiste per impedire.
-  update public.rapportini set stato = 'bozza'
-  where org_id = org and stato <> 'bozza';
+  --   app.rapportino_transizione()
+  --     "Transizione di stato non ammessa: validato -> bozza"
+  --     vieta di riaprire cio' che e' stato validato
+  --
+  -- Entrambi fanno il loro mestiere e NON vanno tolti: un rapportino
+  -- validato non deve poter cambiare ore, ne' tornare in bozza, alle
+  -- spalle di chi l'ha approvato. Il primo tentativo provava a
+  -- riaprirli con un update, ed e' la strada sbagliata — chiedeva alla
+  -- macchina a stati un passaggio che lei esiste per rifiutare.
+  --
+  -- Qui non stiamo correggendo dati: li stiamo demolendo. Quindi si
+  -- spengono i trigger per la durata di QUESTA transazione e si
+  -- cancella e basta, senza cambiare nessuno stato.
+  --
+  -- `local` e' la parola importante: vale solo dentro questa
+  -- transazione e si annulla da sola al commit o al rollback, anche se
+  -- qualcosa va storto a meta'. Nessun rischio di lasciare il database
+  -- coi trigger spenti — che sarebbe molto peggio del problema che
+  -- stiamo risolvendo.
+  set local session_replication_role = 'replica';
 
   -- i figli del rapportino
   delete from public.rapportino_foto
