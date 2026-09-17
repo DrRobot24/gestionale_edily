@@ -159,6 +159,18 @@ export function FormRapportino({
       confermata: Boolean(riga?.confermata),
     }
   })
+  /* Il primo motivo per cui il salvataggio non parte, in parole.
+  
+     `errors` si riempie al primo tentativo fallito: finche' nessuno ha
+     premuto Salva e' vuoto, quindi la barra resta gialla e non accusa
+     nessuno prima del tempo. */
+  const primoErrore =
+    errors.ore?.message ??
+    errors.cantiere_id?.message ??
+    errors.data?.message ??
+    Object.values(errors).find((e) => e && 'message' in e && e.message)?.message
+  const bloccato = typeof primoErrore === 'string' && primoErrore.length > 0
+
   const inSquadra = conIndice.filter((r) => r.scelto)
   const disponibili = conIndice.filter((r) => !r.scelto)
 
@@ -208,9 +220,27 @@ export function FormRapportino({
           alla scheda per non dire nulla. Quando appare, il suo apparire
           E' il messaggio. */}
       {isDirty && (
-        <div className="sticky top-2 z-20 flex flex-wrap items-center justify-between gap-3 rounded-xl border-2 border-black bg-amber-300 px-4 py-2.5 shadow-neo">
+        <div
+          className={cn(
+            'sticky top-2 z-20 flex flex-wrap items-center justify-between gap-3 rounded-xl border-2 border-black px-4 py-2.5 shadow-neo',
+            bloccato ? 'bg-rose-300' : 'bg-amber-300',
+          )}
+        >
+          {/* QUANDO IL SALVATAGGIO E' BLOCCATO LO DICE QUI.
+
+              react-hook-form, se la validazione fallisce, non chiama
+              `onSalva` e non succede NIENTE: nessun errore, nessun
+              movimento. L'utente preme e resta a guardare — e' successo
+              il 2026-09-17, e la colpa era della regola sulla spunta
+              verde introdotta poche ore prima.
+
+              Il messaggio di quella regola esce con `path: ['ore']`,
+              cioe' dentro il riquadro Squadra, che a pulsante premuto
+              puo' essere fuori schermo. Qui invece sta accanto al
+              pulsante, dove si sta guardando nel momento in cui non
+              succede niente. */}
           <span className="text-sm font-extrabold text-black">
-            Modifiche non salvate
+            {bloccato ? primoErrore : 'Modifiche non salvate'}
           </span>
           <Button type="submit" variante="primario" disabled={isSubmitting || inCorso}>
             {inCorso ? 'Salvo…' : etichettaSalva}
