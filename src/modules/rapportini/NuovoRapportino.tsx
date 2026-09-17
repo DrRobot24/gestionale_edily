@@ -25,7 +25,9 @@ export function NuovoRapportino() {
   const ritorno = params.get('ritorno')
 
   const { data: cantieri, isPending: caricoCantieri } = useCantieri()
-  const { data: dipendenti, isPending: caricoDipendenti } = useDipendenti()
+  // Solo gli operai: tecnico e impiegati le ore le dichiarano nel
+  // foglio personale, e il database rifiuta le loro righe qui.
+  const { data: dipendenti, isPending: caricoDipendenti } = useDipendenti({ soloOperai: true })
 
   const salva = useMutation({
     mutationFn: async ({

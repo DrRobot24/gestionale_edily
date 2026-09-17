@@ -42,15 +42,29 @@ export function tariffaVigente(tariffe: Tariffa[] | null, aData = new Date().toL
   )
 }
 
-export function useDipendenti({ soloAttivi = true } = {}) {
+/**
+ * @param soloOperai  Chi puo' stare nella squadra di un cantiere.
+ *
+ *   Serve al form del rapportino, e non e' un filtro cosmetico: dal
+ *   2026-09-17 il tecnico e gli impiegati NON hanno ore di cantiere —
+ *   le dichiarano in `ore_personali` — e un trigger nel database
+ *   rifiuta le loro righe in `rapportino_ore`.
+ *
+ *   Senza questo filtro comparivano lo stesso nella squadra: toglierli
+ *   con la × funzionava a schermo, ma al ricaricamento l'elenco si
+ *   ricostruisce dall'anagrafica e tornavano tutti. Una porta che si
+ *   chiude e si riapre da sola.
+ */
+export function useDipendenti({ soloAttivi = true, soloOperai = false } = {}) {
   const { org } = useSession()
 
   return useQuery({
-    queryKey: ['dipendenti', org?.id, soloAttivi],
+    queryKey: ['dipendenti', org?.id, soloAttivi, soloOperai],
     enabled: Boolean(org?.id),
     queryFn: async () => {
       let q = supabase.from('dipendenti').select(CAMPI_CON_COSTI).eq('org_id', org!.id)
       if (soloAttivi) q = q.eq('attivo', true)
+      if (soloOperai) q = q.eq('tipo', 'operaio')
 
       const { data, error } = await q.order('cognome')
       if (error) throw error

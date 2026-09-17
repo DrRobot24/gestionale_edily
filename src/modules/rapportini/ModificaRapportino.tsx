@@ -21,7 +21,9 @@ export function ModificaRapportino() {
 
   const { data: r, isPending, error } = useRapportino(id)
   const { data: cantieri } = useCantieri()
-  const { data: dipendenti } = useDipendenti()
+  // Solo gli operai: tecnico e impiegati le ore le dichiarano nel
+  // foglio personale, e il database rifiuta le loro righe qui.
+  const { data: dipendenti } = useDipendenti({ soloOperai: true })
 
   const salva = useMutation({
     mutationFn: async (campi: CampiRapportino) => {
