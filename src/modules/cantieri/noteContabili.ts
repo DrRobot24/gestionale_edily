@@ -3,22 +3,27 @@ import { supabase } from '../../lib/supabase'
 import { useSession } from '../auth/SessionProvider'
 
 /* ══════════════════════════════════════════════════════════════════
-   Le note contabili: le ore in economia di un cantiere.
+   Le note contabili: i lavori extra di un cantiere.
 
-   In edilizia il lavoro si paga in due modi. A MISURA, sulle quantita'
-   previste dal progetto. In ECONOMIA, sulle ore effettivamente impiegate
-   per cio' che nel progetto non c'era.
+   In edilizia il lavoro si paga a MISURA, sulle quantita' previste dal
+   progetto. Cio' che il progetto non prevedeva si fattura a parte, e una
+   nota contabile e' il posto dove il tecnico lo racconta: «rimozione del
+   nido d'api trovato prima di alzare il muro».
 
-   Una nota contabile registra il secondo: «due ore per rimuovere il nido
-   d'api trovato prima di alzare il muro». Ore che si ribaltano al
-   cliente come costo sopraggiunto.
+   NIENTE ORE, ed e' una decisione dell'utente del 2026-09-15: la
+   contabilita' dei lavori extra la fa lui a parte, fuori dal gestionale,
+   e non passa dalle ore. Qui serve il TESTO — misure, calcoli, appunti,
+   lavori a corpo — e il testo e' `descrizione`, libero e senza vincoli
+   di formato, piu' `note` per il contorno.
 
-   ATTENZIONE, e' il punto piu' facile da fraintendere: queste ore NON si
-   sommano a quelle del rapportino. Le due ore del nido d'api stanno gia'
-   dentro la giornata di chi le ha fatte. Qui non si aggiungono, si
-   CLASSIFICANO — per poterle fatturare. Chi somma le ore per le paghe
-   continua a guardare `rapportino_ore` e non deve toccare questa
-   tabella.
+   La colonna `ore` resta nello schema e non si scrive piu': e'
+   `not null default 0`, quindi arriva zero da sola, senza migrazioni su
+   un database condiviso con wbs-office e senza backup. Le righe vecchie
+   restano leggibili, e se un domani le ore servissero la colonna e'
+   ancora li'.
+
+   Chi somma le ore per le paghe guarda `rapportino_ore`, e non ha mai
+   dovuto toccare questa tabella.
 
    Tabella e policy in `supabase/schema/note-contabili.sql`.
    ══════════════════════════════════════════════════════════════════ */
@@ -28,13 +33,12 @@ export type NotaContabile = {
   cantiere_id: string
   data: string
   descrizione: string
-  ore: number
   note: string | null
   scritta_da: string | null
   created_at: string
 }
 
-const CAMPI = 'id, cantiere_id, data, descrizione, ore, note, scritta_da, created_at'
+const CAMPI = 'id, cantiere_id, data, descrizione, note, scritta_da, created_at'
 
 /** Dal giorno piu' recente: chi apre la pagina vuole prima quello che e'
  *  successo ieri, non quello di tre mesi fa. */
@@ -62,7 +66,6 @@ export function useNoteContabili(cantiereId: string | undefined) {
 export type DatiNota = {
   data: string
   descrizione: string
-  ore: number
   note: string | null
 }
 
@@ -167,10 +170,6 @@ export function filtra<T extends NotaContabile>(note: T[], cerca: string): T[] {
   })
 }
 
-export function sommaOre(note: { ore: number }[]): number {
-  return note.reduce((t, n) => t + Number(n.ore), 0)
-}
-
 /* ── la raccolta, attraverso tutti i cantieri ──────────────────── */
 
 export type NotaConCantiere = NotaContabile & {
@@ -178,12 +177,12 @@ export type NotaConCantiere = NotaContabile & {
 }
 
 /**
- * Tutte le ore in economia dell'azienda in un intervallo di date.
+ * Tutti i lavori extra dell'azienda in un intervallo di date.
  *
  * Esiste perche' la domanda vera si fa un livello sopra il cantiere:
- * «quante ore fuori progetto ha l'impresa questo mese» e «cosa c'e' da
+ * «cosa abbiamo fatto fuori progetto questo mese» e «cosa c'e' da
  * ribaltare al cliente». Cantiere per cantiere quella risposta si
- * ottiene solo aprendo sette pagine e sommando a mano.
+ * ottiene solo aprendo sette pagine e leggendo a mano.
  *
  * Il perimetro lo decide la RLS e non questa query: il tecnico vede le
  * note dei cantieri suoi, chi ha `rapportini.read_all` le vede tutte.
@@ -201,7 +200,7 @@ export function useOreEconomia(da: string, a: string) {
       const { data, error } = await supabase
         .from('note_contabili')
         .select(
-          'id, cantiere_id, data, descrizione, ore, note, scritta_da, created_at, cantieri ( codice, denominazione )',
+          'id, cantiere_id, data, descrizione, note, scritta_da, created_at, cantieri ( codice, denominazione )',
         )
         .eq('org_id', org!.id)
         .gte('data', da)
@@ -220,7 +219,6 @@ export function useOreEconomia(da: string, a: string) {
           cantiere_id: n.cantiere_id,
           data: n.data,
           descrizione: n.descrizione,
-          ore: Number(n.ore),
           note: n.note,
           scritta_da: n.scritta_da,
           created_at: n.created_at,

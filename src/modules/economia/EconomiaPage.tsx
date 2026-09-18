@@ -1,27 +1,28 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { Avviso, Badge, Button, Card, Input, Select, Table, Vuoto, cn } from '../../ui'
-import { data as fmtData, numero as fmtNumero } from '../../lib/formato'
+import { data as fmtData } from '../../lib/formato'
 import { oggi } from '../rapportini/campiRapportino'
-import { filtra, sommaOre, useOreEconomia, type NotaConCantiere } from '../cantieri/noteContabili'
+import { filtra, useOreEconomia, type NotaConCantiere } from '../cantieri/noteContabili'
 
 /* ══════════════════════════════════════════════════════════════════
-   Le ore in economia di tutti i cantieri, insieme.
+   I lavori extra di tutti i cantieri, insieme.
 
-   Il singolo cantiere risponde a «quante ore fuori progetto ha QUESTO
-   cantiere». Ma le domande che contano si fanno un livello sopra:
-   quante ne ha l'impresa questo mese, e cosa c'e' da ribaltare al
+   Il singolo cantiere risponde a «cosa abbiamo fatto fuori progetto su
+   QUESTO cantiere». Ma le domande che contano si fanno un livello sopra:
+   cosa ha fatto l'impresa questo mese, e cosa c'e' da ribaltare al
    cliente. Cantiere per cantiere quella risposta si ottiene solo
-   aprendo sette pagine e sommando a mano.
+   aprendo sette pagine e leggendo a mano.
 
    IL PERIMETRO NON LO DECIDE QUESTA PAGINA, lo decide la RLS. Il tecnico
    vede le note dei cantieri suoi, il titolare e l'amministrazione le
    vedono tutte. Stessa pagina, due risposte diverse, e nessun `if` nel
    frontend a farsi carico di una regola che non gli appartiene.
 
-   Niente importi, ed e' voluto: qui ci sono le ore e il motivo. Quanto
-   valgono lo dice la tariffa concordata col cliente, e i soldi stanno in
-   `costi_cantiere` e `ricavi_cantiere`.
+   NE' ORE NE' IMPORTI, ed e' voluto. Le ore sono uscite il 2026-09-15
+   per decisione dell'utente: la contabilita' dei lavori extra la fa lui
+   fuori dal gestionale. Qui resta il racconto di cosa e' stato fatto,
+   che e' l'unica cosa che al gestionale serviva davvero registrare.
    ══════════════════════════════════════════════════════════════════ */
 
 /** Il primo del mese di una data, in formato YYYY-MM-DD. */
@@ -173,7 +174,7 @@ export function EconomiaPage() {
         <p className="text-sm font-bold text-gray-600">Carico i lavori extra…</p>
       ) : tutte.length === 0 ? (
         <Vuoto>
-          Nessuna ora in economia in questo periodo. Si segnano compilando il rapportino
+          Nessun lavoro extra in questo periodo. Si segnano compilando il rapportino
           della giornata, nel riquadro sotto la squadra.
         </Vuoto>
       ) : viste.length === 0 ? (
@@ -185,12 +186,6 @@ export function EconomiaPage() {
               <th>Giorno</th>
               <th>Cantiere</th>
               <th>Lavorazione</th>
-              {/* `!text-right` con l'important: `Table` applica
-                  `[&_th]:text-left` a tutte le intestazioni, e a parita'
-                  di specificita' vince lui. Senza, l'intestazione resta
-                  a sinistra e il numero a destra — che e' lo scarto che
-                  si vedeva in pagina. */}
-              <th className="!text-right">Ore</th>
               <th />
             </tr>
           </thead>
@@ -209,13 +204,16 @@ export function EconomiaPage() {
                     </span>
                   )}
                 </td>
-                <td className="font-semibold">
+                {/* `whitespace-pre-wrap`: la lavorazione e' un testo
+                    libero che puo' andare a capo — misure e calcoli — e
+                    schiacciarlo in una riga sola lo rende illeggibile
+                    proprio a chi deve fatturarlo. */}
+                <td className="whitespace-pre-wrap font-semibold">
                   {n.descrizione}
                   {n.note && (
                     <span className="block text-xs font-semibold text-gray-500">{n.note}</span>
                   )}
                 </td>
-                <td className="numerico text-right font-extrabold">{fmtNumero(n.ore)}</td>
                 <td className="text-right">
                   {n.cantiere_id && (
                     <Button dimensione="sm" onClick={() => navigate(`/cantieri/${n.cantiere_id}`)}>
@@ -235,40 +233,42 @@ export function EconomiaPage() {
 /**
  * Il totale grosso e la ripartizione per cantiere.
  *
- * Sta sopra la tabella e non sotto: la domanda e' «quante ore», e la
- * tabella e' la dimostrazione. Farla scorrere fino in fondo per leggere
- * il numero che si cercava e' il modo piu' comune di rendere inutile un
- * riepilogo.
+ * Sta sopra la tabella e non sotto: la domanda e' «quanti lavori extra
+ * abbiamo», e la tabella e' la dimostrazione. Farla scorrere fino in
+ * fondo per leggere il numero che si cercava e' il modo piu' comune di
+ * rendere inutile un riepilogo.
+ *
+ * Si contano le LAVORAZIONI e non le ore: da quando le ore sono uscite
+ * (2026-09-15) il numero che dice qualcosa e' quante volte si e' usciti
+ * dal progetto, non un monte ore che nessuno usa.
  */
 function Riepilogo({ note }: { note: NotaConCantiere[] }) {
-  const totale = sommaOre(note)
   if (note.length === 0) return null
 
-  const perCantiere = new Map<string, { nome: string; ore: number }>()
+  const perCantiere = new Map<string, { nome: string; quante: number }>()
   for (const n of note) {
     const chiave = n.cantiere_id ?? 'senza'
     const riga = perCantiere.get(chiave)
     const nome = n.cantiere ? `${n.cantiere.codice} — ${n.cantiere.denominazione}` : 'Cantiere rimosso'
-    if (riga) riga.ore += Number(n.ore)
-    else perCantiere.set(chiave, { nome, ore: Number(n.ore) })
+    if (riga) riga.quante += 1
+    else perCantiere.set(chiave, { nome, quante: 1 })
   }
 
-  const righe = [...perCantiere.values()].sort((x, y) => y.ore - x.ore)
+  const righe = [...perCantiere.values()].sort((x, y) => y.quante - x.quante)
 
   return (
     <Card className="grid gap-3 bg-lime-100 p-5">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
         <div>
           <p className="text-xs font-extrabold uppercase tracking-wide text-lime-900">
-            Totale nel periodo
+            Nel periodo
           </p>
           <p className="text-3xl font-extrabold leading-tight text-black">
-            {fmtNumero(totale)} ore
+            {note.length} {note.length === 1 ? 'lavorazione' : 'lavorazioni'}
           </p>
         </div>
         <p className="text-xs font-semibold text-lime-900">
-          {note.length} {note.length === 1 ? 'lavorazione' : 'lavorazioni'} su {righe.length}{' '}
-          {righe.length === 1 ? 'cantiere' : 'cantieri'}
+          su {righe.length} {righe.length === 1 ? 'cantiere' : 'cantieri'}
         </p>
       </div>
 
@@ -279,7 +279,7 @@ function Riepilogo({ note }: { note: NotaConCantiere[] }) {
           {righe.map((r) => (
             <li key={r.nome}>
               <Badge className="bg-white px-3 py-1 text-xs normal-case">
-                {r.nome} · <strong>{fmtNumero(r.ore)} h</strong>
+                {r.nome} · <strong>{r.quante}</strong>
               </Badge>
             </li>
           ))}

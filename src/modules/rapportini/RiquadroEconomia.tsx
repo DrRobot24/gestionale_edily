@@ -1,6 +1,5 @@
 import { useState } from 'react'
-import { Avviso, Button, Campo, CampoArea, Card, Input, Vuoto } from '../../ui'
-import { numero as fmtNumero } from '../../lib/formato'
+import { Avviso, Button, CampoArea, Card, Vuoto } from '../../ui'
 import {
   useEliminaNota,
   useNoteContabili,
@@ -9,19 +8,24 @@ import {
 } from '../cantieri/noteContabili'
 
 /* ══════════════════════════════════════════════════════════════════
-   Le ore in economia, mentre si compila il rapportino.
+   I lavori extra, mentre si compila il rapportino.
 
    Nascono qui e non altrove: sono note della GIORNATA, e chi le scrive
    se le ricorda il giorno stesso. Il mese dopo il nido d'api non se lo
-   ricorda piu' nessuno e quelle due ore restano a carico dell'impresa.
+   ricorda piu' nessuno, e quel lavoro resta a carico dell'impresa.
 
    DA NON CONFONDERE CON LA DESCRIZIONE ATTIVITA', ed e' il motivo per
    cui questo riquadro sta lontano da quella e ha un colore suo:
 
      descrizione attivita'   il lavoro previsto dal progetto, che si
                              paga a misura sulle quantita'
-     ore in economia         cio' che il progetto NON prevedeva, che si
-                             paga sulle ore e si fattura a parte
+     lavori extra            cio' che il progetto NON prevedeva, che si
+                             fattura a parte
+
+   NIENTE ORE, deciso dall'utente il 2026-09-15: qui serve il racconto
+   di cosa e' stato fatto — misure, calcoli, lavori a corpo — e la
+   contabilita' di quei lavori la fa lui fuori dal gestionale. Il campo
+   e' largo perche' e' l'unica cosa che conta.
 
    Il riquadro si comporta in due modi, come quello delle foto:
 
@@ -39,11 +43,10 @@ import {
 
 export type DatiEconomia = {
   descrizione: string
-  ore: number
   note: string | null
 }
 
-const VUOTA: DatiEconomia = { descrizione: '', ore: 0, note: null }
+const VUOTA: DatiEconomia = { descrizione: '', note: null }
 
 type Props = {
   cantiereId: string
@@ -76,27 +79,18 @@ export function RiquadroEconomia({
   // Solo la giornata che si sta compilando. Il resto della storia del
   // cantiere si guarda nella scheda del cantiere, non da qui dentro.
   const diOggi: NotaContabile[] = (salvate ?? []).filter((n) => n.data === giorno)
-  const totale =
-    diOggi.reduce((t, n) => t + Number(n.ore), 0) +
-    inAttesa.reduce((t, n) => t + Number(n.ore), 0)
+  // Quante lavorazioni, non quante ore: il conto che interessa e' «ce
+  // n'e' qualcuna?», e la risposta e' un numero piccolo.
+  const quante = diOggi.length + inAttesa.length
 
   function conferma() {
     if (campi.descrizione.trim() === '') {
       setProblema('Scrivi cosa è stato fatto e perché non era previsto.')
       return
     }
-    if (!(campi.ore > 0)) {
-      setProblema('Quante ore? Una nota da zero ore non si può ribaltare a nessuno.')
-      return
-    }
-    if (campi.ore > 24) {
-      setProblema('Più di 24 ore in un giorno solo: controlla il numero.')
-      return
-    }
 
     const pulita: DatiEconomia = {
       descrizione: campi.descrizione.trim(),
-      ore: campi.ore,
       note: campi.note?.trim() || null,
     }
 
@@ -133,9 +127,9 @@ export function RiquadroEconomia({
             attività, non qui.
           </p>
         </div>
-        {totale > 0 && (
+        {quante > 0 && (
           <p className="shrink-0 text-xs font-extrabold text-black">
-            {fmtNumero(totale)} ore
+            {quante} {quante === 1 ? 'lavorazione' : 'lavorazioni'}
           </p>
         )}
       </div>
@@ -153,7 +147,6 @@ export function RiquadroEconomia({
             <Riga
               key={n.id}
               descrizione={n.descrizione}
-              ore={Number(n.ore)}
               note={n.note}
               onTogli={
                 modificabile
@@ -166,7 +159,6 @@ export function RiquadroEconomia({
             <Riga
               key={`attesa-${i}`}
               descrizione={n.descrizione}
-              ore={n.ore}
               note={n.note}
               inAttesa
               onTogli={() => onCambia(inAttesa.filter((_, j) => j !== i))}
@@ -185,26 +177,17 @@ export function RiquadroEconomia({
 
       {modificabile && apri && (
         <div className="grid gap-3 rounded-xl border-2 border-black bg-amber-50 p-4">
-          <Campo
+          {/* Un'area e non una riga: qui ci vanno misure, calcoli e
+              lavori a corpo, e un campo alto una riga dice a chi scrive
+              di essere breve proprio dove serve il contrario. */}
+          <CampoArea
             etichetta="Cosa è stato fatto"
-            placeholder="Rimozione nido d’api prima di alzare il muro"
+            rows={4}
+            placeholder="Rimozione nido d’api prima di alzare il muro. Misure, calcoli, quantità: tutto quello che serve per fatturarlo."
+            suggerimento="Scrivilo per esteso: è il testo su cui si cerca, e fra sei mesi le sigle non le ricorda nessuno."
             value={campi.descrizione}
             onChange={(e) => setCampi((c) => ({ ...c, descrizione: e.target.value }))}
           />
-
-          <label className="grid gap-1.5">
-            <span className="text-xs font-bold uppercase">Ore</span>
-            <Input
-              type="number"
-              min={0}
-              max={24}
-              step={0.5}
-              inputMode="decimal"
-              className="numerico w-28 px-3 py-2 text-center"
-              value={campi.ore}
-              onChange={(e) => setCampi((c) => ({ ...c, ore: Number(e.target.value) }))}
-            />
-          </label>
 
           <CampoArea
             etichetta="Note"
@@ -241,8 +224,8 @@ export function RiquadroEconomia({
           </div>
 
           <p className="text-[11px] font-semibold text-gray-600">
-            Queste ore non si sommano a quelle della squadra qui sopra: sono le stesse ore,
-            segnate qui perché si fatturano a parte.
+            Qui non si segnano ore: le ore della giornata sono quelle della squadra qui
+            sopra. Questo è il racconto del lavoro fuori progetto, per poterlo fatturare.
           </p>
         </div>
       )}
@@ -252,13 +235,11 @@ export function RiquadroEconomia({
 
 function Riga({
   descrizione,
-  ore,
   note,
   inAttesa = false,
   onTogli,
 }: {
   descrizione: string
-  ore: number
   note: string | null
   inAttesa?: boolean
   onTogli?: () => void
@@ -273,11 +254,13 @@ function Riga({
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="text-sm font-bold text-black">{descrizione}</p>
+          {/* `whitespace-pre-wrap`: il testo ora puo' avere piu' righe —
+              misure e calcoli vanno a capo, e schiacciarli in una riga
+              sola butterebbe via il motivo per cui il campo e' largo. */}
+          <p className="whitespace-pre-wrap text-sm font-bold text-black">{descrizione}</p>
           {note && <p className="text-xs font-semibold text-gray-600">{note}</p>}
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <span className="numerico text-sm font-extrabold text-black">{fmtNumero(ore)} h</span>
           {onTogli && (
             <button
               type="button"

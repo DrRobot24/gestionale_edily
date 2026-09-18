@@ -672,10 +672,10 @@ export function FormRapportino({
             )}
           </Card>
 
-          {/* Le ore in economia nascono qui, mentre si compila la
-              giornata: chi le ha fatte se le ricorda oggi, e il mese dopo
+          {/* I lavori extra nascono qui, mentre si compila la
+              giornata: chi li ha fatti se li ricorda oggi, e il mese dopo
               il nido d'api non se lo ricorda piu' nessuno. Sta sotto la
-              squadra perche' parla delle stesse ore, e lontano dalla
+              squadra perche' parla della stessa giornata, e lontano dalla
               descrizione attivita' perche' e' l'opposto: quella e' il
               lavoro previsto, questo e' cio' che il progetto non
               prevedeva. */}

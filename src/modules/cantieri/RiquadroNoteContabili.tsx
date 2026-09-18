@@ -1,10 +1,9 @@
 import { useState } from 'react'
 import { Avviso, Badge, Button, Campo, CampoArea, Card, Input, Vuoto } from '../../ui'
-import { data as fmtData, numero as fmtNumero } from '../../lib/formato'
+import { data as fmtData } from '../../lib/formato'
 import { oggi } from '../rapportini/campiRapportino'
 import {
   filtra,
-  sommaOre,
   useEliminaNota,
   useNoteContabili,
   useSalvaNota,
@@ -13,22 +12,25 @@ import {
 } from './noteContabili'
 
 /* ══════════════════════════════════════════════════════════════════
-   Le ore in economia, dentro la scheda del cantiere.
+   I lavori extra, dentro la scheda del cantiere.
 
    Il progetto si paga a misura: tanti metri di muro, tanto al metro. Ma
    il muro non si alza se prima non si toglie il nido d'api che nessuno
-   aveva previsto, e quelle due ore si fatturano a parte. Questo riquadro
-   e' dove si segnano il giorno che succedono, perche' il mese dopo non
-   se le ricorda piu' nessuno e restano a carico dell'impresa.
+   aveva previsto, e quel lavoro si fattura a parte. Questo riquadro e'
+   dove si segna il giorno che succede, perche' il mese dopo non se lo
+   ricorda piu' nessuno e resta a carico dell'impresa.
+
+   NIENTE ORE, deciso dall'utente il 2026-09-15: la contabilita' dei
+   lavori extra si fa fuori dal gestionale. Qui resta il testo — cosa e'
+   stato fatto, con misure e calcoli — ed e' su quello che si cerca.
 
    La ricerca non e' un vezzo. Un cantiere lungo accumula decine di note,
-   e la domanda vera non e' «fammele vedere tutte» ma «quante ore di
-   economia abbiamo su questo cantiere, e per cosa». Si scrive una parola
-   e l'elenco si stringe mentre si digita, con il conto delle ore di
-   quello che resta.
+   e la domanda vera non e' «fammele vedere tutte» ma «cosa abbiamo fatto
+   fuori progetto su questo cantiere». Si scrive una parola e l'elenco si
+   stringe mentre si digita.
    ══════════════════════════════════════════════════════════════════ */
 
-const VUOTA: DatiNota = { data: oggi(), descrizione: '', ore: 0, note: null }
+const VUOTA: DatiNota = { data: oggi(), descrizione: '', note: null }
 
 export function RiquadroNoteContabili({
   cantiereId,
@@ -52,8 +54,6 @@ export function RiquadroNoteContabili({
 
   const tutte = note ?? []
   const viste = filtra(tutte, cerca)
-  const oreTotali = sommaOre(tutte)
-  const oreViste = sommaOre(viste)
   const filtrando = cerca.trim() !== ''
 
   function apriNuova() {
@@ -63,7 +63,7 @@ export function RiquadroNoteContabili({
   }
 
   function apriCorrezione(n: NotaContabile) {
-    setCampi({ data: n.data, descrizione: n.descrizione, ore: Number(n.ore), note: n.note })
+    setCampi({ data: n.data, descrizione: n.descrizione, note: n.note })
     setProblema(null)
     setAperto(n.id)
   }
@@ -74,14 +74,6 @@ export function RiquadroNoteContabili({
        i suoi: questi servono solo a dirlo meglio. */
     if (campi.descrizione.trim() === '') {
       setProblema('Scrivi cosa è stato fatto e perché non era previsto.')
-      return
-    }
-    if (!(campi.ore > 0)) {
-      setProblema('Quante ore? Una nota da zero ore non si può ribaltare a nessuno.')
-      return
-    }
-    if (campi.ore > 24) {
-      setProblema('Più di 24 ore in un giorno solo: controlla il numero.')
       return
     }
 
@@ -111,9 +103,9 @@ export function RiquadroNoteContabili({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {oreTotali > 0 && (
+          {tutte.length > 0 && (
             <Badge colore="successo" className="px-3 py-1 text-xs">
-              {fmtNumero(oreTotali)} ore
+              {tutte.length} {tutte.length === 1 ? 'lavorazione' : 'lavorazioni'}
             </Badge>
           )}
           {puoScrivere && aperto === null && (
@@ -132,30 +124,24 @@ export function RiquadroNoteContabili({
 
       {aperto !== null && (
         <div className="grid gap-3 border-b-2 border-black bg-amber-50 p-5">
-          <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
-            <Campo
-              etichetta="Giorno"
-              type="date"
-              max={oggi()}
-              value={campi.data}
-              onChange={(e) => setCampi((c) => ({ ...c, data: e.target.value }))}
-            />
-            <Campo
-              etichetta="Ore extra"
-              type="number"
-              min={0}
-              max={24}
-              step={0.5}
-              inputMode="decimal"
-              className="numerico sm:w-36"
-              value={campi.ore}
-              onChange={(e) => setCampi((c) => ({ ...c, ore: Number(e.target.value) }))}
-            />
-          </div>
-
+          {/* Il giorno da solo, non piu' in fila con le ore: e' rimasto
+              l'unico campo stretto della scheda. */}
           <Campo
+            etichetta="Giorno"
+            type="date"
+            max={oggi()}
+            className="sm:w-52"
+            value={campi.data}
+            onChange={(e) => setCampi((c) => ({ ...c, data: e.target.value }))}
+          />
+
+          {/* Un'area e non una riga: qui ci vanno misure, calcoli e
+              lavori a corpo, ed e' l'unica cosa che questa scheda
+              registra. */}
+          <CampoArea
             etichetta="Cosa è stato fatto"
-            placeholder="Rimozione nido d’api prima di alzare il muro"
+            rows={4}
+            placeholder="Rimozione nido d’api prima di alzare il muro. Misure, calcoli, quantità: tutto quello che serve per fatturarlo."
             suggerimento="Scrivilo per esteso: è il testo su cui si cerca, e fra sei mesi le sigle non le ricorda nessuno."
             value={campi.descrizione}
             onChange={(e) => setCampi((c) => ({ ...c, descrizione: e.target.value }))}
@@ -189,8 +175,8 @@ export function RiquadroNoteContabili({
           {/* Il fraintendimento piu' facile di tutta la sezione, detto
               dove serve invece che in un manuale che nessuno legge. */}
           <p className="text-xs font-semibold text-gray-600">
-            Queste ore non si sommano a quelle del rapportino: sono le stesse ore, segnate qui
-            perché si fatturano a parte.
+            Qui non si segnano ore: quelle della giornata stanno nel rapportino. Questo è il
+            racconto del lavoro fuori progetto, per poterlo fatturare.
           </p>
         </div>
       )}
@@ -221,7 +207,7 @@ export function RiquadroNoteContabili({
           </label>
           <p className="shrink-0 text-xs font-bold text-gray-600">
             {filtrando
-              ? `${viste.length} ${viste.length === 1 ? 'nota' : 'note'} · ${fmtNumero(oreViste)} ore`
+              ? `${viste.length} ${viste.length === 1 ? 'nota' : 'note'}`
               : `${tutte.length} in tutto`}
           </p>
         </div>
@@ -232,8 +218,8 @@ export function RiquadroNoteContabili({
       ) : tutte.length === 0 ? (
         <div className="p-5">
           <Vuoto>
-            Nessuna ora in economia su questo cantiere. Si segnano qui le lavorazioni extra che
-            il progetto non prevedeva, il giorno stesso che succedono.
+            Nessun lavoro extra su questo cantiere. Si segnano qui le lavorazioni che il
+            progetto non prevedeva, il giorno stesso che succedono.
           </Vuoto>
         </div>
       ) : viste.length === 0 ? (
@@ -247,9 +233,11 @@ export function RiquadroNoteContabili({
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-xs font-bold uppercase tracking-wide text-gray-600">
-                    {fmtData(n.data)} · <span className="text-black">{fmtNumero(n.ore)} ore</span>
+                    {fmtData(n.data)}
                   </p>
-                  <p className="mt-0.5 text-sm font-extrabold text-black">{n.descrizione}</p>
+                  <p className="mt-0.5 whitespace-pre-wrap text-sm font-extrabold text-black">
+                    {n.descrizione}
+                  </p>
                 </div>
 
                 {puoScrivere && (
@@ -262,7 +250,14 @@ export function RiquadroNoteContabili({
                       variante="danger"
                       disabled={elimina.isPending}
                       onClick={() => {
-                        if (!confirm(`Togliere la nota «${n.descrizione}»?`)) return
+                        // Accorciata: la descrizione ora e' un testo
+                        // lungo, e un confirm() con dentro mezzo foglio
+                        // di misure non si legge.
+                        const breve =
+                          n.descrizione.length > 60
+                            ? `${n.descrizione.slice(0, 60)}…`
+                            : n.descrizione
+                        if (!confirm(`Togliere la nota «${breve}»?`)) return
                         elimina.mutate({ id: n.id, cantiereId })
                       }}
                     >

@@ -196,7 +196,7 @@ const VOCI: Voce[] = [
     elemento: <FornitoriPage />,
   },
   /* Economia la vede anche il TECNICO, ed è una scelta del 2026-09-10.
-     Oggi la pagina sono le ore in economia: le lavorazioni fuori
+     Oggi la pagina sono i lavori extra: le lavorazioni fuori
      progetto di tutti i cantieri, che il tecnico segna compilando i
      rapportini e che finora poteva rileggere solo un cantiere per volta.
      È lavoro suo, e nella pagina non c'è un euro.

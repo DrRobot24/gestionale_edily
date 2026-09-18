@@ -1,6 +1,6 @@
 # Stato lavori — Gestionale Edily
 
-> Aggiornato al **15 settembre 2026**.
+> Aggiornato al **18 settembre 2026**.
 > Questo file raccoglie fatti **verificati contro il database reale**, non dedotti
 > dallo schema. Dove c'è scritto "verificato" vuol dire che è stato provato con
 > una query e ne è stato osservato l'esito.
@@ -59,6 +59,11 @@ nuova sia per chi ci torna dopo giorni.
    spostamento rapido delle ore in straordinario è stato **rimandato** di
    proposito, per provare prima il blocco in ufficio. Il punto 1 e il
    subappalto aspettano l'utente e non vanno anticipati.
+
+   *Il 18 settembre 2026* sono uscite **le ore dai lavori extra**, che era il
+   primo lavoro in coda ed era già tutto deciso. Il prossimo pezzo è la **vista
+   delle ore per persona**, che però ha quattro domande da fare a Stefania
+   prima di scriverla: vedi i prossimi passi.
 5. **Tre cose decise il 15 settembre 2026**, da non rimettere in discussione:
    - **`cantieri.assign` resta a owner e admin.** Le assegnazioni dei tecnici
      ai cantieri le fa **solo Giuseppe**, non l'amministrazione. La matrice
@@ -740,42 +745,49 @@ poi quello che ne aggiunge.
 > girano, note al titolare e foto di cantiere sono codice che non funziona, e il
 > bucket `rapportini` resta pubblico.
 >
-> ⭐ **DECISO IL 2026-09-15, NON ANCORA FATTO: togliere le ore dai lavori
-> extra.** È il primo lavoro da riprendere domani, ed è già tutto deciso.
+> ⭐ **FATTO IL 2026-09-18: le ore sono uscite dai lavori extra.** Era la
+> decisione del 2026-09-15, ed è applicata.
 >
-> *Cosa ha detto l'utente,* ed è un cambio di concetto non un ritocco: **le ore
-> dei lavori extra non interessano a nessuno.** Serve un campo note libero dove
-> il tecnico scrive le lavorazioni extra effettuate — misure, calcoli, appunti,
-> lavori a corpo. La contabilità di quei lavori la fa lui a parte, fuori dal
-> gestionale, e non passa dalle ore.
+> *Il concetto, non un ritocco:* **le ore dei lavori extra non interessano a
+> nessuno.** Al tecnico serve un campo libero dove scrivere le lavorazioni extra
+> effettuate — misure, calcoli, appunti, lavori a corpo. La contabilità di quei
+> lavori la fa lui a parte, fuori dal gestionale, e non passa dalle ore.
 >
-> *Il campo libero ESISTE GIÀ e non va creato:* `note_contabili.descrizione` è
-> testo libero senza vincoli di formato (nell'elenco è la colonna
-> «Lavorazione»), e c'è anche `note`. Il lavoro è togliere le ore e dare più
-> spazio al testo.
->
-> *Sullo schema non si tocca niente* — deciso con l'utente. La colonna
-> `note_contabili.ore` è `numeric(5,2) not null default 0` con un check
-> `0..24`: smettendo di scriverla arriva zero da sola, nessuna migrazione,
-> nessun rischio su un database condiviso con wbs-office e **senza backup**. I
-> dati vecchi restano leggibili, e se un domani le ore servissero la colonna è
+> *Sullo schema non si è toccato niente,* come deciso. La colonna
+> `note_contabili.ore` è ancora `numeric(5,2) not null default 0` col suo check
+> `0..24`: smettendo di scriverla arriva zero da sola. Nessuna migrazione,
+> nessun rischio su un database condiviso con wbs-office e senza backup. **Le
+> righe vecchie conservano il loro valore** — in correzione l'`update` non passa
+> più la colonna, quindi non la azzera — e se un domani le ore servissero sono
 > ancora lì.
 >
-> *I punti da cambiare,* tutti lato applicazione:
+> *Cosa è cambiato in pagina:*
 >
-> - [`RiquadroEconomia.tsx`](src/modules/rapportini/RiquadroEconomia.tsx) — il
->   campo ore nel rapportino, **oggi obbligatorio**: il salvataggio rifiuta se
->   è zero (`if (!(campi.ore > 0))`).
-> - [`RiquadroNoteContabili.tsx`](src/modules/cantieri/RiquadroNoteContabili.tsx)
->   — stesso campo nella scheda cantiere, stessa validazione, più il badge
->   «*n* ore» nella testata.
-> - [`EconomiaPage.tsx`](src/modules/economia/EconomiaPage.tsx) — la colonna
->   Ore, il «TOTALE NEL PERIODO» che somma le ore, e la ripartizione per
->   cantiere in ore. Il totale diventa il **conteggio delle lavorazioni**.
-> - [`RapportinoPage.tsx`](src/modules/rapportini/RapportinoPage.tsx) — il
->   totale ore nel riquadro in sola lettura.
-> - [`noteContabili.ts`](src/modules/cantieri/noteContabili.ts) — `sommaOre()`
->   resta senza chiamanti: va tolta, non lasciata a marcire.
+> - **Il campo «Cosa è stato fatto» è diventato un'area di testo** (4 righe) in
+>   tutti e due i moduli, con il suggerimento di scrivere per esteso. Era una
+>   riga sola, e una riga sola dice a chi scrive di essere breve proprio dove
+>   serve il contrario. Dove il testo si rilegge c'è `whitespace-pre-wrap`:
+>   misure e calcoli vanno a capo, e schiacciarli butterebbe via il motivo per
+>   cui il campo è largo.
+> - **Il conto è passato dalle ore alle lavorazioni.** In
+>   [`EconomiaPage`](src/modules/economia/EconomiaPage.tsx) il «TOTALE NEL
+>   PERIODO» è diventato «NEL PERIODO · *n* lavorazioni», e la ripartizione per
+>   cantiere conta quante ce ne sono invece di sommare ore. Stessa cosa nel
+>   badge della scheda cantiere e nelle testate dei due riquadri.
+> - **Via la colonna Ore** dalla tabella di Economia e il totale dal riquadro in
+>   sola lettura del rapportino.
+> - **L'unica validazione rimasta è la descrizione non vuota.** I due controlli
+>   sulle ore (`> 0` e `<= 24`) non avevano più niente da controllare.
+> - `sommaOre()` **tolta** da [`noteContabili.ts`](src/modules/cantieri/noteContabili.ts),
+>   come previsto: era rimasta senza chiamanti.
+>
+> *Verificato con `npm run build`* (non con `npx tsc --noEmit`, che qui non
+> controlla niente) più `npx eslint src`: pulito. Le due segnalazioni di eslint
+> su `SessionProvider.tsx` sono preesistenti e non c'entrano.
+>
+> *Da provare in ufficio:* è un cambio di concetto, non di grafica. Vale la
+> domanda di sempre — il tecnico ci scrive dentro quello che serve a fatturare,
+> o il campo largo lo intimidisce?
 >
 > ⭐ **POI: la vista delle ore per persona.** Non è numerata perché non sta in
 > coda a niente: viene prima dei punti qui sotto.

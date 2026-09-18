@@ -213,9 +213,9 @@ export function RapportinoPage() {
             )}
           </Card>
 
-          {/* Le ore in economia della giornata. Stanno subito sotto le
-              ore normali perche' chi valida deve vedere le due cose
-              insieme: quelle si pagano, queste si fatturano. */}
+          {/* I lavori extra della giornata. Stanno subito sotto le ore
+              perche' chi valida deve vedere le due cose insieme: le ore
+              si pagano, i lavori extra si fatturano. */}
           <Economia cantiereId={r.cantiere_id} giorno={r.data} />
 
           <GalleriaFoto rapportinoId={r.id} />
@@ -482,7 +482,7 @@ function Spiegazione({
  * miniatura serve a trovarla, non a giudicarla.
  */
 /**
- * Le ore in economia di questa giornata, in sola lettura.
+ * I lavori extra di questa giornata, in sola lettura.
  *
  * Si aggiungono dal modulo, non da qui: una scheda inviata e' un
  * documento consegnato, e cio' che si fattura al cliente non deve poter
@@ -496,8 +496,6 @@ function Economia({ cantiereId, giorno }: { cantiereId: string | null; giorno: s
   const diOggi = (note ?? []).filter((n) => n.data === giorno)
   if (diOggi.length === 0) return null
 
-  const totale = diOggi.reduce((t, n) => t + Number(n.ore), 0)
-
   return (
     <Card className="overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b-2 border-black bg-lime-100 px-5 py-3">
@@ -506,27 +504,23 @@ function Economia({ cantiereId, giorno }: { cantiereId: string | null; giorno: s
             Lavori extra
           </h2>
           <p className="text-xs font-semibold text-gray-700">
-            Lavorazioni fuori progetto, da fatturare a parte. Non si sommano alle ore qui
-            sopra: sono le stesse ore.
+            Lavorazioni fuori progetto, da fatturare a parte. Non portano ore: quelle della
+            giornata sono le ore della squadra qui sopra.
           </p>
         </div>
         <span className="rounded-full border-2 border-black bg-white px-2.5 py-0.5 text-xs font-extrabold">
-          {fmtNumero(totale)} ore
+          {diOggi.length} {diOggi.length === 1 ? 'lavorazione' : 'lavorazioni'}
         </span>
       </div>
 
       <ul className="divide-y-2 divide-black">
         {diOggi.map((n) => (
-          <li key={n.id} className="flex flex-wrap items-start justify-between gap-3 px-5 py-3">
-            <div className="min-w-0">
-              <p className="text-sm font-bold text-black">{n.descrizione}</p>
-              {n.note && (
-                <p className="text-xs font-semibold text-gray-600">{n.note}</p>
-              )}
-            </div>
-            <span className="numerico shrink-0 text-sm font-extrabold text-black">
-              {fmtNumero(n.ore)} h
-            </span>
+          <li key={n.id} className="px-5 py-3">
+            {/* `whitespace-pre-wrap`: il testo puo' andare a capo —
+                misure, calcoli, lavori a corpo — ed e' tutto cio' che
+                questa scheda registra. */}
+            <p className="whitespace-pre-wrap text-sm font-bold text-black">{n.descrizione}</p>
+            {n.note && <p className="mt-1 text-xs font-semibold text-gray-600">{n.note}</p>}
           </li>
         ))}
       </ul>

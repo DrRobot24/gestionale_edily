@@ -120,7 +120,8 @@ export function NuovoRapportino() {
             cantiere_id: campi.cantiere_id,
             data: campi.data,
             descrizione: n.descrizione,
-            ore: n.ore,
+            // Niente `ore`: la colonna e' `not null default 0` e arriva
+            // zero da sola. Vedi `noteContabili.ts`.
             note: n.note,
             scritta_da: app!.userId,
           })),
