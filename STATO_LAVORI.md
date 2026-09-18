@@ -1,6 +1,6 @@
 # Stato lavori — Gestionale Edily
 
-> Aggiornato al **18 settembre 2026**.
+> Aggiornato al **18 settembre 2026**, sera.
 > Questo file raccoglie fatti **verificati contro il database reale**, non dedotti
 > dallo schema. Dove c'è scritto "verificato" vuol dire che è stato provato con
 > una query e ne è stato osservato l'esito.
@@ -191,6 +191,12 @@ di sola lettura e dice riga per riga cosa è FATTO e cosa è DA FARE.
 | [`foglio-ore-tecnico.sql`](supabase/schema/foglio-ore-tecnico.sql) | ✅ eseguito il 2026-09-10 |
 | [`note-contabili.sql`](supabase/schema/note-contabili.sql) | ✅ eseguito il 2026-09-10, RLS verificata attiva |
 | [`magazzino.sql`](supabase/schema/magazzino.sql) | ✅ eseguito il 2026-09-10, vista verificata `security_invoker=on` |
+| [`scheda-personale.sql`](supabase/schema/scheda-personale.sql) | ✅ eseguito il 2026-09-18, 9 colonne + `dipendente_documenti` + bucket `personale`, verificate sul database |
+| [`documenti.sql`](supabase/schema/documenti.sql) | ✅ eseguito il 2026-09-18, tabella `documenti` + bucket `documenti`, 7 policy verificate |
+| [`owner-non-compila.sql`](supabase/schema/owner-non-compila.sql) | ✅ eseguito il 2026-09-18. La colonna si chiama `ruolo` e non `role`: il file era sbagliato e il primo tentativo è fallito con un 42703 |
+| [`ore-personali-invio.sql`](supabase/schema/ore-personali-invio.sql) | ✅ eseguito il 2026-09-18, `with_check` verificato presente |
+| [`foglio-ore-personale.sql`](supabase/schema/foglio-ore-personale.sql) | ✅ eseguito il 2026-09-17 (verificato il 18: `ore_personali` e `dipendenti.tipo` rispondono) |
+| [`invio-due-posti.sql`](supabase/schema/invio-due-posti.sql) | ✅ eseguito il 2026-09-17 |
 | [`invio-controllo-ore.sql`](supabase/schema/invio-controllo-ore.sql) | ✅ eseguito l'11 settembre 2026, verificato: `invia_foglio_giornata` c'è ed è `security invoker`, `ore_in_lettere()` pure. Provato prima su un Postgres 17 usa e getta, nove casi (vedi sotto) |
 
 **Si possono rilanciare tutti senza danno**, ed è una proprietà voluta: questi
@@ -745,6 +751,77 @@ poi quello che ne aggiunge.
 > **Prima di tutto: eseguire i tre SQL** della sezione in cima. Finché non
 > girano, note al titolare e foto di cantiere sono codice che non funziona, e il
 > bucket `rapportini` resta pubblico.
+>
+> ✅ **IL GIRO COMPLETO FUNZIONA — provato il 2026-09-18, sera.** Il tecnico
+> compila le proprie ore, le invia, e **il titolare le vede nella sua coda**.
+> Non era mai stato visto prima: la home di Giuseppe diceva sempre «nessuna
+> giornata in attesa», e non si sapeva se la coda funzionasse o se non fosse mai
+> arrivato niente. Ora si sa. Il passo successivo, in prova con l'utente, è il
+> **respingimento con la motivazione**.
+>
+> Siamo in **fase TEST 1.0**.
+>
+> ⭐ **FATTO IL 2026-09-18 (pomeriggio): la scheda della persona, i
+> documenti, e il linguaggio allineato alla logica.**
+>
+> *La scheda della persona.* Sapeva come si chiama uno e quanto costa, ma non
+> **chi è**: niente nascita, residenza, documenti. Aggiunti con
+> [`scheda-personale.sql`](supabase/schema/scheda-personale.sql), **eseguito e
+> verificato**: data e luogo di nascita, residenza, patente, note, permesso di
+> soggiorno con scadenza condizionata, DPI, stato del rapporto, più la tabella
+> `dipendente_documenti` e il bucket `personale` chiuso dalla nascita.
+>
+> Due campi valgono **solo per gli operai** — patente e DPI — e si azzerano
+> cambiando tipo: chi non va in cantiere non guida il furgone, e lasciare dati
+> invisibili che nessuno può più correggere è peggio che non averli.
+>
+> *«Stato del rapporto» e non «assunto sì/no»*, deciso con l'utente: `da_inquadrare`
+> dice che manca un contratto senza lasciare nel database, con data e autore, la
+> prova di un illecito — e questo gestionale si vende ad altre imprese.
+> L'informazione operativa è la stessa, il rischio no.
+>
+> *I documenti, ovunque servano.* [`documenti.sql`](supabase/schema/documenti.sql),
+> eseguito: una tabella sola per cantieri, clienti, fornitori e materiali, legata
+> dalla coppia `(ambito, riferimento_id)`. Il prezzo è dichiarato e verificato —
+> senza chiave esterna i documenti di un cliente cancellato restano orfani, e la
+> query che li trova è in fondo al file. Il magazzino è **fuori di proposito**:
+> non ha una scheda per materiale, e inventarne una sarebbe anticipare.
+>
+> In lettura il tecnico vede **solo i cantieri suoi**; clienti e fornitori no,
+> perché contratti e listini sono documenti commerciali.
+>
+> *Il linguaggio allineato alla logica.* «Operai» → **«Risorse»** nel menu, nel
+> titolo, nel pulsante e nella card della home: l'elenco conteneva un tecnico
+> sotto un'intestazione che lo smentiva. Il percorso resta `/anagrafiche/operai`
+> perché gli indirizzi stanno nei preferiti.
+>
+> *Il titolare che non compila, per davvero.* Eseguito
+> [`owner-non-compila.sql`](supabase/schema/owner-non-compila.sql) — il file era
+> pronto dal 17 e mai girato. Spariti da sé le card dei cantieri, l'invio e «Le
+> tue ore». Tolta anche **«Le mie ore»** dal suo menu, agganciandola a
+> `rapportini.create`: il permesso, non il nome del ruolo.
+>
+> *Due difetti trovati usando l'app:*
+>
+> - **La barra non diceva perché il salvataggio non partiva**, sugli errori nati
+>   dentro una riga della squadra — i più frequenti. react-hook-form annida in
+>   `errors.ore[3].tipo_assenza.message`, e il calcolo guardava solo il primo
+>   livello: `bloccato` restava falso **con un errore vivo**. Ora `primoMessaggio()`
+>   scende nell'albero e dice il **nominativo** della riga.
+> - **Il tecnico non poteva inviare le proprie ore**, 403 da PostgREST. La policy
+>   di UPDATE su `ore_personali` aveva `USING` e **nessun `WITH CHECK`**, e quando
+>   manca Postgres riusa `USING`: la riga di arrivo era `inviato` e non passava
+>   più. Riparato con
+>   [`ore-personali-invio.sql`](supabase/schema/ore-personali-invio.sql), eseguito
+>   e verificato. Il `WITH CHECK` è **stretto**: l'autore arriva a `inviato` e non
+>   a `validato`, se no chi compila si approverebbe da solo.
+>
+> *Altro:* il logo piatto al posto del cromato (il titolare lo trovava «troppo
+> metallico»), un solo Salva nel rapportino con Annulla sempre a tiro, la scheda
+> persona da 768px a 1152px e a due colonne — «ho dovuto scrollare per 2
+> chilometri» — e il **404 al refresh su Vercel**, che mancava di `vercel.json`:
+> con `BrowserRouter` gli indirizzi non sono file, e F5 su una sottopagina
+> chiedeva al server una pagina che non esiste.
 >
 > ⭐ **FATTO IL 2026-09-18: le ore del tecnico stanno nel foglio suo.**
 >
