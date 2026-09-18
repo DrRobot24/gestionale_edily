@@ -109,7 +109,7 @@ const VOCI: Voce[] = [
 
   /* Le tre anagrafiche in testa, nell'ordine dell'importanza dichiarata
      dall'utente: e' anche l'ordine obbligato di inserimento, perche' un
-     cantiere vuole il suo cliente e una squadra vuole gli operai. */
+     cantiere vuole il suo cliente e una squadra vuole le sue risorse. */
   {
     to: '/anagrafiche/clienti',
     etichetta: 'Clienti',
@@ -123,8 +123,14 @@ const VOCI: Voce[] = [
     elemento: <CantieriPage />,
   },
   {
+    /* «Risorse» e non «Operai» dal 2026-09-18: qui dentro ci sono anche
+       tecnici e impiegati, e la voce di menu prometteva una cosa sola
+       per poi aprirne tre. Il PERCORSO resta `/anagrafiche/operai`
+       perche' gli indirizzi girano e stanno nei preferiti: cambiarlo
+       romperebbe i segnalibri per guadagnare una parola nell'URL che
+       nessuno legge. */
     to: '/anagrafiche/operai',
-    etichetta: 'Operai',
+    etichetta: 'Risorse',
     perm: 'anagrafiche.write',
     elemento: <DipendentiPage />,
   },

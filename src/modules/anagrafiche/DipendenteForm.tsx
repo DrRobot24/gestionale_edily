@@ -250,7 +250,7 @@ export function DipendenteForm() {
   return (
     <div className="mx-auto grid max-w-6xl gap-4">
       <Percorso
-        indietro={{ etichetta: 'Operai', a: '/anagrafiche/operai' }}
+        indietro={{ etichetta: 'Risorse', a: '/anagrafiche/operai' }}
         qui={[
           {
             etichetta: nuovo ? 'Nuovo' : `${dipendente?.cognome ?? ''} ${dipendente?.nome ?? ''}`.trim() || '—',
