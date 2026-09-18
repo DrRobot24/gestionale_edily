@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useSearchParams } from 'react-router'
 import { Avviso, Badge, Button, Campo, CampoArea, CampoSelect, Card, Percorso, Table, Vuoto, cn } from '../../ui'
 import { useMioDipendente } from '../anagrafiche/dipendenti'
 import { ASSENZE, oggi } from '../rapportini/campiRapportino'
@@ -31,7 +32,26 @@ import {
 export function MieOrePage() {
   const { data: mio, isPending: caricoMio } = useMioDipendente()
 
-  const [giorno, setGiorno] = useState(oggi())
+  /* La giornata puo' arrivare dall'indirizzo, e deve.
+  
+     In home il giorno di lavoro NON e' necessariamente oggi: la home si
+     apre su ieri se ieri e' rimasto incompleto, e le frecce permettono
+     di tornare piu' indietro. Chi da li' preme «Compila le tue ore»
+     vuole quella giornata. Partendo da `oggi()` si sarebbe ritrovato a
+     scrivere le ore sul giorno sbagliato senza che niente glielo
+     dicesse — e le ore finite sul giorno sbagliato si scoprono in busta
+     paga.
+  
+     Un valore fuori formato viene ignorato invece di essere creduto:
+     l'indirizzo lo puo' scrivere chiunque. */
+  const [params] = useSearchParams()
+  const daIndirizzo = params.get('data')
+  const iniziale =
+    daIndirizzo && /^\d{4}-\d{2}-\d{2}$/.test(daIndirizzo) && daIndirizzo <= oggi()
+      ? daIndirizzo
+      : oggi()
+
+  const [giorno, setGiorno] = useState(iniziale)
   const { data: giornata, isPending } = useGiornataPersonale(giorno)
   const { data: storico } = useOrePersonali()
 

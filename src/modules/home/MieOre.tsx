@@ -2,44 +2,48 @@ import { useNavigate } from 'react-router'
 import { Button, Card } from '../../ui'
 import { numero } from '../../lib/formato'
 import { useMioDipendente } from '../anagrafiche/dipendenti'
-import { useCantieri } from '../cantieri/useCantieri'
-import { ORE_STANDARD, useOreGiornata } from '../rapportini/useOreGiornata'
+import { ORE_STANDARD } from '../rapportini/useOreGiornata'
+import { useGiornataPersonale } from '../oreproprie/orePersonali'
 
 /* ══════════════════════════════════════════════════════════════════
    Le ore di chi sta compilando.
 
    Chiesto dall'utente il 2026-09-15, e la ragione e' quella giusta: il
-   tecnico che passa in cantiere lavora come tutti, e una giornata in cui
+   tecnico che gira i cantieri lavora come tutti, e una giornata in cui
    l'unica persona certa di esserci stata non compare non e' il resoconto
-   di quella giornata. Sono ore che vanno in busta paga e sul costo del
-   cantiere come quelle degli operai.
+   di quella giornata. Sono ore che vanno in busta paga.
 
-   NON APRE UNA SEZIONE NUOVA, ed e' una decisione non un ripiego. Le ore
-   del tecnico si segnano DENTRO il rapportino del cantiere, aggiungendosi
-   alla squadra: e' l'unico posto dove hanno una data e un cantiere, e con
-   piu' cantieri in un giorno vanno spezzate fra quelli. Una pagina «le
-   mie ore» che scrivesse dovrebbe comunque chiedere su quale cantiere —
-   cioe' rifare il rapportino con un nome diverso, e con due strade per
-   scrivere la stessa riga prima o poi le due divergono.
+   LE ORE STANNO NEL FOGLIO PERSONALE, NON IN UNA SQUADRA.
 
-   Quindi questo riquadro RACCONTA e INDIRIZZA: dice quante ore risultano
-   segnate, quante ne mancano alle otto, e porta al cantiere dove
-   aggiungersi. Un pulsante per cantiere, perche' quale sia lo sa solo
-   chi c'e' stato.
+   Fino al 2026-09-18 questo riquadro faceva l'opposto: contava da
+   `rapportino_ore` e offriva un pulsante per cantiere, «aggiungiti alla
+   squadra dove hai lavorato». Era rimasto indietro rispetto alla
+   decisione presa con l'utente il 2026-09-17 e gia' scritta nel
+   database (`foglio-ore-personale.sql`), e da li' nasceva una
+   ridondanza che l'utente ha visto subito: il tecnico aveva due strade
+   per dichiarare le stesse ore, e una delle due era sbagliata.
+
+   Con le sue parole: il tecnico «e' come un uccello che vola sui
+   cantieri», quindi e' slegato dal cantiere e non deve inserirsi in
+   nessuna squadra. Deve dire quante ore ha lavorato quel giorno per
+   controllare i cantieri e fare il suo lavoro — «poi dove lo fa non ha
+   importanza». E deve dirlo perche' senza, l'invio al titolare non
+   parte.
+
+   Quindi il conto viene da `ore_personali` e l'unico pulsante porta a
+   «Le mie ore». Un cantiere qui non si nomina nemmeno: nominarlo
+   rimetterebbe in testa a chi legge che una scelta ci sia.
 
    Il ramo «scheda non collegata» non e' un caso di errore: e'
    `dipendenti.user_id` vuoto, un'operazione che fa l'amministrazione una
-   volta sola. Finche' manca, le ore del tecnico non entrano nel conto e
-   nessuno se ne accorge — per questo qui si dice, invece di restare
-   spenti come faceva il vecchio avviso, che senza collegamento non
-   compariva affatto.
+   volta sola. Finche' manca, le ore non entrano nel conto e nessuno se
+   ne accorge — per questo qui si dice, e si dice CHI lo risolve.
    ══════════════════════════════════════════════════════════════════ */
 
 export function MieOre({ giorno }: { giorno: string }) {
   const navigate = useNavigate()
   const { data: mio, isPending: caricoMio } = useMioDipendente()
-  const { data: ore, isPending: caricoOre } = useOreGiornata(giorno)
-  const { data: cantieri } = useCantieri()
+  const { data: giornata, isPending: caricoOre } = useGiornataPersonale(giorno)
 
   if (caricoMio) {
     return (
@@ -63,26 +67,23 @@ export function MieOre({ giorno }: { giorno: string }) {
         </div>
         <div className="grid gap-2 px-5 py-4">
           <p className="text-sm font-bold text-black">
-            La tua scheda operaio non è collegata a questo utente.
+            La tua scheda in anagrafica non è collegata a questo utente.
           </p>
           <p className="text-xs font-semibold text-gray-700">
             Finché manca, le tue ore non entrano nel conto della giornata e non arrivano in
-            busta paga. Il collegamento lo fa l&rsquo;amministrazione, dalla scheda operaio:
-            campo «Utente del gestionale».
+            busta paga. Il collegamento lo fa l&rsquo;amministrazione, dalla scheda della
+            persona: campo «Utente del gestionale».
           </p>
         </div>
       </Card>
     )
   }
 
-  const mia = (ore ?? []).find((p) => p.dipendente_id === mio.id)
-  const ordinarie = Number(mia?.ore_ordinarie ?? 0)
-  const straordinarie = Number(mia?.ore_straordinarie ?? 0)
-  const assenza = Number(mia?.ore_assenza ?? 0)
+  const ordinarie = Number(giornata?.ore_ordinarie ?? 0)
+  const straordinarie = Number(giornata?.ore_straordinarie ?? 0)
+  const assenza = Number(giornata?.ore_assenza ?? 0)
   const coperte = ordinarie + assenza
   const mancano = Math.max(0, ORE_STANDARD - coperte)
-
-  const attivi = (cantieri ?? []).filter((c) => c.stato === 'attivo')
 
   return (
     <Card className="overflow-hidden">
@@ -90,8 +91,10 @@ export function MieOre({ giorno }: { giorno: string }) {
         <h2 className="text-sm font-extrabold uppercase tracking-wide text-black">
           Le tue ore
         </h2>
+        {/* NON «su tutti i cantieri della giornata»: queste ore non
+            stanno su nessun cantiere, ed e' tutto il punto. */}
         <p className="text-xs font-semibold text-gray-600">
-          {mio.cognome} {mio.nome} · su tutti i cantieri della giornata
+          {mio.cognome} {mio.nome} · la tua giornata di lavoro
         </p>
       </div>
 
@@ -118,24 +121,22 @@ export function MieOre({ giorno }: { giorno: string }) {
               </p>
             </div>
 
-            {/* I cantieri come pulsanti, uno per uno: quale sia quello
-                dove ha lavorato lo sa solo lui, e sceglierlo noi
-                sarebbe un'ipotesi travestita da comodita'. */}
-            {mancano > 0 && attivi.length > 0 && (
+            {/* Una strada sola, e porta al foglio personale. Il giorno
+                viaggia nell'indirizzo: chi sta guardando il 16 e clicca
+                qui vuole compilare il 16, non oggi. */}
+            {mancano > 0 && (
               <div className="grid gap-2 border-t-2 border-dashed border-gray-300 pt-3">
                 <p className="text-[11px] font-bold uppercase tracking-wide text-gray-600">
-                  Aggiungiti alla squadra dove hai lavorato
+                  Quante ore hai lavorato in questa giornata
                 </p>
-                {attivi.map((c) => (
-                  <Button
-                    key={c.id}
-                    dimensione="sm"
-                    className="w-full justify-start text-left"
-                    onClick={() => navigate(`/cantieri/${c.id}?data=${giorno}`)}
-                  >
-                    {c.codice} — {c.denominazione}
-                  </Button>
-                ))}
+                <Button
+                  dimensione="sm"
+                  variante="primario"
+                  className="w-full"
+                  onClick={() => navigate(`/mie-ore?data=${giorno}`)}
+                >
+                  Compila le tue ore
+                </Button>
               </div>
             )}
           </>

@@ -8,7 +8,7 @@ import { useCantieri } from '../cantieri/useCantieri'
 import { useRapportini, type Rapportino } from '../rapportini/useRapportini'
 import { oggi } from '../rapportini/campiRapportino'
 import { useMioDipendente } from '../anagrafiche/dipendenti'
-import { useOreGiornata } from '../rapportini/useOreGiornata'
+import { useGiornataPersonale, totaleOre } from '../oreproprie/orePersonali'
 
 /* ══════════════════════════════════════════════════════════════════
    La giornata del tecnico, un cantiere per card.
@@ -91,23 +91,32 @@ export function CantieriDelGiorno({ giorno }: { giorno: string }) {
   const { data: cantieri, isPending: caricoCantieri, error: erroreCantieri } = useCantieri()
   const { data: rapportini, isPending: caricoRapportini } = useRapportini()
 
-  /* Le ore di chi compila. Un tecnico che passa in cantiere lavora come
+  /* Le ore di chi compila. Un tecnico che gira i cantieri lavora come
      tutti, e una giornata in cui l'unica persona certa di esserci stata
      non compare non e' il resoconto di quella giornata.
 
+     SI GUARDA IL FOGLIO PERSONALE, non `rapportino_ore`. Il tecnico non
+     sta nella squadra di nessun cantiere — «e' come un uccello che vola
+     sui cantieri», 2026-09-18 — quindi cercarlo li' lo troverebbe
+     sempre mancante e il messaggio lo manderebbe a fare la cosa
+     sbagliata. E' lo stesso posto in cui guarda il database dentro
+     `invia_foglio_giornata`, dopo `invio-due-posti.sql`: qui si
+     anticipa la sua risposta, non se ne inventa un'altra.
+
      Vale solo per chi ha un'anagrafica collegata al suo utente: senza,
      non esisterebbe una riga dove scrivere quelle ore, e pretenderle
-     bloccherebbe l'invio senza via d'uscita. La stessa condizione la
-     applica il database dentro `invia_foglio_giornata`, che e' dove la
-     regola conta davvero.
+     bloccherebbe l'invio senza via d'uscita.
 
      `oreLette` non e' pignoleria: se la lettura fallisce, `data` e'
      undefined e senza quel controllo risulterebbe che le ore mancano
      sempre. Meglio non bloccare qui e lasciare rispondere il database. */
   const { data: mio } = useMioDipendente()
-  const { data: oreOggi, isSuccess: oreLette } = useOreGiornata(giorno)
+  const { data: miaGiornata, isSuccess: oreLette } = useGiornataPersonale(giorno)
+  /* Una riga da zero ore non conta come compilata: e' il caso di chi
+     apre il foglio, non scrive niente e lo salva. Il database fa lo
+     stesso conto. */
   const mancanoLeMieOre =
-    Boolean(mio) && oreLette && !(oreOggi ?? []).some((p) => p.dipendente_id === mio!.id)
+    Boolean(mio) && oreLette && !(miaGiornata && totaleOre(miaGiornata) > 0)
 
   if (caricoCantieri || caricoRapportini) {
     return <p className="text-sm font-bold text-gray-600">Carico la giornata…</p>
@@ -228,9 +237,18 @@ export function CantieriDelGiorno({ giorno }: { giorno: string }) {
       >
         <p className="text-sm font-bold text-black">
           {mancanoLeMieOre && complete
-            ? 'Mancano le tue ore: aggiungiti alla squadra del cantiere dove hai lavorato.'
+            ? 'Mancano le tue ore: dichiara quante ne hai lavorate in questa giornata.'
             : riepilogo(schede.length, fatte, daSpedire)}
         </p>
+        {/* Quando a bloccare sono le proprie ore, il pulsante che serve
+            non e' quello dell'invio: e' la strada per andare a
+            scriverle. Dirlo senza darla obbliga a cercare la voce in
+            sidebar mentre si e' fermi qui. */}
+        {mancanoLeMieOre && complete && (
+          <Button dimensione="sm" onClick={() => navigate(`/mie-ore?data=${giorno}`)}>
+            Compila le tue ore
+          </Button>
+        )}
         <Button
           variante="primario"
           disabled={!complete || !daSpedire || mancanoLeMieOre || invia.isPending}
