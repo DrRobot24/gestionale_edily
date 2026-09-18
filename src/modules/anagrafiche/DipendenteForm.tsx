@@ -248,7 +248,7 @@ export function DipendenteForm() {
   }
 
   return (
-    <div className="mx-auto grid max-w-3xl gap-4">
+    <div className="mx-auto grid max-w-6xl gap-4">
       <Percorso
         indietro={{ etichetta: 'Operai', a: '/anagrafiche/operai' }}
         qui={[
@@ -346,6 +346,22 @@ export function DipendenteForm() {
           </div>
           </div>
         </Card>
+
+        {/* DUE COLONNE DA QUI IN GIU'.
+
+            La scheda e' passata da 13 campi a 22, e in colonna singola
+            erano «due chilometri di scorrimento» — parole dell'utente il
+            2026-09-18, che la stava usando da Stefania. Lo spazio ai
+            lati c'era ed era sprecato.
+
+            «Chi e'» resta a tutta larghezza perche' i suoi campi sono
+            gia' affiancati fra loro. Questi due invece sono liste di
+            campi, e stretti stanno comodi: Inquadramento e' il piu'
+            lungo e sta a sinistra, dove si legge per primo.
+
+            `items-start`: senza, le due card si allungano fino alla piu'
+            alta e quella corta resta con mezzo riquadro vuoto in fondo. */}
+        <div className="grid items-start gap-4 lg:grid-cols-2">
 
         {/* ══ INQUADRAMENTO ══
             Il rapporto con l'impresa: che ruolo ha, con che contratto,
@@ -590,9 +606,14 @@ export function DipendenteForm() {
               </>
             )}
 
+            {/* SENZA ETICHETTA quando il riquadro si chiama gia' «Note»:
+                leggere la stessa parola due volte a tre centimetri e'
+                rumore, ed e' la stessa regola dei percorsi. Per un
+                operaio invece il riquadro si intitola «Sicurezza e
+                abilitazioni» e l'etichetta serve. */}
             <CampoArea
-              etichetta="Note"
-              rows={4}
+              etichetta={tipoScelto === 'operaio' ? 'Note' : undefined}
+              rows={3}
               disabled={!puoScrivere}
               placeholder="Patologie, allergie, limitazioni, chi chiamare in caso di emergenza…"
               suggerimento="Le legge solo chi gestisce le anagrafiche: il tecnico non vede questa scheda."
@@ -601,6 +622,7 @@ export function DipendenteForm() {
             />
           </div>
         </Card>
+        </div>
 
         {puoScrivere && (
           <div className="flex flex-wrap gap-3">
@@ -634,23 +656,30 @@ export function DipendenteForm() {
         )}
       </form>
 
-      {/* ══ DOCUMENTI ══
-          Fuori dal <form>: ha i suoi salvataggi, e i suoi pulsanti
+      {/* ══ DOCUMENTI E TARIFFE ══
+          Fuori dal <form>: hanno i loro salvataggi, e i loro pulsanti
           dentro il form farebbero partire il submit della scheda.
 
-          Solo su una scheda gia' salvata: un documento ha bisogno di una
-          persona a cui appartenere, e prima del primo salvataggio
-          quella persona non ha ancora un id. */}
-      {!nuovo && id && (
-        <RiquadroDocumenti dipendenteId={id} puoScrivere={puoScrivere} />
-      )}
+          Affiancati, come i due riquadri sopra. Sono le due cose che si
+          aggiungono DOPO aver creato la persona — un documento e una
+          tariffa — e stanno bene una accanto all'altra invece che una in
+          coda all'altra.
 
-      {!nuovo && dipendente && (
-        <Tariffe
-          dipendenteId={dipendente.id}
-          tariffe={dipendente.dipendente_costi}
-          puoScrivere={puoScrivere}
-        />
+          Solo su una scheda gia' salvata: tutti e due hanno bisogno di
+          una persona a cui appartenere, e prima del primo salvataggio
+          quella persona non ha ancora un id. */}
+      {!nuovo && (
+        <div className="grid items-start gap-4 lg:grid-cols-2">
+          {id && <RiquadroDocumenti dipendenteId={id} puoScrivere={puoScrivere} />}
+
+          {dipendente && (
+            <Tariffe
+              dipendenteId={dipendente.id}
+              tariffe={dipendente.dipendente_costi}
+              puoScrivere={puoScrivere}
+            />
+          )}
+        </div>
       )}
     </div>
   )

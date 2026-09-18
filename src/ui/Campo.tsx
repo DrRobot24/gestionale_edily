@@ -41,16 +41,23 @@ function Guscio({
   children,
 }: {
   idControllo: string
-  etichetta: string
+  /** Facoltativa: si omette quando il riquadro che contiene il campo ha
+   *  gia' quel nome nella sua testata. Leggere la stessa parola due
+   *  volte a tre centimetri e' rumore — la stessa regola dei percorsi.
+   *  Il `<label>` allora non si stampa affatto invece di restare vuoto,
+   *  se no occuperebbe la sua riga per non dire niente. */
+  etichetta?: string
   errore?: string
   suggerimento?: string
   children: ReactNode
 }) {
   return (
     <div className="grid gap-1.5">
-      <label htmlFor={idControllo} className="text-xs font-bold uppercase text-black">
-        {etichetta}
-      </label>
+      {etichetta && (
+        <label htmlFor={idControllo} className="text-xs font-bold uppercase text-black">
+          {etichetta}
+        </label>
+      )}
       {children}
       {suggerimento && !errore && (
         <p className="text-[11px] font-semibold text-gray-500">{suggerimento}</p>
@@ -66,7 +73,7 @@ function Guscio({
   )
 }
 
-type Extra = { etichetta: string; errore?: string; suggerimento?: string }
+type Extra = { etichetta?: string; errore?: string; suggerimento?: string }
 
 /**
  * Tutte le props non riconosciute finiscono sul controllo, quindi
