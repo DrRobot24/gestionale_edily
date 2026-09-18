@@ -179,6 +179,37 @@ supabase gen types typescript --linked > src/lib/database.types.ts
 
 ---
 
+## Deploy su Vercel: perché serve `vercel.json`
+
+Il file contiene una riga sola, ed è quella che impedisce alla pagina di
+diventare nera ricaricando una sottopagina:
+
+```json
+"rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+```
+
+**Il problema che risolve.** Con `BrowserRouter` gli indirizzi come `/login` o
+`/anagrafiche/operai` sono finti: esistono dentro il JavaScript, non come file
+sul server. In `dist/` c'è **un solo `index.html`** e nessuna cartella `login`.
+
+Navigando dentro l'applicazione il router cambia l'indirizzo senza interpellare
+il server, e tutto funziona. Ma premendo **F5 su una sottopagina** il browser
+chiede quel percorso a Vercel, che non lo trova e risponde **404** — schermo
+nero, con la pagina d'errore di Vercel al posto del gestionale.
+
+In locale non capita: `npm run dev` lo gestisce da sé. È un difetto che si vede
+solo in produzione, e solo ricaricando.
+
+Il rewrite dice a Vercel di rispondere con `index.html` a qualunque indirizzo e
+di lasciar decidere al router. I file che esistono davvero — `assets/`, il
+favicon — continuano a essere serviti per primi: il rewrite vale solo per ciò
+che non trova.
+
+**Se un giorno si aggiungessero delle API serverless** in `api/`, quel percorso
+va escluso dal rewrite, altrimenti le chiamate ricevono l'HTML della pagina.
+
+---
+
 ## Stato del progetto
 
 - [x] **A** — Schema database: 16 permessi, 6 ruoli, 7 viste `security_invoker`, 60+ policy RLS
