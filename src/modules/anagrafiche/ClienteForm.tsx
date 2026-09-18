@@ -5,6 +5,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router'
 import { z } from 'zod'
 import { Avviso, Badge, Button, Campo, CampoArea, Card, Percorso, cn } from '../../ui'
 import { usePermission } from '../auth/usePermission'
+import { RiquadroDocumenti } from '../documenti/RiquadroDocumenti'
 import { useArchiviaCliente, useCliente, useEliminaCliente, useSalvaCliente } from './clienti'
 
 const vuoto = (v: string) => (v.trim() === '' ? null : v.trim())
@@ -425,6 +426,17 @@ export function ClienteForm() {
           </div>
         )}
       </form>
+
+      {/* ══ DOCUMENTI ══
+          Fuori dal <form>: ha i suoi salvataggi, e i suoi pulsanti
+          dentro il form farebbero partire il submit della scheda.
+
+          Solo su una scheda gia' salvata: un documento ha bisogno di
+          qualcosa a cui appartenere, e prima del primo salvataggio
+          quella riga non ha ancora un id. */}
+      {!nuovo && id && (
+        <RiquadroDocumenti ambito="cliente" riferimentoId={id} puoScrivere={puoScrivere} />
+      )}
     </div>
   )
 }

@@ -28,7 +28,11 @@ import {
    non ha ancora un id.
    ══════════════════════════════════════════════════════════════════ */
 
-export function RiquadroDocumenti({
+// SI CHIAMA «...Persona» dal 2026-09-18, da quando esiste il riquadro
+// generico in `modules/documenti/`. Due componenti con lo stesso nome in
+// cartelle diverse sono una trappola: chi importa quello sbagliato non se
+// ne accorge finche' non vede la scheda vuota.
+export function RiquadroDocumentiPersona({
   dipendenteId,
   puoScrivere,
 }: {

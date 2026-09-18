@@ -632,6 +632,48 @@ export type Database = {
           },
         ]
       }
+      documenti: {
+        Row: {
+          ambito: Database["public"]["Enums"]["ambito_documento"]
+          caricato_da: string | null
+          created_at: string
+          id: string
+          note: string | null
+          org_id: string
+          percorso: string
+          riferimento_id: string
+          scadenza: string | null
+          titolo: string
+          updated_at: string
+        }
+        Insert: {
+          ambito: Database["public"]["Enums"]["ambito_documento"]
+          caricato_da?: string | null
+          created_at?: string
+          id?: string
+          note?: string | null
+          org_id: string
+          percorso: string
+          riferimento_id: string
+          scadenza?: string | null
+          titolo: string
+          updated_at?: string
+        }
+        Update: {
+          ambito?: Database["public"]["Enums"]["ambito_documento"]
+          caricato_da?: string | null
+          created_at?: string
+          id?: string
+          note?: string | null
+          org_id?: string
+          percorso?: string
+          riferimento_id?: string
+          scadenza?: string | null
+          titolo?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       dipendente_documenti: {
         Row: {
           caricato_da: string | null
@@ -2492,6 +2534,7 @@ export type Database = {
         | "validato"
         | "contabilizzato"
       stato_ddt: "caricato" | "estratto" | "verificato" | "fatturato"
+      ambito_documento: "cantiere" | "cliente" | "fornitore" | "materiale"
       stato_rapporto: "assunto" | "in_prova" | "da_inquadrare"
       tipo_risorsa: "operaio" | "tecnico" | "impiegato"
       user_role: "admin" | "moderator" | "user" | "superadmin"
@@ -2645,6 +2688,7 @@ export const Constants = {
         "contabilizzato",
       ],
       stato_ddt: ["caricato", "estratto", "verificato", "fatturato"],
+      ambito_documento: ["cantiere", "cliente", "fornitore", "materiale"],
       stato_rapporto: ["assunto", "in_prova", "da_inquadrare"],
       tipo_risorsa: ["operaio", "tecnico", "impiegato"],
       user_role: ["admin", "moderator", "user", "superadmin"],

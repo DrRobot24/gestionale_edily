@@ -6,7 +6,7 @@ import { z } from 'zod'
 import { data as fmtData, euro } from '../../lib/formato'
 import { Avviso, Badge, Button, Campo, CampoArea, CampoSelect, Card, Cifra, Percorso, Table } from '../../ui'
 import { usePermission } from '../auth/usePermission'
-import { RiquadroDocumenti } from './RiquadroDocumenti'
+import { RiquadroDocumentiPersona } from './RiquadroDocumentiPersona'
 import { useMembri } from '../cantieri/assegnazioni'
 import {
   tariffaVigente,
@@ -670,7 +670,7 @@ export function DipendenteForm() {
           quella persona non ha ancora un id. */}
       {!nuovo && (
         <div className="grid items-start gap-4 lg:grid-cols-2">
-          {id && <RiquadroDocumenti dipendenteId={id} puoScrivere={puoScrivere} />}
+          {id && <RiquadroDocumentiPersona dipendenteId={id} puoScrivere={puoScrivere} />}
 
           {dipendente && (
             <Tariffe

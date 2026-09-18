@@ -73,6 +73,22 @@ ore_personali    ── dipendenti   ore SENZA cantiere, per tecnici e impiegati
 È la separazione decisa il 2026-09-17: il tecnico «vola sui cantieri» e le sue
 ore non appartengono a nessuno di essi. Vedi `foglio-ore-personale.sql`.
 
+### Documenti
+
+```
+documenti          (ambito, riferimento_id) → cantieri | clienti | fornitori | materiali
+dipendente_documenti ── dipendenti          separata, dati sensibili
+```
+
+`documenti` **non ha chiave esterna** verso ciò a cui punta: il legame è la
+coppia `(ambito, riferimento_id)`. È il prezzo di avere una tabella sola invece
+di quattro — cancellando un cliente i suoi documenti restano orfani, e la query
+che li trova è in fondo a `documenti.sql`.
+
+`dipendente_documenti` resta separata di proposito: carte d'identità e permessi
+di soggiorno hanno un cancello più stretto, e unificarle farebbe dipendere
+quella riservatezza da un `ambito` scritto giusto.
+
 ### Documenti di trasporto
 
 ```
@@ -116,6 +132,8 @@ Raccolti perché sono quelli su cui si sbaglia, non perché siano tutti.
 | `rapportino_foto` | `storage_path` | il percorso, non il file |
 | `ddt` | `storage_path` | idem |
 | `dipendente_documenti` | `percorso` | **qui si chiama così**, non `storage_path` |
+| `documenti` | `percorso` | idem |
+| `documenti` | `ambito` | enum: cantiere / cliente / fornitore / materiale |
 
 ---
 
@@ -124,7 +142,7 @@ Raccolti perché sono quelli su cui si sbaglia, non perché siano tutti.
 `activity_log` · `cantiere_assegnazioni` · `cantieri` · `clienti` ·
 `costi_cantiere` · `ddt` · `ddt_riga_cantieri` · `ddt_righe` ·
 `dipendente_costi` · `dipendente_documenti` · `dipendenti` ·
-`document_counters` · `fornitori` · `materiali` · `memberships` · `mezzi` ·
+`document_counters` · `documenti` · `fornitori` · `materiali` · `memberships` · `mezzi` ·
 `mezzo_costi` · `movimenti_magazzino` · `note_contabili` · `ore_personali` ·
 `org_inviti` · `organizations` · `periodi_paga` · `permissions` ·
 `project_shares` · `projects` · `rapportini` · `rapportino_foto` ·

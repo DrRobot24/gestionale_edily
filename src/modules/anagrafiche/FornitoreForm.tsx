@@ -5,6 +5,7 @@ import { useNavigate, useParams } from 'react-router'
 import { z } from 'zod'
 import { Avviso, Badge, Button, Campo, CampoArea, Card, Percorso } from '../../ui'
 import { usePermission } from '../auth/usePermission'
+import { RiquadroDocumenti } from '../documenti/RiquadroDocumenti'
 import {
   useArchiviaFornitore,
   useEliminaFornitore,
@@ -304,6 +305,17 @@ export function FornitoreForm() {
           </div>
         )}
       </form>
+
+      {/* ══ DOCUMENTI ══
+          Fuori dal <form>: ha i suoi salvataggi, e i suoi pulsanti
+          dentro il form farebbero partire il submit della scheda.
+
+          Solo su una scheda gia' salvata: un documento ha bisogno di
+          qualcosa a cui appartenere, e prima del primo salvataggio
+          quella riga non ha ancora un id. */}
+      {!nuovo && id && (
+        <RiquadroDocumenti ambito="fornitore" riferimentoId={id} puoScrivere={puoScrivere} />
+      )}
     </div>
   )
 }
