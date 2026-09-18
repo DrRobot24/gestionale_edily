@@ -155,6 +155,18 @@ export function LoginPage() {
  * trasparente: la incorniciamo come una card neo-brutalista, cosi' il
  * bianco diventa parte del disegno invece di stampare un rettangolo
  * sopra il pannello ambra.
+ *
+ * SOSTITUITO IL 2026-09-18 su richiesta del titolare: la versione
+ * precedente era cromata, con riflessi e sfondo nero, e «troppo
+ * metallica». Questa e' piatta — nero e oro pieni — e va d'accordo con
+ * il neo-brutalismo del resto del gestionale, che vive di colori pieni
+ * e bordi netti e con un logo lucido a fianco sembrava incoerente.
+ *
+ * L'originale e' un JPG da stampa, 1755x1241 con mezzo foglio di bianco
+ * attorno: qui e' ritagliato sul marchio e portato a 900px, cioe' il
+ * doppio della misura massima a cui si vede. Il doppio e non uguale per
+ * restare nitido sugli schermi a densita' doppia, dove un'immagine
+ * grande quanto il suo box si vede sgranata.
  */
 function LogoEdily({ dimensione }: { dimensione: 'sm' | 'lg' }) {
   return (
