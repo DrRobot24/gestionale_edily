@@ -255,9 +255,19 @@ export function FormRapportino({
           <span className="text-sm font-extrabold text-black">
             {bloccato ? primoErrore : 'Modifiche non salvate'}
           </span>
-          <Button type="submit" variante="primario" disabled={isSubmitting || inCorso}>
-            {inCorso ? 'Salvo…' : etichettaSalva}
-          </Button>
+          {/* Le due azioni insieme, ed e' il motivo per cui il pulsante
+              in fondo e' potuto sparire: da quando il salvataggio si fa
+              di qui, lasciare l'uscita in fondo alla pagina vorrebbe
+              dire far scorrere tutta la scheda per rinunciare a una
+              modifica appena fatta. */}
+          <div className="flex shrink-0 gap-2">
+            <Button onClick={onAnnulla} disabled={inCorso}>
+              Annulla
+            </Button>
+            <Button type="submit" variante="primario" disabled={isSubmitting || inCorso}>
+              {inCorso ? 'Salvo…' : etichettaSalva}
+            </Button>
+          </div>
         </div>
       )}
 
@@ -740,15 +750,21 @@ export function FormRapportino({
         </div>
       </div>
 
-      {/* Qui NON si ripete il cartello «modifiche non salvate»: lo dice
-          gia' la barra in cima, che a questo punto della pagina e'
-          ancora appiccicata sotto il bordo e visibile. Dirlo due volte
-          in una schermata sola insegna a non leggerlo nessuna delle
-          due. */}
+      {/* IN FONDO NON C'E' PIU' IL SALVATAGGIO, tolto il 2026-09-18 su
+          richiesta dell'utente: erano due «Salva modifiche» identici
+          nella stessa schermata, e quello in fondo si incontra solo
+          arrivando in fondo — cioe' proprio quando la barra appiccicata
+          in cima e' gia' li' a fare lo stesso lavoro meglio.
+
+          RESTA ANNULLA, e non e' una svista. La barra compare solo a
+          form sporco: su una scheda aperta e non ancora toccata non
+          c'e', e togliendo anche questo blocco la scheda resterebbe
+          senza nessuna via d'uscita. Quando non hai modificato niente
+          non c'e' niente da salvare, ma uscire si deve poter sempre.
+
+          Da solo e non primario: e' un gesto raro e deliberato, e in
+          fondo alla pagina sta al posto giusto. */}
       <div className="flex gap-3">
-        <Button type="submit" variante="primario" disabled={isSubmitting || inCorso}>
-          {inCorso ? 'Salvo…' : etichettaSalva}
-        </Button>
         <Button onClick={onAnnulla} disabled={inCorso}>
           Annulla
         </Button>
