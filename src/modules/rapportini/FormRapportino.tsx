@@ -159,17 +159,30 @@ export function FormRapportino({
       confermata: Boolean(riga?.confermata),
     }
   })
+
+  /** I nominativi per indice: con otto righe in squadra, «Scegli il
+   *  motivo dell'assenza» senza un nome fa aprire tutte le righe a
+   *  cercare quale. */
+  const nomiRighe = fields.map((c) => c.nominativo)
+
   /* Il primo motivo per cui il salvataggio non parte, in parole.
   
      `errors` si riempie al primo tentativo fallito: finche' nessuno ha
      premuto Salva e' vuoto, quindi la barra resta gialla e non accusa
-     nessuno prima del tempo. */
-  const primoErrore =
-    errors.ore?.message ??
-    errors.cantiere_id?.message ??
-    errors.data?.message ??
-    Object.values(errors).find((e) => e && 'message' in e && e.message)?.message
-  const bloccato = typeof primoErrore === 'string' && primoErrore.length > 0
+     nessuno prima del tempo.
+
+     SI SCENDE NELL'ALBERO, e non e' un dettaglio. Un errore nato dentro
+     una riga della squadra — «Scegli il motivo dell'assenza», «Al
+     massimo 24» — non si posa su `errors.ore.message`: react-hook-form
+     costruisce `errors.ore` come un ARRAY e mette il messaggio in
+     `errors.ore[3].tipo_assenza.message`. Una ricerca che guardava solo
+     il primo livello non lo trovava, `bloccato` restava falso, la barra
+     restava gialla — e il salvataggio non partiva lo stesso, perche'
+     `handleSubmit` non chiama `onSalva` quando la validazione fallisce.
+     Cioe' di nuovo «premo e non succede niente», che e' esattamente il
+     buco che questa barra era nata per chiudere. */
+  const primoErrore = primoMessaggio(errors, nomiRighe)
+  const bloccato = primoErrore !== null
 
   const inSquadra = conIndice.filter((r) => r.scelto)
   const disponibili = conIndice.filter((r) => !r.scelto)
@@ -762,4 +775,65 @@ function CampoOre({
       />
     </label>
   )
+}
+
+
+/* ══════════════════════════════════════════════════════════════════
+   Il primo errore che blocca il salvataggio, in una frase leggibile.
+
+   Esiste perche' react-hook-form annida: un errore su una riga della
+   squadra finisce in `errors.ore[3].tipo_assenza.message`, non in
+   `errors.ore.message`. Guardare solo il primo livello lasciava passare
+   tutti gli errori di riga — e chi premeva Salva non vedeva NIENTE
+   succedere e nessuna spiegazione del perche'.
+
+   L'ordine non e' casuale. Si guardano prima i messaggi del livello
+   alto, poi quelli delle righe: «Aggiungi almeno una persona» e' il
+   fatto grosso, e dirlo mentre si strilla per una casella dentro una
+   riga sposterebbe l'attenzione sul dettaglio sbagliato.
+   ══════════════════════════════════════════════════════════════════ */
+
+type NodoErrore = { message?: unknown } | undefined | null
+
+/** Il messaggio di questo nodo, se ne ha uno suo. */
+function messaggioDi(nodo: unknown): string | null {
+  if (!nodo || typeof nodo !== 'object') return null
+  const m = (nodo as NodoErrore)?.message
+  return typeof m === 'string' && m.length > 0 ? m : null
+}
+
+/**
+ * Scende nell'albero e riporta il primo messaggio che trova.
+ *
+ * `nomi` serve solo per l'array `ore`: quando il messaggio viene da una
+ * riga, davanti ci va il nominativo di quella riga.
+ */
+function primoMessaggio(errors: unknown, nomi: string[]): string | null {
+  if (!errors || typeof errors !== 'object') return null
+
+  // Prima il livello alto: i messaggi che parlano della scheda intera.
+  for (const valore of Object.values(errors as Record<string, unknown>)) {
+    const m = messaggioDi(valore)
+    if (m) return m
+  }
+
+  // Poi dentro. Le righe della squadra si nominano, il resto no.
+  for (const [chiave, valore] of Object.entries(errors as Record<string, unknown>)) {
+    if (!valore || typeof valore !== 'object') continue
+
+    if (Array.isArray(valore)) {
+      for (let i = 0; i < valore.length; i++) {
+        const dentro = primoMessaggio(valore[i], [])
+        if (!dentro) continue
+        const nome = chiave === 'ore' ? nomi[i] : undefined
+        return nome ? `${nome}: ${dentro}` : dentro
+      }
+      continue
+    }
+
+    const dentro = primoMessaggio(valore, [])
+    if (dentro) return dentro
+  }
+
+  return null
 }
