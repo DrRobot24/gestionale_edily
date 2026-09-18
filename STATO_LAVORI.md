@@ -535,12 +535,13 @@ Da fare **prima** di toccare le policy.
 >   era giusto finché stava fra le card e il pulsante di invio. Ora che ha un
 >   posto fisso dice il totale anche quando quadra: un totale serve anche
 >   quando è giusto.
-> - **Le ore del tecnico** (`MieOre`): quante ne risultano segnate, quante ne
->   mancano alle otto, e un pulsante per ogni cantiere della giornata. **Non
->   apre una sezione nuova e non deve**: le ore si segnano dentro il rapportino
->   del cantiere, aggiungendosi alla squadra, ed è l'unico posto dove hanno una
->   data e un cantiere. Una pagina «le mie ore» che scrivesse dovrebbe comunque
->   chiedere su quale cantiere — cioè rifare il rapportino con un altro nome.
+> - **Le ore del tecnico** (`MieOre`): quante ne risultano segnate e quante ne
+>   mancano alle otto. ⚠️ **Il resto di questo punto è stato SUPERATO il
+>   2026-09-17 e corretto il 2026-09-18** — si legge qui sotto, alla voce «Le
+>   ore del tecnico stanno nel foglio suo». Diceva che le ore si segnano
+>   aggiungendosi alla squadra del cantiere, «non apre una sezione nuova e non
+>   deve»: è esattamente ciò che poi si è deciso di non fare. Lasciato scritto
+>   perché il ragionamento sbagliato non venga rifatto da capo.
 >
 > *Nella scheda del cantiere:*
 >
@@ -744,6 +745,66 @@ poi quello che ne aggiunge.
 > **Prima di tutto: eseguire i tre SQL** della sezione in cima. Finché non
 > girano, note al titolare e foto di cantiere sono codice che non funziona, e il
 > bucket `rapportini` resta pubblico.
+>
+> ⭐ **FATTO IL 2026-09-18: le ore del tecnico stanno nel foglio suo.**
+>
+> *Cosa ha visto l'utente,* aprendo la home da `tecnico@cassia.com`: il riquadro
+> «Le tue ore» offriva ancora **«aggiungiti alla squadra del cantiere dove hai
+> lavorato»**, e diceva 0 ore qualunque cosa lui facesse. Una ridondanza: due
+> strade per dichiarare le stesse ore, e una era quella sbagliata.
+>
+> *Le sue parole:* il tecnico **«è come un uccello che vola sui cantieri»**,
+> quindi è slegato dal cantiere e **non deve inserirsi in nessuna squadra**.
+> Deve dire quante ore ha lavorato quel giorno per controllare i cantieri e fare
+> il suo lavoro — altrimenti l'invio al titolare non si può fare — e **«poi dove
+> lo fa non ha importanza»**.
+>
+> *Non era un cambio di modello:* è la stessa decisione già presa il 2026-09-17
+> e **già scritta nel database**
+> ([`foglio-ore-personale.sql`](supabase/schema/foglio-ore-personale.sql):
+> `ore_personali`, `dipendenti.tipo`, e `invio-due-posti.sql` che guarda in tutti
+> e due i posti). Verificato sul progetto Supabase vero, non dedotto: entrambi
+> rispondono 200. **Era la home a essere rimasta indietro.**
+>
+> *Cosa è cambiato:*
+>
+> - [`MieOre.tsx`](src/modules/home/MieOre.tsx) conta da `ore_personali` e non
+>   da `rapportino_ore` — dove il tecnico non c'è e **non ci deve essere**,
+>   quindi mostrava zero per costruzione. Un pulsante solo, verso «Le mie ore»;
+>   i cantieri non si nominano nemmeno, perché nominarli rimette in testa che una
+>   scelta ci sia.
+> - [`CantieriDelGiorno.tsx`](src/modules/home/CantieriDelGiorno.tsx): stessa
+>   fonte per il blocco dell'invio, messaggio riscritto, e **anche la strada** —
+>   un pulsante «Compila le tue ore» accanto al divieto. Dire cosa manca senza
+>   dare il pulsante obbliga a cercare la voce in sidebar mentre si è fermi lì.
+> - [`MieOrePage.tsx`](src/modules/oreproprie/MieOrePage.tsx) legge `?data=`
+>   dall'indirizzo. **Difetto trovato strada facendo:** partiva sempre da
+>   `oggi()`, ma la home si apre su **ieri** se ieri è incompleto — i pulsanti
+>   avrebbero fatto scrivere le ore sul giorno sbagliato in silenzio, e le ore
+>   sul giorno sbagliato si scoprono in busta paga. Un valore fuori formato o nel
+>   futuro viene ignorato: l'indirizzo lo può scrivere chiunque.
+>
+> *La squadra era già a posto:* `useDipendenti({ soloOperai: true })` filtra
+> `tipo = 'operaio'`, quindi il tecnico non compare nella tendina.
+>
+> ⭐ **FATTO IL 2026-09-18: la barra dice perché il salvataggio non parte, anche
+> per gli errori di riga.** Di nuovo «premo Salva e non succede niente», e la
+> barra rossa del 2026-09-17 non bastava.
+>
+> *Perché:* react-hook-form annida. Un errore nato dentro una riga della squadra
+> finisce in `errors.ore[3].tipo_assenza.message`, mentre `errors.ore` è un
+> **array** che di suo non ha `message`. Il calcolo guardava solo il primo
+> livello e il fallback scartava l'array (`'message' in [...]` è falso), quindi
+> `bloccato` restava falso **con un errore vivo**: barra gialla, `handleSubmit`
+> che non chiama `onSalva`, nessuna spiegazione. Restavano scoperti proprio i due
+> casi più frequenti, «Scegli il motivo dell'assenza» e «Al massimo 24».
+>
+> *Il rimedio:* `primoMessaggio()` scende nell'albero. I messaggi del livello
+> alto vengono **prima** di quelli delle righe — «Aggiungi almeno una persona» è
+> il fatto grosso e non deve perdere contro una casella — e quando l'errore viene
+> da una riga davanti ci va il **nominativo**: con otto righe in squadra, «Scegli
+> il motivo» senza un nome le fa aprire tutte a cercare quale. Verificato su sei
+> forme di `errors`, compresi i due casi che prima davano silenzio.
 >
 > ⭐ **FATTO IL 2026-09-18: le ore sono uscite dai lavori extra.** Era la
 > decisione del 2026-09-15, ed è applicata.
