@@ -179,6 +179,20 @@ supabase gen types typescript --linked > src/lib/database.types.ts
 
 ---
 
+## Lo schema del database
+
+Tabelle, colonne e relazioni stanno in
+[`supabase/SCHEMA.md`](supabase/SCHEMA.md), estratti dal database reale e non
+dedotti dal codice. Da leggere **prima** di scrivere una query: i nomi delle
+colonne non si indovinano — `role_permissions` ha `ruolo` e non `role`, e
+`dipendente_documenti` chiama `percorso` quello che `rapportino_foto` chiama
+`storage_path`.
+
+`src/lib/database.types.ts` è scritto a mano e resta indietro: quando i due si
+contraddicono, ha ragione il database.
+
+---
+
 ## Deploy su Vercel: perché serve `vercel.json`
 
 Il file contiene una riga sola, ed è quella che impedisce alla pagina di
