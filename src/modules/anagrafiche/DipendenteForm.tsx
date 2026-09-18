@@ -4,8 +4,9 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useNavigate, useParams } from 'react-router'
 import { z } from 'zod'
 import { data as fmtData, euro } from '../../lib/formato'
-import { Avviso, Badge, Button, Campo, CampoSelect, Card, Cifra, Percorso, Table } from '../../ui'
+import { Avviso, Badge, Button, Campo, CampoArea, CampoSelect, Card, Cifra, Percorso, Table } from '../../ui'
 import { usePermission } from '../auth/usePermission'
+import { RiquadroDocumenti } from './RiquadroDocumenti'
 import { useMembri } from '../cantieri/assegnazioni'
 import {
   tariffaVigente,
@@ -23,6 +24,28 @@ const CONTRATTI = ['Tempo indeterminato', 'Tempo determinato', 'Apprendistato', 
  *  proposti in lista: i livelli sono questi e digitarli a mano produce
  *  solo "4", "IV" e "quarto" nella stessa colonna. */
 const LIVELLI = ['1', '2', '3', '4', '5', '6', '7']
+
+/** I DPI che si consegnano davvero in un cantiere edile. Spunte e non
+ *  testo libero: «scarpe», «scarpe antinf.» e «calzature» nella stessa
+ *  colonna renderebbero impossibile chiedere chi ha cosa. Il campo nel
+ *  database e' `text[]`, quindi aggiungerne uno domani non e' una
+ *  migrazione. */
+const DPI = [
+  'Scarpe antinfortunistiche',
+  'Casco',
+  'Guanti',
+  'Occhiali protettivi',
+  'Imbracatura anticaduta',
+  'Otoprotettori',
+  'Gilet alta visibilita',
+  'Mascherina / respiratore',
+]
+
+const STATI_RAPPORTO = [
+  ['assunto', 'Assunto — contratto attivo'],
+  ['in_prova', 'In prova'],
+  ['da_inquadrare', 'Da inquadrare — contratto ancora da fare'],
+] as const
 
 const vuotoSeVuoto = (v: string) => (v.trim() === '' ? null : v.trim())
 
@@ -42,7 +65,27 @@ const schema = z.object({
   telefono: z.string(),
   email: z.string().refine((v) => v === '' || /.+@.+\..+/.test(v), 'Email non valida'),
   user_id: z.string(),
+
+  /* ── la scheda della persona, dal 2026-09-18 ── */
+  data_nascita: z.string(),
+  luogo_nascita: z.string(),
+  residenza: z.string(),
+  patente: z.string(),
+  note: z.string(),
+  permesso_soggiorno: z.boolean(),
+  permesso_scadenza: z.string(),
+  dpi: z.array(z.string()),
+  stato_rapporto: z.enum(['assunto', 'in_prova', 'da_inquadrare']),
 })
+  /* La scadenza si chiede solo se il permesso c'e', ed e' obbligatoria
+     quando c'e': un permesso senza data non risponde alla domanda per
+     cui esiste il campo, cioe' «quando va rinnovato». Il database ha il
+     suo check, ma quello rifiuta il caso opposto — data senza permesso —
+     e un 23514 non e' una frase leggibile. */
+  .refine((v) => !v.permesso_soggiorno || v.permesso_scadenza !== '', {
+    message: 'Quando scade il permesso?',
+    path: ['permesso_scadenza'],
+  })
 
 type Campi = z.infer<typeof schema>
 
@@ -60,6 +103,27 @@ const VUOTO: Campi = {
   telefono: '',
   email: '',
   user_id: '',
+  data_nascita: '',
+  luogo_nascita: '',
+  residenza: '',
+  patente: '',
+  note: '',
+  permesso_soggiorno: false,
+  permesso_scadenza: '',
+  dpi: [],
+  stato_rapporto: 'assunto' as const,
+}
+
+/** L'intestazione di un riquadro. Quattro gruppi di campi hanno bisogno
+ *  di dire di cosa parlano, e una <h2> nuda in mezzo a un form si perde
+ *  fra le etichette dei campi. */
+function Titolo({ children, nota }: { children: React.ReactNode; nota?: string }) {
+  return (
+    <div className="border-b-2 border-black bg-amber-100 px-5 py-2.5">
+      <h2 className="text-sm font-extrabold uppercase tracking-wide text-black">{children}</h2>
+      {nota && <p className="text-xs font-semibold text-gray-700">{nota}</p>}
+    </div>
+  )
 }
 
 export function DipendenteForm() {
@@ -89,6 +153,15 @@ export function DipendenteForm() {
      deve comparire nel momento in cui si sceglie «tecnico», non dopo
      aver salvato e riaperto la scheda. */
   const tipoScelto = useWatch({ control, name: 'tipo' })
+  /* Stessa ragione: la data di scadenza deve comparire nell'istante in
+     cui si spunta il permesso, non dopo aver salvato. */
+  const haPermesso = useWatch({ control, name: 'permesso_soggiorno' })
+
+  /* Come si chiama quello che si sta creando. La scheda non fa piu'
+     solo operai — Stefania ci registra sé stessa e il tecnico — e
+     «Crea operaio» su una scheda da impiegato e' semplicemente falso. */
+  const comeSiChiama =
+    tipoScelto === 'impiegato' ? 'impiegato' : tipoScelto === 'tecnico' ? 'tecnico' : 'operaio'
 
   const giaCollegati = new Set(
     (tutti ?? []).filter((d) => d.user_id && d.id !== id).map((d) => d.user_id as string),
@@ -111,13 +184,22 @@ export function DipendenteForm() {
       telefono: dipendente.telefono ?? '',
       email: dipendente.email ?? '',
       user_id: dipendente.user_id ?? '',
+      data_nascita: dipendente.data_nascita ?? '',
+      luogo_nascita: dipendente.luogo_nascita ?? '',
+      residenza: dipendente.residenza ?? '',
+      patente: dipendente.patente ?? '',
+      note: dipendente.note ?? '',
+      permesso_soggiorno: dipendente.permesso_soggiorno ?? false,
+      permesso_scadenza: dipendente.permesso_scadenza ?? '',
+      dpi: dipendente.dpi ?? [],
+      stato_rapporto: dipendente.stato_rapporto ?? 'assunto',
     })
   }, [dipendente, reset])
 
   if (!nuovo && isPending) {
     return <p className="text-sm font-bold text-gray-600">Carico la scheda…</p>
   }
-  if (error) return <Avviso tono="errore">Non trovo questo operaio: {error.message}</Avviso>
+  if (error) return <Avviso tono="errore">Non trovo questa persona: {error.message}</Avviso>
 
   async function onSubmit(c: Campi) {
     const salvato = await salva.mutateAsync({
@@ -136,6 +218,26 @@ export function DipendenteForm() {
         telefono: vuotoSeVuoto(c.telefono),
         email: vuotoSeVuoto(c.email),
         user_id: vuotoSeVuoto(c.user_id),
+
+        data_nascita: vuotoSeVuoto(c.data_nascita),
+        luogo_nascita: vuotoSeVuoto(c.luogo_nascita),
+        residenza: vuotoSeVuoto(c.residenza),
+        note: vuotoSeVuoto(c.note),
+        stato_rapporto: c.stato_rapporto,
+
+        /* Patente e DPI SOLO PER GLI OPERAI, e si azzerano cambiando
+           tipo. Non e' pulizia formale: la scheda di chi passa a
+           «impiegato» nasconde quei campi, e lasciarci dentro i vecchi
+           valori vorrebbe dire un dato che nessuno vede piu' e che
+           nessuno puo' piu' correggere. */
+        patente: c.tipo === 'operaio' ? vuotoSeVuoto(c.patente) : null,
+        dpi: c.tipo === 'operaio' ? c.dpi : [],
+
+        /* La data se ne va insieme alla spunta: il database ha un check
+           che rifiuta una scadenza senza permesso, e senza questo la
+           riga verrebbe respinta con un 23514. */
+        permesso_soggiorno: c.permesso_soggiorno,
+        permesso_scadenza: c.permesso_soggiorno ? vuotoSeVuoto(c.permesso_scadenza) : null,
       },
     })
     // Dopo la creazione si resta sulla scheda invece di tornare alla
@@ -159,7 +261,7 @@ export function DipendenteForm() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-extrabold text-black">
-            {nuovo ? 'Nuovo operaio' : `${dipendente?.cognome} ${dipendente?.nome}`}
+            {nuovo ? `Nuovo ${comeSiChiama}` : `${dipendente?.cognome} ${dipendente?.nome}`}
           </h1>
           {!nuovo && !dipendente?.attivo && (
             <Badge className="mt-1">archiviato — non compare negli elenchi</Badge>
@@ -171,7 +273,14 @@ export function DipendenteForm() {
       {elimina.isError && <Avviso tono="errore">{(elimina.error as Error).message}</Avviso>}
 
       <form onSubmit={handleSubmit(onSubmit)} className="grid gap-4" noValidate>
-        <Card className="grid gap-4 p-5">
+        {/* ══ CHI E' ══
+            I dati della persona, non del suo rapporto con l'impresa.
+            Stanno per primi perche' sono quelli che si scrivono guardando
+            un documento in mano, ed e' il gesto con cui si apre una
+            scheda nuova. */}
+        <Card className="overflow-hidden">
+          <Titolo>Chi è</Titolo>
+          <div className="grid gap-4 p-5">
           <div className="grid gap-4 sm:grid-cols-2">
             <Campo
               etichetta="Cognome"
@@ -189,10 +298,18 @@ export function DipendenteForm() {
 
           <div className="grid gap-4 sm:grid-cols-3">
             <Campo
-              etichetta="Matricola"
+              etichetta="Data di nascita"
+              type="date"
               disabled={!puoScrivere}
-              errore={errors.matricola?.message}
-              {...register('matricola')}
+              errore={errors.data_nascita?.message}
+              {...register('data_nascita')}
+            />
+            <Campo
+              etichetta="Luogo di nascita"
+              placeholder="Siracusa (SR)"
+              disabled={!puoScrivere}
+              errore={errors.luogo_nascita?.message}
+              {...register('luogo_nascita')}
             />
             <Campo
               etichetta="Codice fiscale"
@@ -201,6 +318,62 @@ export function DipendenteForm() {
               errore={errors.codice_fiscale?.message}
               {...register('codice_fiscale')}
             />
+          </div>
+
+          <Campo
+            etichetta="Residenza"
+            placeholder="Via Roma 12, 96100 Siracusa (SR)"
+            disabled={!puoScrivere}
+            errore={errors.residenza?.message}
+            {...register('residenza')}
+          />
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Campo
+              etichetta="Telefono"
+              type="tel"
+              disabled={!puoScrivere}
+              errore={errors.telefono?.message}
+              {...register('telefono')}
+            />
+            <Campo
+              etichetta="Email"
+              type="email"
+              disabled={!puoScrivere}
+              errore={errors.email?.message}
+              {...register('email')}
+            />
+          </div>
+          </div>
+        </Card>
+
+        {/* ══ INQUADRAMENTO ══
+            Il rapporto con l'impresa: che ruolo ha, con che contratto,
+            da quando. E' la parte che serve a Stefania per la busta
+            paga. */}
+        <Card className="overflow-hidden">
+          <Titolo>Inquadramento</Titolo>
+          <div className="grid gap-4 p-5">
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Campo
+              etichetta="Matricola"
+              disabled={!puoScrivere}
+              errore={errors.matricola?.message}
+              {...register('matricola')}
+            />
+            <CampoSelect
+              etichetta="Stato del rapporto"
+              disabled={!puoScrivere}
+              suggerimento="Serve a sapere chi non ha ancora un contratto attivo."
+              errore={errors.stato_rapporto?.message}
+              {...register('stato_rapporto')}
+            >
+              {STATI_RAPPORTO.map(([v, etichetta]) => (
+                <option key={v} value={v}>
+                  {etichetta}
+                </option>
+              ))}
+            </CampoSelect>
             <CampoSelect
               etichetta="Livello CCNL"
               disabled={!puoScrivere}
@@ -275,21 +448,46 @@ export function DipendenteForm() {
             />
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Campo
-              etichetta="Telefono"
-              type="tel"
-              disabled={!puoScrivere}
-              errore={errors.telefono?.message}
-              {...register('telefono')}
-            />
-            <Campo
-              etichetta="Email"
-              type="email"
-              disabled={!puoScrivere}
-              errore={errors.email?.message}
-              {...register('email')}
-            />
+          {/* IL PERMESSO DI SOGGIORNO, e la sua scadenza.
+
+              Due campi e non uno: SE serve, e QUANDO scade. La data
+              compare solo spuntando la casella — chiederla a un
+              cittadino italiano sarebbe una domanda senza risposta — ed
+              e' obbligatoria quando c'e', perche' un permesso senza
+              data non risponde alla domanda per cui il campo esiste.
+
+              E' l'unico campo della scheda CHE SCADE: la data sta in un
+              campo suo, e non dentro le note, perche' un domani diventa
+              il promemoria in home che avvisa prima che sia tardi. */}
+          <div className="grid gap-3 rounded-xl border-2 border-black bg-white p-4">
+            <label className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                disabled={!puoScrivere}
+                className="mt-0.5 h-5 w-5 shrink-0 cursor-pointer rounded border-2 border-black accent-amber-400"
+                {...register('permesso_soggiorno')}
+              />
+              <span>
+                <span className="block text-sm font-extrabold text-black">
+                  Ha un permesso di soggiorno
+                </span>
+                <span className="block text-xs font-semibold text-gray-600">
+                  Da spuntare per chi non è cittadino UE: il documento va rinnovato e la
+                  scadenza va tenuta d&rsquo;occhio.
+                </span>
+              </span>
+            </label>
+
+            {haPermesso && (
+              <Campo
+                etichetta="Scade il"
+                type="date"
+                disabled={!puoScrivere}
+                className="sm:w-56"
+                errore={errors.permesso_scadenza?.message}
+                {...register('permesso_scadenza')}
+              />
+            )}
           </div>
 
           {/* Il collegamento all'utente del gestionale.
@@ -331,12 +529,83 @@ export function DipendenteForm() {
               ))}
             </CampoSelect>
           )}
+          </div>
+        </Card>
+
+        {/* ══ SICUREZZA E ABILITAZIONI ══
+            Patente e DPI SOLO PER GLI OPERAI: chi non va in cantiere non
+            guida il furgone e non indossa l'imbracatura, e un riquadro
+            di caselle che non si spunteranno mai e' rumore sulla scheda
+            di Stefania. Le note invece valgono per tutti — una patologia
+            e' una patologia ovunque si lavori. */}
+        <Card className="overflow-hidden">
+          <Titolo nota={
+            tipoScelto === 'operaio'
+              ? 'Cosa può guidare, cosa gli è stato consegnato, cosa bisogna sapere.'
+              : 'Quello che bisogna sapere su questa persona.'
+          }>
+            {tipoScelto === 'operaio' ? 'Sicurezza e abilitazioni' : 'Note'}
+          </Titolo>
+          <div className="grid gap-4 p-5">
+            {tipoScelto === 'operaio' && (
+              <>
+                <Campo
+                  etichetta="Patente e abilitazioni"
+                  placeholder="B, CQC, muletto, piattaforma aerea…"
+                  disabled={!puoScrivere}
+                  suggerimento="Scrivile tutte: serve a sapere chi può guidare il furgone o salire sul muletto."
+                  errore={errors.patente?.message}
+                  {...register('patente')}
+                />
+
+                {/* Spunte e non testo libero: «scarpe», «scarpe antinf.»
+                    e «calzature» nella stessa colonna renderebbero
+                    impossibile chiedere chi ha cosa. */}
+                <fieldset className="grid gap-2">
+                  <legend className="text-xs font-bold uppercase text-black">
+                    DPI consegnati
+                  </legend>
+                  <p className="text-xs font-semibold text-gray-600">
+                    Spunta quelli che gli sono stati dati. Serve a saperlo prima di mandarlo
+                    in cantiere, e a rispondere se qualcuno lo chiede.
+                  </p>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {DPI.map((d) => (
+                      <label
+                        key={d}
+                        className="flex items-center gap-2 rounded-xl border-2 border-black bg-white px-3 py-2"
+                      >
+                        <input
+                          type="checkbox"
+                          value={d}
+                          disabled={!puoScrivere}
+                          className="h-4 w-4 shrink-0 cursor-pointer rounded border-2 border-black accent-lime-400"
+                          {...register('dpi')}
+                        />
+                        <span className="text-sm font-bold text-black">{d}</span>
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+              </>
+            )}
+
+            <CampoArea
+              etichetta="Note"
+              rows={4}
+              disabled={!puoScrivere}
+              placeholder="Patologie, allergie, limitazioni, chi chiamare in caso di emergenza…"
+              suggerimento="Le legge solo chi gestisce le anagrafiche: il tecnico non vede questa scheda."
+              errore={errors.note?.message}
+              {...register('note')}
+            />
+          </div>
         </Card>
 
         {puoScrivere && (
           <div className="flex flex-wrap gap-3">
             <Button type="submit" variante="primario" disabled={salva.isPending || !isDirty}>
-              {salva.isPending ? 'Salvo…' : nuovo ? 'Crea operaio' : 'Salva modifiche'}
+              {salva.isPending ? 'Salvo…' : nuovo ? `Crea ${comeSiChiama}` : 'Salva modifiche'}
             </Button>
 
             {!nuovo && (
@@ -353,7 +622,7 @@ export function DipendenteForm() {
                   variante="danger"
                   disabled={elimina.isPending}
                   onClick={() => {
-                    if (!confirm('Eliminare definitivamente questo operaio?')) return
+                    if (!confirm('Eliminare definitivamente questa persona?')) return
                     elimina.mutate(id!, { onSuccess: () => navigate('/anagrafiche/operai') })
                   }}
                 >
@@ -364,6 +633,17 @@ export function DipendenteForm() {
           </div>
         )}
       </form>
+
+      {/* ══ DOCUMENTI ══
+          Fuori dal <form>: ha i suoi salvataggi, e i suoi pulsanti
+          dentro il form farebbero partire il submit della scheda.
+
+          Solo su una scheda gia' salvata: un documento ha bisogno di una
+          persona a cui appartenere, e prima del primo salvataggio
+          quella persona non ha ancora un id. */}
+      {!nuovo && id && (
+        <RiquadroDocumenti dipendenteId={id} puoScrivere={puoScrivere} />
+      )}
 
       {!nuovo && dipendente && (
         <Tariffe
@@ -421,7 +701,7 @@ function Tariffe({
 
       {tariffe.length === 0 && (
         <Avviso tono="errore">
-          Nessuna tariffa: le ore di questo operaio valgono zero euro nel consuntivo dei
+          Nessuna tariffa: le ore di questa persona valgono zero euro nel consuntivo dei
           cantieri.
         </Avviso>
       )}

@@ -632,6 +632,39 @@ export type Database = {
           },
         ]
       }
+      dipendente_documenti: {
+        Row: {
+          caricato_da: string | null
+          created_at: string
+          dipendente_id: string
+          id: string
+          org_id: string
+          percorso: string
+          scadenza: string | null
+          titolo: string
+        }
+        Insert: {
+          caricato_da?: string | null
+          created_at?: string
+          dipendente_id: string
+          id?: string
+          org_id: string
+          percorso: string
+          scadenza?: string | null
+          titolo: string
+        }
+        Update: {
+          caricato_da?: string | null
+          created_at?: string
+          dipendente_id?: string
+          id?: string
+          org_id?: string
+          percorso?: string
+          scadenza?: string | null
+          titolo?: string
+        }
+        Relationships: []
+      }
       dipendenti: {
         Row: {
           attivo: boolean
@@ -640,9 +673,18 @@ export type Database = {
           created_at: string
           data_assunzione: string | null
           data_cessazione: string | null
+          data_nascita: string | null
+          dpi: string[]
           email: string | null
           id: string
           livello_ccnl: string | null
+          luogo_nascita: string | null
+          note: string | null
+          patente: string | null
+          permesso_scadenza: string | null
+          permesso_soggiorno: boolean
+          residenza: string | null
+          stato_rapporto: Database["public"]["Enums"]["stato_rapporto"]
           mansione: string | null
           matricola: string | null
           nome: string
@@ -660,9 +702,18 @@ export type Database = {
           created_at?: string
           data_assunzione?: string | null
           data_cessazione?: string | null
+          data_nascita?: string | null
+          dpi?: string[]
           email?: string | null
           id?: string
           livello_ccnl?: string | null
+          luogo_nascita?: string | null
+          note?: string | null
+          patente?: string | null
+          permesso_scadenza?: string | null
+          permesso_soggiorno?: boolean
+          residenza?: string | null
+          stato_rapporto?: Database["public"]["Enums"]["stato_rapporto"]
           mansione?: string | null
           matricola?: string | null
           nome: string
@@ -680,9 +731,18 @@ export type Database = {
           created_at?: string
           data_assunzione?: string | null
           data_cessazione?: string | null
+          data_nascita?: string | null
+          dpi?: string[]
           email?: string | null
           id?: string
           livello_ccnl?: string | null
+          luogo_nascita?: string | null
+          note?: string | null
+          patente?: string | null
+          permesso_scadenza?: string | null
+          permesso_soggiorno?: boolean
+          residenza?: string | null
+          stato_rapporto?: Database["public"]["Enums"]["stato_rapporto"]
           mansione?: string | null
           matricola?: string | null
           nome?: string
@@ -2432,6 +2492,7 @@ export type Database = {
         | "validato"
         | "contabilizzato"
       stato_ddt: "caricato" | "estratto" | "verificato" | "fatturato"
+      stato_rapporto: "assunto" | "in_prova" | "da_inquadrare"
       tipo_risorsa: "operaio" | "tecnico" | "impiegato"
       user_role: "admin" | "moderator" | "user" | "superadmin"
     }
@@ -2584,6 +2645,7 @@ export const Constants = {
         "contabilizzato",
       ],
       stato_ddt: ["caricato", "estratto", "verificato", "fatturato"],
+      stato_rapporto: ["assunto", "in_prova", "da_inquadrare"],
       tipo_risorsa: ["operaio", "tecnico", "impiegato"],
       user_role: ["admin", "moderator", "user", "superadmin"],
     },

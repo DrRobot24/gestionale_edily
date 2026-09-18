@@ -15,7 +15,10 @@ import { useSession } from '../auth/SessionProvider'
 
 const CAMPI =
   'id, matricola, nome, cognome, codice_fiscale, mansione, livello_ccnl, tipo_contratto, ' +
-  'data_assunzione, data_cessazione, telefono, email, attivo, user_id, tipo'
+  'data_assunzione, data_cessazione, telefono, email, attivo, user_id, tipo, ' +
+  // La scheda della persona, dal 2026-09-18: vedi `scheda-personale.sql`.
+  'data_nascita, luogo_nascita, residenza, patente, note, ' +
+  'permesso_soggiorno, permesso_scadenza, dpi, stato_rapporto'
 
 const CAMPI_CON_COSTI = `${CAMPI}, dipendente_costi ( id, valido_dal, costo_orario, costo_orario_straordinario, tariffa_vendita_oraria, note )`
 
@@ -94,6 +97,14 @@ export function useDipendente(id: string | undefined) {
 
 export type TipoRisorsa = 'operaio' | 'tecnico' | 'impiegato'
 
+/** Se un contratto c'e' o manca.
+ *
+ *  Si chiama cosi' di proposito, deciso con l'utente il 2026-09-18:
+ *  `da_inquadrare` dice che manca un contratto senza lasciare scritta
+ *  nel database la prova di un illecito. L'informazione operativa e' la
+ *  stessa, il rischio no. Vedi `scheda-personale.sql`, blocco 4. */
+export type StatoRapporto = 'assunto' | 'in_prova' | 'da_inquadrare'
+
 export type DatiDipendente = {
   /** Operaio = va in cantiere e le sue ore stanno nel rapportino.
    *  Tecnico e impiegato dichiarano le proprie in `ore_personali`, e un
@@ -110,6 +121,25 @@ export type DatiDipendente = {
   data_cessazione: string | null
   telefono: string | null
   email: string | null
+
+  /* ── chi e' la persona, dal 2026-09-18 ── */
+  data_nascita: string | null
+  luogo_nascita: string | null
+  residenza: string | null
+  /** Testo libero: B, C, CQC, muletto, piattaforma aerea. Un enum
+   *  vorrebbe dire una migrazione a ogni abilitazione nuova. */
+  patente: string | null
+  /** Patologie, limitazioni, contatti di emergenza. Dato sensibile:
+   *  la scheda e' chiusa su `anagrafiche.write`. */
+  note: string | null
+  permesso_soggiorno: boolean
+  /** Esiste solo se `permesso_soggiorno`: lo impone un check nel
+   *  database, non solo il form. */
+  permesso_scadenza: string | null
+  /** Scarpe, casco, imbracatura: cosa gli e' stato consegnato. */
+  dpi: string[]
+  stato_rapporto: StatoRapporto
+
   /** L'utente che entra nel gestionale con questa anagrafica.
    *
    *  Serve a chi lavora E compila: un tecnico che passa in cantiere fa
