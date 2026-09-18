@@ -44,17 +44,20 @@
 -- ── PRIMA: com'e' adesso ────────────────────────────────────────────
 -- Di sola lettura. Serve per confronto dopo.
 
-select role, permission
+select ruolo, permission
 from public.role_permissions
-where role in ('owner', 'admin')
+where ruolo in ('owner', 'admin')
   and permission like 'rapportini%'
-order by role, permission;
+order by ruolo, permission;
 
 
 -- ── LA MODIFICA ─────────────────────────────────────────────────────
 
+-- La colonna si chiama `ruolo` e non `role`: il resto dello schema e'
+-- in italiano, e questo file era stato scritto in inglese per abitudine.
+-- Corretto il 2026-09-18, dopo che il delete e' fallito con un 42703.
 delete from public.role_permissions
-where role = 'owner'
+where ruolo = 'owner'
   and permission = 'rapportini.create';
 
 
@@ -62,11 +65,11 @@ where role = 'owner'
 -- `owner` deve avere read_all, validate, reopen — e NON create.
 -- `admin` resta com'era, con create compreso.
 
-select role, permission
+select ruolo, permission
 from public.role_permissions
-where role in ('owner', 'admin')
+where ruolo in ('owner', 'admin')
   and permission like 'rapportini%'
-order by role, permission;
+order by ruolo, permission;
 
 
 -- ── POI, NELL'APP ───────────────────────────────────────────────────
