@@ -142,21 +142,29 @@ const VOCI: Voce[] = [
     elemento: <RapportiniPage />,
   },
 
-  /* «Le mie ore» NON ha `perm`, ed e' deliberato.
+  /* «Le mie ore» sta su `rapportini.create`, dal 2026-09-18.
 
-     Il cancello giusto sarebbe «hai una scheda personale collegata a
-     questa utenza», che non e' un permesso: e' un fatto che si sa solo
-     interrogando `dipendenti`, e metterlo qui vorrebbe dire una query
-     nel menu per ogni pagina caricata. La pagina stessa se ne occupa —
-     senza scheda collegata dice cosa fare e a chi chiederlo, che e'
-     piu' utile di una voce che non compare e lascia a indovinare.
+     PRIMA NON AVEVA CANCELLO, e il ragionamento era questo: il cancello
+     giusto sarebbe «hai una scheda personale collegata a questa
+     utenza», che non e' un permesso ma un fatto da interrogare in
+     `dipendenti` — una query nel menu per ogni pagina caricata. Meglio
+     lasciar spiegare alla pagina, che senza scheda dice cosa fare e a
+     chi chiederlo.
 
-     Chi ci finisce senza averne bisogno? Nessuno che possa fare danni:
-     la RLS lascia scrivere solo la propria riga, e senza scheda non
-     c'e' nessuna riga da scrivere. */
+     Regge ancora per chi la scheda non ce l'ha ANCORA. Non reggeva per
+     il titolare: dal momento in cui gli si e' tolto `rapportini.create`
+     — «Giuseppe e' owner e non compila un cazzo», 2026-09-17 — lui non
+     presta ore per definizione, e quella voce gli offriva un foglio da
+     compilare che nessuno gli avrebbe mai chiesto. Notato dall'utente
+     guardando la home da titolare, subito dopo aver tolto l'invio.
+
+     `rapportini.create` e non il ruolo: e' esattamente il permesso di
+     chi lavora sul campo, e vale da se' per qualunque impresa futura
+     senza che nessuno debba ricordarsi un'eccezione su «owner». */
   {
     to: '/mie-ore',
     etichetta: 'Le mie ore',
+    perm: 'rapportini.create',
     elemento: <MieOrePage />,
   },
 

@@ -69,7 +69,10 @@ export function IlSuoLavoro() {
       nota: 'Aperti adesso',
     },
     {
-      etichetta: 'Operai',
+      // «Risorse» come il registro a cui porta: il conto comprende
+      // operai, tecnici e impiegati, e chiamarlo «Operai» diceva un
+      // numero giusto sotto un'etichetta falsa.
+      etichetta: 'Risorse',
       a: '/anagrafiche/operai',
       quanti: operai?.length,
       colore: 'bg-sky-300',
@@ -112,7 +115,7 @@ export function IlSuoLavoro() {
         </h2>
         <p className="mt-0.5 text-xs font-semibold text-gray-600">
           I primi tre nell'ordine di inserimento: un cantiere vuole il suo cliente,
-          una squadra vuole gli operai.
+          una squadra vuole le sue risorse.
         </p>
       </div>
 
