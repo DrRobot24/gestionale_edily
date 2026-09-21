@@ -7,6 +7,7 @@ import {
   useAssegna,
   useAssegnazioni,
   useChiudiAssegnazione,
+  useCorreggiInizio,
   useMembri,
 } from './assegnazioni'
 
@@ -23,6 +24,7 @@ export function Squadra({ cantiereId }: { cantiereId: string }) {
   const { data: membri } = useMembri()
   const assegna = useAssegna()
   const chiudi = useChiudiAssegnazione()
+  const correggi = useCorreggiInizio()
 
   const [apri, setApri] = useState(false)
   const [chi, setChi] = useState('')
@@ -159,7 +161,44 @@ export function Squadra({ cantiereId }: { cantiereId: string }) {
                   </td>
                   <td className="text-gray-600">{ruoloOrgDi(a.user_id) ?? '—'}</td>
                   <td className="text-gray-600">{a.ruolo_cantiere}</td>
-                  <td className="numerico text-gray-600">{fmtData(a.dal)}</td>
+                  {/* LA DATA E' IL PULSANTE, e non ce n'e' uno in piu'
+                      nella colonna delle azioni: quella ha gia' Termina
+                      e Riapri, e una terza voce la trasformerebbe in
+                      una barra di attrezzi. Si corregge dove il dato
+                      si legge, che e' anche il posto dove ci si accorge
+                      che e' sbagliato. */}
+                  <td className="numerico text-gray-600">
+                    {puoAssegnare ? (
+                      <button
+                        type="button"
+                        disabled={correggi.isPending}
+                        title="Correggi la data di inizio"
+                        onClick={() => {
+                          const risposta = prompt(
+                            'Da quando segue questo cantiere?\n' +
+                              'Formato AAAA-MM-GG, per esempio 2026-09-03.',
+                            a.dal,
+                          )
+                          if (!risposta || risposta === a.dal) return
+                          /* Il formato si controlla QUI e non dopo: una
+                             data scritta male arriverebbe al database
+                             come 22P02, un errore che parla di uuid e
+                             tipi e che nessuno collega a «ho scritto la
+                             data storta». */
+                          if (!/^\d{4}-\d{2}-\d{2}$/.test(risposta.trim())) {
+                            alert('La data va scritta come 2026-09-03: anno, mese, giorno.')
+                            return
+                          }
+                          correggi.mutate({ id: a.id, dal: risposta.trim(), cantiereId })
+                        }}
+                        className="cursor-pointer underline decoration-dotted underline-offset-2 hover:text-black"
+                      >
+                        {fmtData(a.dal)}
+                      </button>
+                    ) : (
+                      fmtData(a.dal)
+                    )}
+                  </td>
                   <td className="numerico text-gray-600">{a.al ? fmtData(a.al) : '—'}</td>
                   <td className="text-right">
                     {puoAssegnare &&

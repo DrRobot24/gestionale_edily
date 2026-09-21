@@ -126,6 +126,40 @@ export function useAssegna() {
  * poter compilare il rapportino di oggi. Per togliere l'accesso subito
  * si mette ieri.
  */
+/**
+ * CORREGGERE LA DATA DI INIZIO di un'assegnazione.
+ *
+ * Chiesto dall'utente il 2026-09-21: «se il titolare sbaglia ad
+ * assegnare le date di controllo di un cantiere, c'e' modo per poter
+ * modificare l'assegnazione della data?». Non c'era: esistevano solo
+ * assegna e revoca, e una data sbagliata si correggeva dal SQL Editor.
+ *
+ * Non e' un caso raro — le date si sbagliano di continuo — e la
+ * scappatoia non funzionava: riassegnare la stessa persona allo stesso
+ * cantiere sbatte contro il vincolo unico `(cantiere_id, user_id)` e
+ * risponde 23505.
+ *
+ * COSA CAMBIA E COSA NO. Il `dal` non decide quali card vede il tecnico:
+ * quelle seguono lo stato del cantiere, non le date dell'assegnazione.
+ * Correggerlo serve a dire il VERO — fra un anno, alla domanda «chi
+ * seguiva quel cantiere a settembre?», una data sbagliata risponde
+ * sbagliato — non a sbloccare qualcosa.
+ */
+export function useCorreggiInizio() {
+  const qc = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ id, dal }: { id: string; dal: string; cantiereId: string }) => {
+      const { error } = await supabase.from('cantiere_assegnazioni').update({ dal }).eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: (_, v) => {
+      qc.invalidateQueries({ queryKey: ['assegnazioni', v.cantiereId] })
+      qc.invalidateQueries({ queryKey: ['cantieri'] })
+    },
+  })
+}
+
 export function useChiudiAssegnazione() {
   const qc = useQueryClient()
 
