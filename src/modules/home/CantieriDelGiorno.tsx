@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router'
 import { supabase } from '../../lib/supabase'
 import { Avviso, Button, Card, cn } from '../../ui'
 import { dataEstesa } from '../../lib/formato'
+import { nomeNonFeriale, ultimoFeriale } from '../../lib/giorni'
 import { useSession } from '../auth/SessionProvider'
 import { useCantieri } from '../cantieri/useCantieri'
 import { useRapportini, type Rapportino } from '../rapportini/useRapportini'
@@ -58,7 +59,15 @@ function semaforoDi(r: Rapportino | undefined): Semaforo {
   return 'verde'
 }
 
-export function CantieriDelGiorno({ giorno }: { giorno: string }) {
+export function CantieriDelGiorno({
+  giorno,
+  onCambiaGiorno,
+}: {
+  giorno: string
+  /** Serve al pulsante del weekend, che riporta all'ultimo giorno
+   *  feriale. Facoltativa: senza, il pulsante non compare. */
+  onCambiaGiorno?: (giorno: string) => void
+}) {
   const navigate = useNavigate()
   const { org } = useSession()
   const qc = useQueryClient()
@@ -123,6 +132,44 @@ export function CantieriDelGiorno({ giorno }: { giorno: string }) {
   }
   if (erroreCantieri) {
     return <Avviso tono="errore">Non riesco a leggere i cantieri: {erroreCantieri.message}</Avviso>
+  }
+
+  /* SABATO E DOMENICA NON SI COMPILA. Chiesto dall'utente il
+     2026-09-21: «le giornate si svolgono solo ed esclusivamente nei
+     giorni feriali quindi LUN - VEN. Lascia i giorni prefestivi (SAB) e
+     festivi (DOM) esenti».
+
+     Il controllo sta PRIMA di tutto il resto: senza, il sabato la home
+     mostrerebbe sette card rosse da compilare e il pulsante d'invio,
+     cioe' chiederebbe un lavoro che non esiste. E chiedere ogni sabato
+     una cosa che non si deve fare insegna a ignorare quella zona della
+     schermata anche nei giorni in cui chiede sul serio.
+
+     Non e' un divieto, e' un'assenza di richiesta: le frecce nella
+     fascia restano e chi ha davvero lavorato di sabato passa dalla
+     scheda del cantiere, dove il rapportino si compila come sempre. */
+  const nonFeriale = nomeNonFeriale(giorno)
+  if (nonFeriale) {
+    return (
+      <Card className="bg-gray-50 p-5">
+        <p className="text-sm font-extrabold text-black">
+          {nonFeriale === 'domenica' ? 'Domenica' : 'Sabato'}: niente da compilare.
+        </p>
+        <p className="mt-1 text-xs font-semibold text-gray-600">
+          Le giornate si registrano dal lunedì al venerdì. Se si è lavorato lo stesso,
+          il rapportino si compila dalla scheda del cantiere.
+        </p>
+        <div className="mt-3">
+          <Button
+            dimensione="sm"
+            variante="secondario"
+            onClick={() => onCambiaGiorno?.(ultimoFeriale(giorno))}
+          >
+            Vai all&rsquo;ultimo giorno feriale
+          </Button>
+        </div>
+      </Card>
+    )
   }
 
   const attivi = (cantieri ?? []).filter((c) => c.stato === 'attivo')

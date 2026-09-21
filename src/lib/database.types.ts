@@ -890,6 +890,63 @@ export type Database = {
           },
         ]
       }
+      giustificazioni_ore: {
+        Row: {
+          created_at: string
+          data: string
+          descrizione: string | null
+          dipendente_id: string
+          id: string
+          motivo: Database["public"]["Enums"]["motivo_ore"]
+          ore: number
+          org_id: string
+          scritta_da: string | null
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          data: string
+          descrizione?: string | null
+          dipendente_id: string
+          id?: string
+          motivo: Database["public"]["Enums"]["motivo_ore"]
+          ore?: number
+          org_id: string
+          scritta_da?: string | null
+          tipo: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          data?: string
+          descrizione?: string | null
+          dipendente_id?: string
+          id?: string
+          motivo?: Database["public"]["Enums"]["motivo_ore"]
+          ore?: number
+          org_id?: string
+          scritta_da?: string | null
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "giustificazioni_ore_dipendente_id_fkey"
+            columns: ["dipendente_id"]
+            isOneToOne: false
+            referencedRelation: "dipendenti"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "giustificazioni_ore_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fornitori: {
         Row: {
           attivo: boolean
@@ -2500,6 +2557,23 @@ export type Database = {
           },
         ]
       }
+      v_ore_persona_giorno: {
+        Row: {
+          cantiere: string | null
+          cantiere_codice: string | null
+          cantiere_id: string | null
+          data: string | null
+          dipendente_id: string | null
+          ore_assenza: number | null
+          ore_ordinarie: number | null
+          ore_straordinarie: number | null
+          org_id: string | null
+          rapportino_id: string | null
+          stato: Database["public"]["Enums"]["rapportino_stato"] | null
+          tipo_assenza: string | null
+        }
+        Relationships: []
+      }
       v_rapportini_mancanti: {
         Row: {
           cantiere_id: string | null
@@ -2683,6 +2757,14 @@ export type Database = {
       stato_ddt: "caricato" | "estratto" | "verificato" | "fatturato"
       ambito_documento: "cantiere" | "cliente" | "fornitore" | "materiale"
       ambito_figura: "cliente" | "cantiere"
+      motivo_ore:
+        | "permesso"
+        | "malattia"
+        | "ferie"
+        | "infortunio"
+        | "recupero"
+        | "straordinario"
+        | "altro"
       ruolo_figura:
         | "amministratore"
         | "referente"
@@ -2850,6 +2932,15 @@ export const Constants = {
       stato_ddt: ["caricato", "estratto", "verificato", "fatturato"],
       ambito_documento: ["cantiere", "cliente", "fornitore", "materiale"],
       ambito_figura: ["cliente", "cantiere"],
+      motivo_ore: [
+        "permesso",
+        "malattia",
+        "ferie",
+        "infortunio",
+        "recupero",
+        "straordinario",
+        "altro",
+      ],
       ruolo_figura: [
         "amministratore",
         "referente",

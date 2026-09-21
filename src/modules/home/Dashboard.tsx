@@ -94,7 +94,7 @@ export function Dashboard() {
           {/* ── Chi compila: prima la giornata, poi le code ── */}
           {puoCompilare && (
             <>
-              <CantieriDelGiorno giorno={giorno} />
+              <CantieriDelGiorno giorno={giorno} onCambiaGiorno={setGiorno} />
 
               {/* Il calendario sta SOTTO le card e SOPRA le code, e la
                   posizione e' ragionata. Sopra le card no: chi apre

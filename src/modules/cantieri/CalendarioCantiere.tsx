@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { Card, cn } from '../../ui'
+import { eFineSettimana } from '../../lib/giorni'
 import { griglieDelMese, giornoPiu, meseEAnno, numero } from '../../lib/formato'
 import { oggi } from '../rapportini/campiRapportino'
 import type { RapportinoCantiere } from '../rapportini/useRapportini'
@@ -138,7 +139,11 @@ export function CalendarioCantiere({
           {INIZIALI.map((i, k) => (
             <span
               key={`${i}-${k}`}
-              className="pb-1 text-center text-[10px] font-extrabold uppercase text-gray-500"
+              className={cn(
+                'pb-1 text-center text-[10px] font-extrabold uppercase',
+                // Le ultime due colonne sono sabato e domenica.
+                k >= 5 ? 'text-gray-400' : 'text-gray-500',
+              )}
             >
               {i}
             </span>
@@ -151,6 +156,11 @@ export function CalendarioCantiere({
             const stato = statoDi(r)
             const scelto = cella === giorno
             const futuro = cella > adesso
+            /* Sabato e domenica: non sono giornate da compilare, e si
+               riconoscono a colpo d'occhio invece di far contare le
+               colonne. Il grigio dice «non ti riguarda», non «errore»
+               — quello sarebbe il rosso. */
+            const nonFeriale = eFineSettimana(cella)
 
             return (
               <button
@@ -173,7 +183,11 @@ export function CalendarioCantiere({
                    righe di testo. */
                 className={cn(
                   'relative h-9 rounded-lg border-2 text-xs font-bold',
-                  stato === 'vuoto' ? 'bg-white' : COLORE[stato],
+                  stato === 'vuoto'
+                    ? nonFeriale
+                      ? 'bg-gray-200 text-gray-500'
+                      : 'bg-white'
+                    : COLORE[stato],
                   scelto ? 'border-black ring-2 ring-black ring-offset-1' : 'border-black/30',
                   futuro
                     ? 'cursor-not-allowed text-gray-300'

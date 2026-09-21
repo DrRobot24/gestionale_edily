@@ -292,12 +292,18 @@ begin
 
   return query
   select
-    s.stato::text,
+    s.stato,
     count(distinct s.data)::integer,
     min(s.data),
     max(s.data)
   from (
-    select r.data, r.stato
+    -- `::text` su TUTTI E DUE i rami, ed e' obbligatorio: `rapportini.stato`
+    -- e' l'enum `rapportino_stato`, `ore_personali.stato` e' testo libero
+    -- (difetto noto del progetto, «campi che dovrebbero essere enum e sono
+    -- testo libero»). Postgres non unisce un enum e un text e risponde
+    -- 42804 «UNION types rapportino_stato and text cannot be matched».
+    -- Il cast fuori dalla sottoquery non basta: la UNION si valuta prima.
+    select r.data, r.stato::text as stato
     from public.rapportini r
     where r.org_id = p_org
       and r.data between p_dal and p_al
@@ -305,7 +311,7 @@ begin
 
     union all
 
-    select p.data, p.stato
+    select p.data, p.stato::text as stato
     from public.ore_personali p
     where p.org_id = p_org
       and p.data between p_dal and p_al

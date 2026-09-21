@@ -1,4 +1,5 @@
 import { Card, cn } from '../../ui'
+import { eFineSettimana } from '../../lib/giorni'
 import { griglieDelMese, giornoPiu, meseEAnno } from '../../lib/formato'
 import { useCantieri } from '../cantieri/useCantieri'
 import { useRapportini, type Rapportino } from '../rapportini/useRapportini'
@@ -132,7 +133,11 @@ export function CalendarioGiornate({
         {INIZIALI.map((i, k) => (
           <span
             key={`${i}-${k}`}
-            className="pb-1 text-center text-[10px] font-extrabold uppercase text-gray-500"
+            className={cn(
+              'pb-1 text-center text-[10px] font-extrabold uppercase',
+              // Le ultime due colonne sono sabato e domenica.
+              k >= 5 ? 'text-gray-400' : 'text-gray-500',
+            )}
           >
             {i}
           </span>
@@ -144,6 +149,11 @@ export function CalendarioGiornate({
           const stato = statoGiornata(perGiorno.get(cella) ?? [], attivi)
           const scelto = cella === giorno
           const futuro = cella > adesso
+          /* Sabato e domenica non sono giornate da compilare: si
+             riconoscono a colpo d'occhio invece di far contare le
+             colonne. Il grigio dice «non ti riguarda» senza dire
+             «errore», che sarebbe il rosso. */
+          const nonFeriale = eFineSettimana(cella)
 
           return (
             <button
@@ -155,7 +165,11 @@ export function CalendarioGiornate({
               title={descrizione(stato)}
               className={cn(
                 'relative aspect-square rounded-lg border-2 text-xs font-bold',
-                stato === 'vuota' ? 'bg-white' : ASPETTO[stato],
+                stato === 'vuota'
+                  ? nonFeriale
+                    ? 'bg-gray-200 text-gray-500'
+                    : 'bg-white'
+                  : ASPETTO[stato],
                 scelto ? 'border-black ring-2 ring-black ring-offset-1' : 'border-black/30',
                 futuro
                   ? 'cursor-not-allowed text-gray-300'
