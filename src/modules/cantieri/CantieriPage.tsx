@@ -4,9 +4,19 @@ import { Avviso, Button, Cifra, Table, Vuoto } from '../../ui'
 import { usePermission } from '../auth/usePermission'
 import { StatoCantiere } from './stato'
 import { useCantieri } from './useCantieri'
+import { useFigureRiepilogo } from '../anagrafiche/figure'
 
 export function CantieriPage() {
   const { data: cantieri, isPending, error } = useCantieri()
+  /* Le figure in colonna: «così so ogni cantiere che personaggi ha
+     all'interno» (utente, 2026-09-21). Una chiamata sola per tutto
+     l'elenco, non una per riga.
+
+     Se la vista non c'e' ancora la colonna resta vuota e l'elenco
+     funziona lo stesso: `figure.sql` si esegue a mano, e una pagina che
+     si rompe per una colonna accessoria sarebbe una punizione
+     sproporzionata. */
+  const { data: figure } = useFigureRiepilogo('cantiere')
 
   // Chi non ha cantieri.read_all vede solo quelli che gli sono stati
   // assegnati. Vale la pena dirglielo: altrimenti una lista con un
@@ -53,6 +63,7 @@ export function CantieriPage() {
               <th>Codice</th>
               <th>Denominazione</th>
               <th>Luogo</th>
+              <th>D.L. e sicurezza</th>
               <th>Inizio</th>
               <th>Fine prevista</th>
               <th className="text-right">Contratto</th>
@@ -67,6 +78,13 @@ export function CantieriPage() {
                 <td className="font-semibold">{c.denominazione}</td>
                 <td className="text-gray-600">
                   {c.comune ? `${c.comune}${c.provincia ? ` (${c.provincia})` : ''}` : '—'}
+                </td>
+                {/* DL e CSE in UNA colonna, non due: la tabella ne ha
+                    gia' otto, e due colonne di nomi lunghi la
+                    spingerebbero fuori schermo. La sigla davanti dice
+                    chi e' chi senza bisogno dell'intestazione. */}
+                <td className="text-gray-600">
+                  <Figure riga={figure?.get(c.id)} />
                 </td>
                 <td className="numerico text-gray-600">{fmtData(c.data_inizio)}</td>
                 <td className="numerico text-gray-600">{fmtData(c.data_fine_prevista)}</td>
@@ -83,6 +101,33 @@ export function CantieriPage() {
             ))}
           </tbody>
         </Table>
+      )}
+    </div>
+  )
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   Le figure di un cantiere, in una cella sola.
+
+   Si mostrano DL e CSE perche' sono le due che si vanno a cercare: chi
+   dirige e chi risponde della sicurezza. Le altre — RSPP, collaudatore,
+   progettista — stanno nella scheda: in elenco riempirebbero la riga
+   senza che nessuno le stia cercando li'.
+   ───────────────────────────────────────────────────────────────── */
+function Figure({ riga }: { riga?: { dl: string | null; cse: string | null } }) {
+  if (!riga || (!riga.dl && !riga.cse)) return <>—</>
+
+  return (
+    <div className="grid gap-0.5 text-xs">
+      {riga.dl && (
+        <div>
+          <span className="font-bold">D.L.</span> {riga.dl}
+        </div>
+      )}
+      {riga.cse && (
+        <div>
+          <span className="font-bold">CSE</span> {riga.cse}
+        </div>
       )}
     </div>
   )

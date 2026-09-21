@@ -834,6 +834,62 @@ export type Database = {
           },
         ]
       }
+      figure: {
+        Row: {
+          ambito: Database["public"]["Enums"]["ambito_figura"]
+          created_at: string
+          email: string | null
+          id: string
+          nominativo: string
+          note: string | null
+          org_id: string
+          riferimento_id: string
+          ruolo: Database["public"]["Enums"]["ruolo_figura"]
+          ruolo_libero: string | null
+          telefono: string | null
+          titolo: string | null
+          updated_at: string
+        }
+        Insert: {
+          ambito: Database["public"]["Enums"]["ambito_figura"]
+          created_at?: string
+          email?: string | null
+          id?: string
+          nominativo: string
+          note?: string | null
+          org_id: string
+          riferimento_id: string
+          ruolo: Database["public"]["Enums"]["ruolo_figura"]
+          ruolo_libero?: string | null
+          telefono?: string | null
+          titolo?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ambito?: Database["public"]["Enums"]["ambito_figura"]
+          created_at?: string
+          email?: string | null
+          id?: string
+          nominativo?: string
+          note?: string | null
+          org_id?: string
+          riferimento_id?: string
+          ruolo?: Database["public"]["Enums"]["ruolo_figura"]
+          ruolo_libero?: string | null
+          telefono?: string | null
+          titolo?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "figure_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fornitori: {
         Row: {
           attivo: boolean
@@ -2361,6 +2417,20 @@ export type Database = {
           },
         ]
       }
+      v_figure_riepilogo: {
+        Row: {
+          ambito: Database["public"]["Enums"]["ambito_figura"] | null
+          amministratore: string | null
+          cse: string | null
+          dl: string | null
+          org_id: string | null
+          quante: number | null
+          referente: string | null
+          riferimento_id: string | null
+          sicurezza: string | null
+        }
+        Relationships: []
+      }
       v_ore_giornaliere: {
         Row: {
           cantiere: string | null
@@ -2612,6 +2682,19 @@ export type Database = {
         | "contabilizzato"
       stato_ddt: "caricato" | "estratto" | "verificato" | "fatturato"
       ambito_documento: "cantiere" | "cliente" | "fornitore" | "materiale"
+      ambito_figura: "cliente" | "cantiere"
+      ruolo_figura:
+        | "amministratore"
+        | "referente"
+        | "rup"
+        | "dl"
+        | "progettista"
+        | "csp"
+        | "cse"
+        | "rspp"
+        | "aspp"
+        | "collaudatore"
+        | "altro"
       stato_rapporto: "assunto" | "in_prova" | "da_inquadrare"
       tipo_risorsa: "operaio" | "tecnico" | "impiegato"
       user_role: "admin" | "moderator" | "user" | "superadmin"
@@ -2766,6 +2849,20 @@ export const Constants = {
       ],
       stato_ddt: ["caricato", "estratto", "verificato", "fatturato"],
       ambito_documento: ["cantiere", "cliente", "fornitore", "materiale"],
+      ambito_figura: ["cliente", "cantiere"],
+      ruolo_figura: [
+        "amministratore",
+        "referente",
+        "rup",
+        "dl",
+        "progettista",
+        "csp",
+        "cse",
+        "rspp",
+        "aspp",
+        "collaudatore",
+        "altro",
+      ],
       stato_rapporto: ["assunto", "in_prova", "da_inquadrare"],
       tipo_risorsa: ["operaio", "tecnico", "impiegato"],
       user_role: ["admin", "moderator", "user", "superadmin"],

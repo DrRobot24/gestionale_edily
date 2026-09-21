@@ -13,6 +13,7 @@ import {
 } from '../rapportini/useRapportini'
 import { assegnazioneInCorso, useAssegnazioni, useMembri } from './assegnazioni'
 import { RiquadroDocumenti } from '../documenti/RiquadroDocumenti'
+import { RiquadroFigure } from '../anagrafiche/RiquadroFigure'
 import { CalendarioCantiere } from './CalendarioCantiere'
 import { useCantiere } from './cantieri'
 import { RiquadroNoteContabili } from './RiquadroNoteContabili'
@@ -203,6 +204,24 @@ export function CantiereScheda() {
               Il tecnico li LEGGE, e la RLS glielo concede solo sui
               cantieri suoi. Carica e cancella chi tiene le anagrafiche:
               alla Edily Stefania e il titolare. */}
+          {/* ══ LE FIGURE DEL CANTIERE ══
+              Direttore Lavori, coordinatori della sicurezza, collaudo:
+              sono NOMINATI PER QUEST'OPERA, non appartengono al
+              cliente. Lo stesso condominio che fa due interventi in
+              anni diversi puo' avere due DL diversi, e il CSE e' per
+              definizione il coordinatore *di questo cantiere*.
+
+              Il tecnico le LEGGE, ed e' una scelta piu' larga che sui
+              documenti: il DL e il CSE sono le persone che in cantiere
+              incontra, e un numero di telefono che sta nel gestionale
+              ma non si legge dal posto dove serve finisce su un
+              foglietto. */}
+          <RiquadroFigure
+            ambito="cantiere"
+            riferimentoId={id!}
+            puoScrivere={puoScrivereAnagrafiche}
+          />
+
           <RiquadroDocumenti
             ambito="cantiere"
             riferimentoId={id!}

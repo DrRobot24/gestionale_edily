@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { Avviso, Badge, Button, Campo, CampoArea, Card, Percorso, cn } from '../../ui'
 import { usePermission } from '../auth/usePermission'
 import { RiquadroDocumenti } from '../documenti/RiquadroDocumenti'
+import { RiquadroFigure } from './RiquadroFigure'
 import { useArchiviaCliente, useCliente, useEliminaCliente, useSalvaCliente } from './clienti'
 
 const vuoto = (v: string) => (v.trim() === '' ? null : v.trim())
@@ -434,6 +435,20 @@ export function ClienteForm() {
           Solo su una scheda gia' salvata: un documento ha bisogno di
           qualcosa a cui appartenere, e prima del primo salvataggio
           quella riga non ha ancora un id. */}
+      {/* ══ CHI RAPPRESENTA IL CLIENTE ══
+          Prima queste persone stavano nelle NOTE come testo libero —
+          «Amministratore: Ing. Renato La Runa, DL: Ing. Adriano De
+          Franciscis» — dove sono scritte bene ma non si cercano, non
+          stanno in colonna e non si puo' telefonare a nessuno.
+
+          Qui ci sono solo amministratore e referente. Il DL e i
+          coordinatori della sicurezza stanno sul CANTIERE, perche' sono
+          nominati per quell'opera: lo stesso condominio che fa due
+          interventi puo' avere due DL diversi. */}
+      {!nuovo && id && (
+        <RiquadroFigure ambito="cliente" riferimentoId={id} puoScrivere={puoScrivere} />
+      )}
+
       {!nuovo && id && (
         <RiquadroDocumenti ambito="cliente" riferimentoId={id} puoScrivere={puoScrivere} />
       )}

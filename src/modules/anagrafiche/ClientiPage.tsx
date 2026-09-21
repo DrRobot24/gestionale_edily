@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router'
 import { Avviso, Badge, Button, Table, Vuoto } from '../../ui'
 import { usePermission } from '../auth/usePermission'
 import { useClienti } from './clienti'
+import { useFigureRiepilogo } from './figure'
 
 export function ClientiPage() {
   const navigate = useNavigate()
@@ -10,6 +11,15 @@ export function ClientiPage() {
   const puoScrivere = usePermission('anagrafiche.write')
 
   const { data: clienti, isPending, error } = useClienti({ soloAttivi: !conArchiviati })
+  /* Le figure in colonna: «così so ogni cantiere che personaggi ha
+     all'interno» (utente, 2026-09-21). Una chiamata sola per tutto
+     l'elenco, non una per riga: la vista ha gia' raggruppato.
+
+     Se la vista non c'e' ancora la colonna resta vuota e l'elenco
+     funziona lo stesso — `figure.sql` e' un file dello schema che si
+     esegue a mano, e una pagina che si rompe perche' manca una colonna
+     accessoria sarebbe una punizione sproporzionata. */
+  const { data: figure } = useFigureRiepilogo('cliente')
 
   if (isPending) return <p className="text-sm font-bold text-gray-600">Carico i clienti…</p>
   if (error) return <Avviso tono="errore">Non riesco a leggere i clienti: {error.message}</Avviso>
@@ -55,6 +65,7 @@ export function ClientiPage() {
               <th>Ragione sociale</th>
               <th>Partita IVA</th>
               <th>Comune</th>
+              <th>Amministratore</th>
               <th>Contatti</th>
               <th />
             </tr>
@@ -69,6 +80,11 @@ export function ClientiPage() {
                 <td className="numerico text-gray-600">{c.partita_iva ?? '—'}</td>
                 <td className="text-gray-600">
                   {c.comune ? `${c.comune}${c.provincia ? ` (${c.provincia})` : ''}` : '—'}
+                </td>
+                <td className="text-gray-600">
+                  {figure?.get(c.id)?.amministratore ??
+                    figure?.get(c.id)?.referente ??
+                    '—'}
                 </td>
                 <td className="text-gray-600">{c.email ?? c.telefono ?? '—'}</td>
                 <td className="text-right">
