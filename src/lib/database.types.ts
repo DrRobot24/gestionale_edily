@@ -2512,6 +2512,83 @@ export type Database = {
         }[]
       }
       ore_in_lettere: { Args: { p_ore: number }; Returns: string }
+      ore_periodo: {
+        Args: { p_al: string; p_dal: string; p_org: string }
+        Returns: {
+          assenze: string
+          dipendente_id: string
+          giorni_lavorati: number
+          matricola: string
+          nominativo: string
+          ore_assenza: number
+          ore_ordinarie: number
+          ore_straordinarie: number
+          ore_trasferta: number
+          tipo: string
+        }[]
+      }
+      ore_periodo_cantieri: {
+        Args: { p_al: string; p_dal: string; p_dipendente?: string; p_org: string }
+        Returns: {
+          cantiere: string
+          cantiere_codice: string
+          cantiere_id: string
+          dipendente_id: string
+          giorni: number
+          giorni_attivita: Json
+          nominativo: string
+          ore_ordinarie: number
+          ore_straordinarie: number
+          ore_trasferta: number
+        }[]
+      }
+      periodo_da_validare: {
+        Args: { p_al: string; p_dal: string; p_org: string }
+        Returns: {
+          al: string
+          dal: string
+          giornate: number
+          stato: string
+        }[]
+      }
+      ore_settimana: {
+        Args: { p_lunedi: string; p_org: string }
+        Returns: {
+          assenze: string
+          dipendente_id: string
+          giorni_lavorati: number
+          matricola: string
+          nominativo: string
+          ore_assenza: number
+          ore_ordinarie: number
+          ore_straordinarie: number
+          ore_trasferta: number
+          tipo: string
+        }[]
+      }
+      ore_settimana_cantieri: {
+        Args: { p_dipendente?: string; p_lunedi: string; p_org: string }
+        Returns: {
+          cantiere: string
+          cantiere_codice: string
+          cantiere_id: string
+          dipendente_id: string
+          giorni: number
+          nominativo: string
+          ore_ordinarie: number
+          ore_straordinarie: number
+          ore_trasferta: number
+        }[]
+      }
+      settimana_da_validare: {
+        Args: { p_lunedi: string; p_org: string }
+        Returns: {
+          al: string
+          dal: string
+          giornate: number
+          stato: string
+        }[]
+      }
     }
     Enums: {
       cantiere_stato:

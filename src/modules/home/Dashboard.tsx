@@ -12,6 +12,7 @@ import { ControlloOre } from './ControlloOre'
 import { MieOre } from './MieOre'
 import { GiornateDaValidare } from './GiornateDaValidare'
 import { IlSuoLavoro } from './IlSuoLavoro'
+import { OreArrivate } from './OreArrivate'
 import { oggi } from '../rapportini/campiRapportino'
 
 /* ══════════════════════════════════════════════════════════════════
@@ -168,6 +169,18 @@ export function Dashboard() {
 
               Al suo posto il punto di partenza del suo lavoro vero: i
               registri che riempie lei, con quanti ne ha dentro. */}
+
+          {/* Le ore arrivate STANNO SOPRA i registri, ed e' l'ordine
+              del lavoro: i registri sono il fondo che si riempie una
+              volta e si ritocca, le ore sono cio' che cambia ogni
+              giorno e su cui si agisce adesso.
+
+              `paghe.read` e non il ruolo, come sempre: e' il permesso di
+              chi le ore deve elaborarle. Il riquadro sparisce da solo
+              quando non c'e' niente di nuovo — la home mostra cose da
+              fare, mai una bacheca di cio' che e' gia' andato bene. */}
+          {can('paghe.read') && <OreArrivate />}
+
           <IlSuoLavoro />
         </div>
       )}

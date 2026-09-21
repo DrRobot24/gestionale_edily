@@ -20,6 +20,8 @@ import { Dashboard } from './modules/home/Dashboard'
 import { EconomiaPage } from './modules/economia/EconomiaPage'
 import { MagazzinoPage } from './modules/magazzino/MagazzinoPage'
 import { MieOrePage } from './modules/oreproprie/MieOrePage'
+import { OrePeriodoPage } from './modules/ore/OrePeriodoPage'
+import { useOreDaLeggere } from './modules/ore/useOreDaLeggere'
 import { DipendenteForm } from './modules/anagrafiche/DipendenteForm'
 import type { Permission } from './modules/auth/session'
 import { env } from './lib/env'
@@ -166,6 +168,30 @@ const VOCI: Voce[] = [
     etichetta: 'Le mie ore',
     perm: 'rapportini.create',
     elemento: <MieOrePage />,
+  },
+
+  /* LE ORE DI TUTTI, per settimana. E' l'altro capo del flusso dei
+     rapportini, e chiude un buco che avevamo aperto noi: il 2026-09-15 i
+     rapportini sono usciti dal menu dell'amministrazione — a Stefania
+     non interessano, provato in ufficio — ma il sostituto non c'era, e
+     da allora non aveva nessuna strada per leggere le ore da elaborare.
+
+     `paghe.read` trova qui il suo primo impiego: esiste in
+     `role_permissions` dai tempi di wbs-office e non era mai stato usato
+     in nessun punto del frontend. Ce l'hanno owner, admin e
+     amministrazione — verificato sul database il 2026-09-21.
+
+     NON e' in OR con `rapportini.create` come Economia: li' il tecnico
+     entra perche' quelle note le scrive lui. Qui dentro ci sono le ore
+     di tutti i colleghi, che sono il presupposto delle buste paga, e il
+     perimetro per assegnazione non c'entra niente — la funzione e'
+     `security definer` apposta. Chi compila non deve leggere le ore
+     degli altri. */
+  {
+    to: '/ore',
+    etichetta: 'Ore per persona',
+    perm: 'paghe.read',
+    elemento: <OrePeriodoPage />,
   },
 
   /* Magazzino sotto `anagrafiche.read`, che ce l'hanno tutti tranne chi
@@ -401,7 +427,10 @@ function Barra({ voci }: { voci: Voce[] }) {
       <nav className="flex flex-1 flex-col gap-1 p-3">
         {voci.map((v) => (
           <NavLink key={v.to} to={v.to} end={v.to === '/'} className={classeVoce}>
-            {v.etichetta}
+            <span className="flex items-center justify-between gap-2">
+              {v.etichetta}
+              <Pallino voce={v.to} />
+            </span>
           </NavLink>
         ))}
       </nav>
@@ -454,11 +483,57 @@ function BarraMobile({ voci }: { voci: Voce[] }) {
             end={v.to === '/'}
             className={(stato) => cn(classeVoce(stato), 'shrink-0')}
           >
-            {v.etichetta}
+            <span className="flex items-center gap-2">
+              {v.etichetta}
+              <Pallino voce={v.to} />
+            </span>
           </NavLink>
         ))}
       </nav>
     </header>
+  )
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   IL PALLINO sulla voce di menu.
+
+   Chiesto dall'utente il 2026-09-21: «LEI vivrà in quella pagina».
+   Stefania sta dentro il gestionale tutto il giorno, e il pallino non
+   serve a richiamarla da fuori — serve perche', mentre e' su un'altra
+   schermata a fare altro, veda che e' arrivata roba nuova senza doverla
+   andare a cercare.
+
+   Un NUMERO e non un puntino cieco: «3» dice se vale la pena
+   interrompere quello che si sta facendo, un puntino no. E' lo stesso
+   ragionamento del contatore proposto per gli operai archiviati —
+   dichiarare l'esistenza di righe invece di aspettare che qualcuno
+   provi ad aprire.
+
+   Il colore e' `lime-300`, lo stesso segnale positivo dei badge: qui
+   non c'e' niente di rotto, e' lavoro che e' arrivato. Il rosso lo si
+   tiene per le cose che non vanno.
+
+   Sta qui e non dentro le due barre perche' lo usano tutte e due, e
+   perche' il giorno in cui una seconda voce avra' il suo conteggio
+   bastera' aggiungere una riga a questa funzione.
+   ───────────────────────────────────────────────────────────────── */
+function Pallino({ voce }: { voce: string }) {
+  const { data } = useOreDaLeggere()
+
+  if (voce !== '/ore') return null
+  if (!data || data.giornate === 0) return null
+
+  return (
+    <span
+      className="inline-flex min-w-5 items-center justify-center rounded-full border-2 border-black bg-lime-300 px-1.5 text-[10px] font-extrabold text-black"
+      title={
+        data.giornate === 1
+          ? '1 giornata validata di recente'
+          : `${data.giornate} giornate validate di recente`
+      }
+    >
+      {data.giornate}
+    </span>
   )
 }
 
