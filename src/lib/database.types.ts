@@ -2664,6 +2664,7 @@ export type Database = {
           giustificazione: Json
           matricola: string
           nominativo: string
+          nota_assenza: string
           ore_assenza: number
           ore_ordinarie: number
           ore_straordinarie: number

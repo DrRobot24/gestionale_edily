@@ -9,7 +9,7 @@ import { useDipendenti } from '../anagrafiche/dipendenti'
 import { FormRapportino } from './FormRapportino'
 import { caricaFoto } from './useFoto'
 import type { DatiEconomia } from './RiquadroEconomia'
-import { oggi, type CampiRapportino } from './campiRapportino'
+import { ALTRO_MOTIVO, oggi, type CampiRapportino } from './campiRapportino'
 
 export function NuovoRapportino() {
   const { org, app } = useSession()
@@ -76,6 +76,10 @@ export function NuovoRapportino() {
           ore_trasferta: r.ore_trasferta,
           ore_assenza: r.ore_assenza,
           tipo_assenza: r.tipo_assenza || null,
+          // La spiegazione si salva solo quando il motivo e' «Altro»:
+          // su una riga normale sarebbe testo che nessuno ha scritto,
+          // rimasto da un motivo cambiato e poi corretto.
+          note: r.tipo_assenza === ALTRO_MOTIVO ? r.note.trim() || null : null,
         }))
 
       if (ore.length > 0) {
@@ -226,6 +230,7 @@ export function NuovoRapportino() {
       ore_trasferta: 0,
       ore_assenza: 0,
       tipo_assenza: '',
+      note: '',
       // Su una scheda nuova nessuna riga e' confermata: la spunta verde
       // la mette chi compila, riga per riga.
       confermata: false,

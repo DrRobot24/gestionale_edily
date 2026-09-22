@@ -92,6 +92,11 @@ returns table (
   ore_trasferta      numeric,
   ore_assenza        numeric,
   tipo_assenza       text,
+  -- La spiegazione scritta a mano quando il motivo e' «Altro»: senza,
+  -- in griglia si leggerebbe «ALT» e nessuno saprebbe di cosa si
+  -- trattava. Viene da `rapportino_ore.note`, una riga per persona e
+  -- giornata.
+  nota_assenza       text,
   -- Dove ha lavorato quel giorno, con le ore su ciascun cantiere. Non
   -- entra nella cella — che resta un numero solo, leggibile di sfuggita
   -- — ma e' la prima cosa che si vede aprendola. Array di
@@ -146,6 +151,7 @@ begin
       o.ore_trasferta,
       o.ore_assenza,
       o.tipo_assenza,
+      o.note          as nota_assenza,
       r.cantiere_id,
       c.codice        as cantiere_codice,
       c.denominazione as cantiere_nome
@@ -169,6 +175,9 @@ begin
       0::numeric,
       p.ore_assenza,
       p.tipo_assenza,
+      -- Il foglio ore personale non ha una nota per riga: chi lo
+      -- compila sceglie fra i motivi e basta.
+      null::text,
       null::uuid,
       null::text,
       null::text
@@ -226,7 +235,8 @@ begin
       -- Una persona puo' avere due assenze diverse nello stesso giorno
       -- solo per un errore di compilazione, ma se c'e' si deve vedere:
       -- tacerne una la farebbe sparire dalla busta.
-      string_agg(distinct u.tipo_assenza, ', ') as tipo_assenza
+      string_agg(distinct u.tipo_assenza, ', ') as tipo_assenza,
+      string_agg(distinct u.nota_assenza, ' · ')  as nota_assenza
     from ore_unite u
     group by u.dipendente_id, u.giorno
     -- Le giornate a zero non escono: e' una riga che dice «niente», e la
@@ -276,6 +286,7 @@ begin
     coalesce(t.ore_trasferta, 0)::numeric,
     coalesce(t.ore_assenza, 0)::numeric,
     t.tipo_assenza,
+    t.nota_assenza,
     -- Array vuoto e non null: chi tiene il foglio personale non sta su
     -- nessun cantiere, e la pagina non deve distinguere due casi per
     -- dire la stessa cosa.

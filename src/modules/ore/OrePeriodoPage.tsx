@@ -679,7 +679,17 @@ function Cella({
         )}
       >
         {assente ? (
-          <span className="inline-block rounded-md border-2 border-gray-400 bg-white px-1 text-[10px] font-extrabold uppercase text-gray-600">
+          /* Il `title` porta il motivo per esteso: «ALT» in tre lettere
+             non dice niente, e chi passa sopra la cella vuole sapere
+             cos'era senza doverla aprire. */
+          <span
+            title={
+              casella.nota_assenza
+                ? `${casella.tipo_assenza}: ${casella.nota_assenza}`
+                : (casella.tipo_assenza ?? undefined)
+            }
+            className="inline-block rounded-md border-2 border-gray-400 bg-white px-1 text-[10px] font-extrabold uppercase text-gray-600"
+          >
             {siglaAssenza(casella.tipo_assenza)}
           </span>
         ) : (
@@ -986,6 +996,17 @@ function Giornata({
             ` · ${ore(casella.ore_assenza)} ass${casella.tipo_assenza ? ` (${casella.tipo_assenza})` : ''}`}
         </span>
       </div>
+
+      {/* La spiegazione di un'assenza «Altro», scritta dal tecnico.
+          Sta in evidenza e non fra parentesi in testata: e' una frase,
+          non una sigla, ed e' il motivo per cui la voce «Altro» esiste
+          — «ALT» da solo non direbbe niente a chi fa le paghe. */}
+      {casella.nota_assenza && (
+        <p className="border-b-2 border-black bg-white px-3 py-2 text-xs font-semibold text-black">
+          <span className="font-black uppercase text-gray-500">Motivo: </span>
+          {casella.nota_assenza}
+        </p>
+      )}
 
       {/* ── dove ────────────────────────────────────────────────
           Il NOME del cantiere, non il codice. Stessa regola applicata ai

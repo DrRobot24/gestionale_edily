@@ -9,7 +9,7 @@ import { useDipendenti } from '../anagrafiche/dipendenti'
 import { FormRapportino } from './FormRapportino'
 import { useRapportino } from './rapportino'
 import { modificabile } from './regole'
-import type { CampiRapportino } from './campiRapportino'
+import { ALTRO_MOTIVO, type CampiRapportino } from './campiRapportino'
 
 export function ModificaRapportino() {
   const { id } = useParams()
@@ -78,6 +78,11 @@ export function ModificaRapportino() {
           ore_trasferta: riga.ore_trasferta,
           ore_assenza: riga.ore_assenza,
           tipo_assenza: riga.tipo_assenza || null,
+          // La spiegazione si salva solo con il motivo «Altro», e si
+          // azzera cambiandolo: una nota rimasta sotto un motivo che
+          // non la richiede piu' e' una frase orfana che in busta paga
+          // racconta qualcosa che non c'entra.
+          note: riga.tipo_assenza === ALTRO_MOTIVO ? riga.note.trim() || null : null,
         }
 
         if (riga.rigaId && vuole) {
@@ -213,6 +218,7 @@ type RigaSalvata = {
   ore_trasferta: number
   ore_assenza: number
   tipo_assenza: string | null
+  note: string | null
   dipendenti: { nome: string; cognome: string; matricola: string | null } | null
 }
 
@@ -248,6 +254,7 @@ function righeUnite(salvate: RigaSalvata[], attivi: Attivo[]) {
       ore_trasferta: s ? Number(s.ore_trasferta) : 0,
       ore_assenza: s ? Number(s.ore_assenza) : 0,
       tipo_assenza: s?.tipo_assenza ?? '',
+      note: s?.note ?? '',
       /* Chi arriva dal database nasce CONFERMATO: quelle ore sono gia'
          state scritte e salvate una volta. Chiedere di rispuntarle tutte
          per correggere una virgola nella descrizione sarebbe far
@@ -270,6 +277,7 @@ function righeUnite(salvate: RigaSalvata[], attivi: Attivo[]) {
       ore_trasferta: Number(s.ore_trasferta),
       ore_assenza: Number(s.ore_assenza),
       tipo_assenza: s.tipo_assenza ?? '',
+      note: s.note ?? '',
       confermata: true,
     })
   }

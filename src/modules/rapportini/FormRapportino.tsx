@@ -6,6 +6,7 @@ import {
   ASSENZE,
   ORE_STANDARD,
   schemaRapportino,
+  ALTRO_MOTIVO,
   type CampiRapportino,
 } from './campiRapportino'
 import { RiquadroFoto } from './RiquadroFoto'
@@ -155,7 +156,12 @@ export function FormRapportino({
          sue ore di assenza. Non decide piu' il colore del segno — lo
          decide `confermata` — ma serve ancora a impedire di confermare
          una riga vuota. */
-      completa: lavorate > 0 || (motivo !== '' && assenza > 0),
+      /* «Altro» senza la spiegazione non e' una riga completa: la
+         spunta verde non si deve poter dare su una motivazione che
+         ancora non dice niente. */
+      completa:
+        (lavorate > 0 || (motivo !== '' && assenza > 0)) &&
+        (motivo !== ALTRO_MOTIVO || String(riga?.note ?? '').trim() !== ''),
       confermata: Boolean(riga?.confermata),
     }
   })
@@ -592,6 +598,52 @@ export function FormRapportino({
                               />
                             )}
                           </div>
+
+                          {/* LA SPIEGAZIONE, quando il motivo e' «Altro».
+
+                              Chiesta dall'utente il 2026-09-22: l'elenco
+                              chiuso copriva ferie, permesso, malattia,
+                              infortunio e congedo, e per il resto — lutto,
+                              donazione sangue, assemblea, visita medica —
+                              costringeva a scegliere la voce «piu' vicina».
+                              In busta paga finiva «Permesso» dove c'era un
+                              lutto.
+
+                              Compare SOLO con «Altro», e li' e' obbligatoria:
+                              una riga che dice «Altro» e basta non dice
+                              niente piu' di una riga vuota, e avrebbe solo
+                              spostato il problema di un passo. Con gli altri
+                              cinque motivi non compare — sono gia' la
+                              risposta, e una casella facoltativa su ogni
+                              riga e' un campo che nessuno compila e tutti
+                              scavalcano.
+
+                              Va nella colonna `note` di `rapportino_ore`,
+                              che esisteva gia' inutilizzata: una nota sulla
+                              riga di UNA persona in UNA giornata e' esattamente
+                              cio' che serve, e non ha richiesto di toccare lo
+                              schema. */}
+                          {motivo === ALTRO_MOTIVO && (
+                            <div>
+                              <input
+                                type="text"
+                                placeholder="Qual è il motivo? (per esempio: lutto familiare, visita medica)"
+                                aria-label={`Motivo dell'assenza di ${campo.nominativo}`}
+                                className={cn(
+                                  'h-8 w-full rounded-lg border-2 bg-white px-3 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-amber-400',
+                                  errors.ore?.[i]?.note ? 'border-rose-500' : 'border-black',
+                                )}
+                                {...register(`ore.${i}.note`, {
+                                  onChange: () => setValue(`ore.${i}.confermata`, false),
+                                })}
+                              />
+                              {errors.ore?.[i]?.note && (
+                                <p className="mt-1 text-[11px] font-bold text-rose-700">
+                                  {String(errors.ore[i]?.note?.message ?? '')}
+                                </p>
+                              )}
+                            </div>
+                          )}
 
                           {/* LA SPUNTA DI CONFERMA — chiesta dall'utente
                               il 2026-09-17.

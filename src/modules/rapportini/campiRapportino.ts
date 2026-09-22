@@ -13,7 +13,33 @@ import { z } from 'zod'
  * applicazione: non e' un vincolo vero — lo sara' quando diventera' un
  * enum in Postgres — ma impedisce che i dati sporchi entrino da qui.
  */
-export const ASSENZE = ['Ferie', 'Permesso', 'Malattia', 'Infortunio', 'Congedo'] as const
+/**
+ * I motivi di assenza, e in fondo la via d'uscita.
+ *
+ * I primi cinque sono i casi che coprono quasi tutto e si scelgono con
+ * un gesto. `Altro` e' per il resto — lutto, donazione sangue,
+ * assemblea sindacale, visita medica — e non e' un buco nell'elenco: un
+ * elenco chiuso costringerebbe a scegliere la voce «piu' vicina», e in
+ * busta paga finirebbe «Permesso» dove c'era un lutto.
+ *
+ * Chiesto dall'utente il 2026-09-22, fra tre opzioni: «voce Altro piu'
+ * casella di testo». Scegliendo `Altro` la spiegazione diventa
+ * OBBLIGATORIA, altrimenti si sarebbe solo spostato il problema: una
+ * riga che dice «Altro» e basta non dice niente piu' di una vuota.
+ *
+ * Sta in fondo di proposito: e' l'ultima cosa da provare, non la prima
+ * che capita sotto il dito.
+ */
+export const ALTRO_MOTIVO = 'Altro'
+
+export const ASSENZE = [
+  'Ferie',
+  'Permesso',
+  'Malattia',
+  'Infortunio',
+  'Congedo',
+  ALTRO_MOTIVO,
+] as const
 
 /** Le ore di una giornata piena in Italia. E' il metro del controllo
  *  sulle ore: sopra c'e' straordinario, sotto ci vuole un motivo. */
@@ -53,12 +79,32 @@ const rigaOre = z.object({
    *  a ogni modifica vorrebbe dire ricontrollare l'intera squadra per
    *  cambiare una virgola nella descrizione. */
   confermata: z.boolean(),
+  /** La spiegazione dell'assenza, quando il motivo e' `Altro`.
+   *
+   *  Va nella colonna `note` di `rapportino_ore`, che nel database
+   *  esisteva gia' inutilizzata: e' il posto giusto — una nota sulla
+   *  riga di UNA persona in UNA giornata — e non c'e' stato bisogno di
+   *  toccare lo schema.
+   *
+   *  Resta scritta anche cambiando motivo: chi passa da «Altro» a
+   *  «Ferie» per correggere un errore non deve riscrivere niente se
+   *  torna indietro. A salvarla e' il form solo quando serve. */
+  note: z.string(),
 })
   // Ore di assenza senza un motivo sono ore sparite: il controllo le
   // conterebbe come coperte senza sapere da cosa.
   .refine((r) => r.ore_assenza === 0 || r.tipo_assenza !== '', {
     message: 'Scegli il motivo dell’assenza',
     path: ['tipo_assenza'],
+  })
+  // «Altro» senza spiegazione non dice niente piu' di una riga vuota:
+  // sposterebbe il problema invece di risolverlo. E' la stessa regola
+  // che il database impone su `giustificazioni_ore`, dove il vincolo
+  // `giustificazioni_ore_altro_spiegato` pretende la descrizione quando
+  // il motivo e' `altro`.
+  .refine((r) => r.tipo_assenza !== ALTRO_MOTIVO || r.note.trim() !== '', {
+    message: 'Scrivi qual è il motivo',
+    path: ['note'],
   })
 
 export const schemaRapportino = z

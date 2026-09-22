@@ -73,6 +73,9 @@ export type OreGiorno = {
   ore_trasferta: number
   ore_assenza: number
   tipo_assenza: string | null
+  /** La spiegazione scritta a mano quando il motivo e' «Altro».
+   *  Senza, in griglia si leggerebbe «ALT» e basta. */
+  nota_assenza: string | null
   /** Dove ha lavorato quel giorno, con le ore su ciascun cantiere. Non
    *  entra nella cella — che resta un numero solo — ma e' la prima cosa
    *  che si vede aprendola. Vuoto per chi tiene il foglio personale,
