@@ -20,7 +20,6 @@ import { Dashboard } from './modules/home/Dashboard'
 import { EconomiaPage } from './modules/economia/EconomiaPage'
 import { MagazzinoPage } from './modules/magazzino/MagazzinoPage'
 import { MieOrePage } from './modules/oreproprie/MieOrePage'
-import { GrigliaOrePage } from './modules/ore/GrigliaOrePage'
 import { OrePeriodoPage } from './modules/ore/OrePeriodoPage'
 import { useOreDaLeggere } from './modules/ore/useOreDaLeggere'
 import { DipendenteForm } from './modules/anagrafiche/DipendenteForm'
@@ -195,26 +194,6 @@ const VOCI: Voce[] = [
     elemento: <OrePeriodoPage />,
   },
 
-  /* LA GRIGLIA DELLA SETTIMANA, chiesta dall'utente il 2026-09-22: «la
-     disposizione tabellare degli operai con le loro ore lavorate durante
-     la settimana».
-
-     STA SOTTO «Ore per persona» e non sopra, anche se e' la piu' bella
-     da guardare. L'ordine del menu segue il lavoro, non l'estetica: il
-     totale per persona e' cio' su cui Stefania mette le tariffe, ed e'
-     il documento; la griglia e' il controllo che si fa prima, e si apre
-     quando un numero non convince. Metterla per prima farebbe sembrare
-     il foglio presenze il fine del modulo, mentre il fine sono le paghe.
-
-     Stesso cancello, `paghe.read`: sono gli stessi dati visti da
-     un'altra angolazione, e due permessi diversi sulla stessa materia
-     sarebbero due modi di sbagliare invece che uno. */
-  {
-    to: '/ore/settimana',
-    etichetta: 'Ore della settimana',
-    perm: 'paghe.read',
-    elemento: <GrigliaOrePage />,
-  },
 
   /* Magazzino sotto `anagrafiche.read`, che ce l'hanno tutti tranne chi
      non e' in azienda: sapere cosa c'e' in magazzino non e' un

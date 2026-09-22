@@ -43,28 +43,13 @@ export type OrePersona = {
   assenze: string | null
 }
 
-/** Una giornata su un cantiere, con cosa ci si e' fatto. Viene da
- *  `rapportini.note`, che nel form si chiama «Descrizione attività». */
-export type GiornoAttivita = {
-  data: string
-  descrizione: string
-}
-
-export type OreCantiere = {
-  dipendente_id: string
-  nominativo: string
-  cantiere_id: string
-  cantiere_codice: string
-  cantiere: string
-  ore_ordinarie: number
-  ore_straordinarie: number
-  ore_trasferta: number
-  giorni: number
-  /** Le descrizioni delle giornate, gia' ordinate per data. Vuoto se il
-   *  tecnico non ha scritto niente: e' un array, mai null, cosi' la
-   *  pagina non distingue due casi per dire la stessa cosa. */
-  giorni_attivita: GiornoAttivita[]
-}
+/* Qui stavano `GiornoAttivita` e `OreCantiere`, i tipi del dettaglio
+   per cantiere aggregato sul PERIODO. Tolti il 2026-09-22, quando la
+   pagina e' diventata un foglio presenze: il dettaglio adesso e' per
+   GIORNATA — `OreGiorno.cantieri` porta i cantieri di quel giorno con
+   le loro ore — e un secondo livello di aggregazione diceva la stessa
+   cosa in un modo che nessuna schermata chiedeva piu'. Stanno nel git,
+   se un domani servisse uno storico per cantiere. */
 
 /**
  * Una casella della griglia: quanto ha fatto UNA persona in UN giorno.
@@ -80,7 +65,9 @@ export type OreGiorno = {
   nominativo: string
   matricola: string | null
   tipo: string
-  data: string
+  /** Null quando la persona non ha NESSUNA ora nel periodo: esce
+   *  comunque dall'anagrafica, con una riga sola. */
+  data: string | null
   ore_ordinarie: number
   ore_straordinarie: number
   ore_trasferta: number
@@ -248,33 +235,6 @@ export function useOrePeriodo(p: Periodo) {
 }
 
 /**
- * Il dettaglio per cantiere di TUTTO il periodo, in un colpo solo.
- *
- * Si prende tutto invece di chiedere una persona per volta aprendo la
- * sua riga: le righe sono poche — una per persona e cantiere — e una
- * chiamata al server a ogni click farebbe lampeggiare la pagina.
- */
-export function useOrePeriodoCantieri(p: Periodo) {
-  const { org } = useSession()
-
-  return useQuery({
-    queryKey: ['ore-periodo', 'cantieri', org?.id, p.dal, p.al],
-    enabled: Boolean(org?.id),
-    retry: false,
-    queryFn: async (): Promise<OreCantiere[]> => {
-      const { data, error } = await supabase.rpc('ore_periodo_cantieri', {
-        p_org: org!.id,
-        p_dal: p.dal,
-        p_al: p.al,
-        p_dipendente: undefined,
-      })
-      if (error) throw error
-      return (data ?? []) as unknown as OreCantiere[]
-    },
-  })
-}
-
-/**
  * Le ore di tutti, giorno per giorno: la materia della griglia.
  *
  * Si prende tutto il periodo in un colpo solo, come il dettaglio per
@@ -338,16 +298,6 @@ export function useGiornateInSospeso(p: Periodo) {
    scavalcata apposta.
    ───────────────────────────────────────────────────────────────── */
 
-export function perPersona(righe: OreCantiere[]): Map<string, OreCantiere[]> {
-  const mappa = new Map<string, OreCantiere[]>()
-  for (const r of righe) {
-    const gia = mappa.get(r.dipendente_id)
-    if (gia) gia.push(r)
-    else mappa.set(r.dipendente_id, [r])
-  }
-  return mappa
-}
-
 export type Totali = {
   ordinarie: number
   straordinarie: number
@@ -365,30 +315,6 @@ export function totaliDi(righe: OrePersona[]): Totali {
     }),
     { ordinarie: 0, straordinarie: 0, trasferta: 0, assenza: 0 },
   )
-}
-
-/**
- * Le ore di una persona che NON stanno su nessun cantiere.
- *
- * Nasce dal foglio ore personale: il tecnico «e' come un uccello che
- * vola sui cantieri» e le sue ore non appartengono a nessuno di essi,
- * cosi' come quelle di chi sta in ufficio. La pagina lo DICE, invece di
- * lasciarlo dedurre da una sottrazione: chi guarda una busta paga non
- * deve fare i conti per capire perche' due numeri non combaciano.
- */
-export function oreSenzaCantiere(
-  persona: OrePersona,
-  suoiCantieri: OreCantiere[],
-): number {
-  const suCantiere = suoiCantieri.reduce(
-    (s, c) => s + Number(c.ore_ordinarie) + Number(c.ore_straordinarie),
-    0,
-  )
-  const totali = Number(persona.ore_ordinarie) + Number(persona.ore_straordinarie)
-  const fuori = totali - suCantiere
-  // Mai negativo: se i conti non tornassero per un arrotondamento,
-  // meglio non dire niente che dire «-0,5 ore altrove».
-  return fuori > 0.001 ? fuori : 0
 }
 
 /** Ore con la virgola all'italiana e senza decimali inutili: «8» e non
@@ -492,6 +418,12 @@ export function inGriglia(righe: OreGiorno[]): RigaGriglia[] {
       }
       per.set(r.dipendente_id, riga)
     }
+
+    /* `data` null vuol dire «questa persona e' in anagrafica e non ha
+       lavorato»: la riga esiste — ed e' il punto, una riga vuota e' una
+       domanda — ma non ha nessuna casella da riempire. */
+    if (r.data === null) continue
+
     riga.giorni.set(r.data, r)
     riga.ordinarie += Number(r.ore_ordinarie)
     riga.straordinarie += Number(r.ore_straordinarie)
@@ -509,11 +441,6 @@ export function totaleGiorno(righe: RigaGriglia[], giorno: string): number {
     const c = r.giorni.get(giorno)
     return c ? s + lavorate(c) : s
   }, 0)
-}
-
-/** «lun 15» — la data breve di una giornata di attivita'. */
-export function giornoBreve(s: string): string {
-  return daIso(s).toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric' })
 }
 
 /** La funzione nel database non c'e' ancora: e' un file dello schema

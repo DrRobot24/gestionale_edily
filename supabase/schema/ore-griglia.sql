@@ -17,13 +17,19 @@
 -- risponde a una domanda diversa — «quante ne ha fatte MARTEDI'» — e la
 -- differenza non e' di dettaglio, e' di gesto.
 --
--- Chiesto dall'utente il 2026-09-22: «la disposizione tabellare degli
--- operai con le loro ore lavorate durante la settimana». E' il foglio
--- che in ufficio si tiene sul tavolo: le persone in riga, i giorni in
--- colonna, e si legge in due direzioni. Per riga, quanto ha fatto una
--- persona. Per colonna, chi c'era quel giorno. Il totale per persona
--- resta l'ultima colonna, ed e' lo stesso numero di `ore_periodo`: se un
--- giorno i due non tornassero, e' questa la vista che lo fa vedere.
+-- Chiesto dall'utente il 2026-09-22: «gli operai come righe (tutti
+-- quelli in anagrafica ovviamente) ed i giorni della settimana sopra
+-- come colonne». E' il foglio che in ufficio si tiene sul tavolo, e si
+-- legge in due direzioni. Per riga, quanto ha fatto una persona. Per
+-- colonna, chi c'era quel giorno.
+--
+-- ALIMENTA LA STESSA PAGINA, `/ore`: non una seconda schermata. La
+-- prima versione era una pagina a parte e l'utente ha corretto — «io
+-- intendevo questa come posizione» — perche' due pagine sugli stessi
+-- dati vogliono dire due posti dove guardare e due totali da far
+-- tornare. `ore_periodo` resta per il riquadro in home di chi fa le
+-- paghe, e i due totali devono coincidere: se un giorno non tornassero,
+-- e' questa la vista che lo fa vedere.
 --
 -- STESSE REGOLE DI `ore_periodo`, e non e' una comodita': se qui
 -- entrassero anche le giornate non validate, la somma delle celle non
@@ -36,6 +42,15 @@
 -- contiene. Restituire zeri per le giornate vuote vorrebbe dire mandare
 -- settanta righe dove ne bastano venti, e su una settimana di ferie
 -- sarebbero tutte zeri.
+--
+-- SI PARTE DALL'ANAGRAFICA, non dalle ore. Chi non ha lavorato esce
+-- comunque, con una riga sola a `data` null. E' la differenza fra un
+-- foglio presenze e un estratto conto: una riga vuota e' una domanda
+-- che si puo' andare a chiudere, una riga che NON C'E' non la nota
+-- nessuno — e l'operaio dimenticato dal rapportino resterebbe fuori
+-- dalla busta in silenzio. E' esattamente il controllo per cui questa
+-- vista esiste. Richiesta dell'utente il 2026-09-22: «tutti quelli in
+-- anagrafica ovviamente».
 --
 -- LA CELLA SI APRE. Richiesta dell'utente il 2026-09-22: «la possibilita'
 -- di cliccare e di vedere dove hanno lavorato cioe' in quale cantiere e
@@ -68,6 +83,9 @@ returns table (
   nominativo         text,
   matricola          text,
   tipo               text,
+  -- Null quando la persona non ha NESSUNA ora nel periodo: esce
+  -- comunque, con una riga sola, perche' una riga vuota e' una domanda
+  -- e una riga assente non la nota nessuno.
   data               date,
   ore_ordinarie      numeric,
   ore_straordinarie  numeric,
@@ -216,18 +234,47 @@ begin
     having coalesce(sum(
       u.ore_ordinarie + u.ore_straordinarie + u.ore_assenza
     ), 0) > 0
+  ),
+
+  -- CHI DEVE COMPARIRE, e questa CTE e' il motivo per cui la funzione
+  -- non parte dalle ore.
+  --
+  -- Si parte dall'ANAGRAFICA: tutti quelli in forza nel periodo, anche
+  -- chi non ha una sola ora. Una riga vuota e' una domanda — «perche'
+  -- Rossi non ha niente questa settimana?» — e una domanda si puo'
+  -- andare a chiudere. Una riga che NON C'E' non la si nota, e chi e'
+  -- stato dimenticato dal rapportino resta fuori dalla busta senza che
+  -- nessuno se ne accorga. E' esattamente il controllo per cui il
+  -- foglio presenze esiste.
+  --
+  -- `attivo` e non la sola data di cessazione: un dipendente si
+  -- disattiva anche senza cessarlo formalmente, ed e' la bandiera che
+  -- l'anagrafica usa dappertutto.
+  --
+  -- Chi e' stato assunto DOPO la fine del periodo, o cessato PRIMA che
+  -- cominciasse, resta fuori: non era in forza, e una sua riga vuota
+  -- sarebbe una domanda con gia' la risposta.
+  in_forza as (
+    select d.id, d.cognome, d.nome, d.matricola, d.tipo
+    from public.dipendenti d
+    where d.org_id = p_org
+      and (d.attivo or exists (
+        select 1 from totali t where t.dipendente_id = d.id
+      ))
+      and (d.data_assunzione is null or d.data_assunzione <= p_al)
+      and (d.data_cessazione is null or d.data_cessazione >= p_dal)
   )
 
   select
-    d.id,
-    (d.cognome || ' ' || d.nome)::text,
-    d.matricola,
-    d.tipo::text,
+    f.id,
+    (f.cognome || ' ' || f.nome)::text,
+    f.matricola,
+    f.tipo::text,
     t.giorno,
-    t.ore_ordinarie::numeric,
-    t.ore_straordinarie::numeric,
-    t.ore_trasferta::numeric,
-    t.ore_assenza::numeric,
+    coalesce(t.ore_ordinarie, 0)::numeric,
+    coalesce(t.ore_straordinarie, 0)::numeric,
+    coalesce(t.ore_trasferta, 0)::numeric,
+    coalesce(t.ore_assenza, 0)::numeric,
     t.tipo_assenza,
     -- Array vuoto e non null: chi tiene il foglio personale non sta su
     -- nessun cantiere, e la pagina non deve distinguere due casi per
@@ -248,15 +295,18 @@ begin
         'ore',         g.ore
       )
     end
-  from totali t
-  join public.dipendenti d on d.id = t.dipendente_id
+  -- LEFT JOIN dall'anagrafica alle ore, non il contrario: chi non ha
+  -- lavorato esce comunque, con una riga sola a `giorno` null. La
+  -- pagina la riconosce da quel null e disegna la riga vuota.
+  from in_forza f
+  left join totali t on t.dipendente_id = f.id
   left join cantieri_json cj
-    on cj.dipendente_id = t.dipendente_id and cj.giorno = t.giorno
+    on cj.dipendente_id = f.id and cj.giorno = t.giorno
   left join public.giustificazioni_ore g
-    on g.dipendente_id = t.dipendente_id
+    on g.dipendente_id = f.id
    and g.data = t.giorno
    and g.org_id = p_org
-  order by d.cognome, d.nome, t.giorno;
+  order by f.cognome, f.nome, t.giorno;
 end;
 $fn$;
 
