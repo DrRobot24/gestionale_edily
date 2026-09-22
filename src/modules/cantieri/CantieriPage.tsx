@@ -152,7 +152,34 @@ export function CantieriPage() {
               : 'Non sei assegnato a nessun cantiere. Chiedi al titolare di assegnartene uno.'}
         </Vuoto>
       ) : (
-        <Table>
+        /* `table-fixed` E LE LARGHEZZE, dal 2026-09-22. A layout
+            automatico il browser dimensiona ogni colonna sul suo
+            contenuto: «D.L. e sicurezza» si allargava a mezza pagina
+            per i due nomi lunghi di Mazzotta, mentre sei righe su otto
+            avevano li' un trattino — e le date e gli importi finivano
+            spinti a destra, lontani dalla loro intestazione.
+
+            Le misure vengono dal contenuto vero: la denominazione si
+            prende quello che avanza perche' e' il dato con cui si
+            riconosce un cantiere, le date sono di larghezza fissa
+            perche' una data occupa sempre lo stesso spazio, e il DL sta
+            in 18rem — bastano per «Ing. Adriano De Franciscis» su una
+            riga, e i nomi vanno a capo invece di allargare la colonna.
+
+           Stesso rimedio gia' applicato a Risorse e Clienti. */
+        <Table className="table-fixed">
+          <colgroup>
+            <col className="w-28" />
+            <col />
+            <col className="w-40" />
+            <col className="w-72" />
+            <col className="w-28" />
+            <col className="w-32" />
+            <col className="w-28" />
+            <col className="w-28" />
+            <col className="w-24" />
+          </colgroup>
+
           <thead>
             <tr>
               <th>Codice</th>
@@ -175,8 +202,13 @@ export function CantieriPage() {
             {mostrati.map((c) => (
               <tr key={c.id}>
                 <td className="numerico font-bold">{c.codice}</td>
-                <td className="font-semibold">{c.denominazione}</td>
-                <td className="text-gray-600">
+                {/* `break-words` e non `truncate`: la denominazione e'
+                    il dato con cui si riconosce un cantiere, e
+                    «Condominio Mazzotta - pavimentazione I° Step»
+                    tagliato a meta' non lo identifica piu'. Va a capo,
+                    che in una tabella di otto righe non costa niente. */}
+                <td className="break-words font-semibold">{c.denominazione}</td>
+                <td className="truncate text-gray-600">
                   {c.comune ? `${c.comune}${c.provincia ? ` (${c.provincia})` : ''}` : '—'}
                 </td>
                 {/* DL e CSE in UNA colonna, non due: la tabella ne ha
@@ -189,10 +221,10 @@ export function CantieriPage() {
                 <td className="numerico text-gray-600">{fmtData(c.data_inizio)}</td>
                 <td className="numerico text-gray-600">{fmtData(c.data_fine_prevista)}</td>
                 <Cifra>{euro(c.importo_contratto)}</Cifra>
-                <td>
+                <td className="whitespace-nowrap">
                   <StatoCantiere stato={c.stato} />
                 </td>
-                <td className="text-right">
+                <td className="!text-right">
                   <Button dimensione="sm" onClick={() => navigate(`/cantieri/${c.id}`)}>
                     Apri
                   </Button>
