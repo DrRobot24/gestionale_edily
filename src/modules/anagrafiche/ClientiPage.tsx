@@ -115,7 +115,20 @@ export function ClientiPage() {
                     «Adriana Ciancio Paratore» su una riga sola si
                     taglierebbe a meta' cognome, e due righe in una card
                     non spostano niente. */}
-                <div className="flex-1 p-4">
+                {/* `min-h-28` sul corpo: l'altezza minima comune che
+                    rende uguali tutte le card della pagina, non solo
+                    quelle della stessa riga.
+
+                    Senza, ogni riga della griglia si alza sulla card
+                    piu' alta che contiene e le righe non si parlano fra
+                    loro: un nome che va a capo, o un contatto presente
+                    dove il vicino non ce l'ha, gonfiava una riga sola e
+                    la pagina risultava a gradini. Stessa misura di
+                    Risorse, perche' le due griglie si leggono insieme.
+
+                    Chi ha meno da dire ha piu' aria dentro, ed e' il
+                    prezzo di una griglia regolare. */}
+                <div className="min-h-28 flex-1 p-4">
                   <p className="line-clamp-2 text-base font-extrabold leading-tight text-black">
                     {c.ragione_sociale}
                   </p>

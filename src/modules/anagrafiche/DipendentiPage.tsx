@@ -144,7 +144,27 @@ export function DipendentiPage() {
                   !d.attivo && 'bg-gray-50 text-gray-500',
                 )}
               >
-                <div className="flex-1 p-4">
+                {/* `min-h-28` sul corpo: l'altezza minima comune che
+                    rende UGUALI tutte le card della pagina, non solo
+                    quelle della stessa riga.
+
+                    Senza, la griglia si comporta cosi': ogni riga si
+                    alza sulla card piu' alta che contiene, e le righe
+                    non si parlano fra loro. Bastava un «da inquadrare»
+                    su Michalski per gonfiare tutta la riga di mezzo
+                    mentre la prima e la terza restavano basse, e chi non
+                    aveva niente da dire — Mancuso — si ritrovava un
+                    buco bianco in mezzo alla card, stirato dal vicino.
+                    Notato dall'utente il 2026-09-22: «perche' alcune
+                    sono piu' alte e altre meno?».
+
+                    La misura tiene un nome su due righe piu' una riga di
+                    badge: e' il caso peggiore che l'anagrafica produce
+                    oggi. Chi ha meno da dire ha piu' aria dentro, ed e'
+                    il prezzo di una griglia regolare — con l'arrivo di
+                    ferie e contributi quello spazio si riempira' da
+                    solo. */}
+                <div className="min-h-28 flex-1 p-4">
                   <div className="flex items-start justify-between gap-2">
                     {/* Il nome si prende due righe se serve: l'anagrafica
                         ha gia' «Michalski Velmichalak Norbert, Lucasz», e
