@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
-import { data as fmtData, ora } from '../../lib/formato'
+import { data as fmtData } from '../../lib/formato'
 import { Avviso, Button, Table, Vuoto, cn } from '../../ui'
 import { useSession } from '../auth/SessionProvider'
 import { usePermission } from '../auth/usePermission'
 import { chiedeAncora } from './regole'
 import { StatoRapportino } from './stato'
 import { useRapportini } from './useRapportini'
+import { useMembri } from '../cantieri/assegnazioni'
 
 /* ══════════════════════════════════════════════════════════════════
    L'ELENCO DEI RAPPORTINI, e cosa ci si viene a fare.
@@ -38,6 +39,17 @@ export function RapportiniPage() {
   const [vista, setVista] = useState<Vista>('aperti')
   const { app } = useSession()
   const { data: rapportini, isPending, error } = useRapportini()
+
+  /* I nomi di chi compila. `useMembri()` e' lo stesso hook che usa la
+     squadra del cantiere: `compilato_da` e' un utente, i nomi stanno in
+     `profiles`, e fra le due tabelle non c'e' una chiave esterna — quindi
+     l'unione la fa quell'hook, lato client, una volta per sessione.
+
+     Se la lettura fallisce o non e' ancora arrivata, la colonna mostra
+     un trattino e l'elenco funziona lo stesso: un nome che manca non
+     vale una pagina che non si apre. */
+  const { data: membri } = useMembri()
+  const nomiPerUtente = new Map((membri ?? []).map((m) => [m.userId, m.nome]))
   const puoValidare = usePermission('rapportini.validate')
   const puoCreare = usePermission('rapportini.create')
   const navigate = useNavigate()
@@ -154,7 +166,13 @@ export function RapportiniPage() {
               <th>Data</th>
               <th>N.</th>
               <th>Cantiere</th>
-              <th>Orario</th>
+              {/* CHI L'HA SCRITTO, al posto di «Orario». Chiesto
+                  dall'utente il 2026-09-22: l'orario non lo usa nessuno
+                  — era vuoto su tutte e sette le righe — e quella
+                  colonna teneva spazio per dei trattini. Al suo posto
+                  la domanda che si porra' appena i tecnici saranno due:
+                  «chi ha fatto cosa e quando». */}
+              <th>Compilato da</th>
               <th>Stato</th>
               <th />
             </tr>
@@ -176,8 +194,24 @@ export function RapportiniPage() {
                     '—'
                   )}
                 </td>
-                <td className="numerico text-gray-600">
-                  {r.ora_inizio || r.ora_fine ? `${ora(r.ora_inizio)}–${ora(r.ora_fine)}` : '—'}
+                {/* IL NOME, non l'identificativo. `compilato_da` e' un
+                    utente e i nomi stanno in `profiles`, senza chiave
+                    esterna fra le due: li unisce `useMembri()`, che la
+                    scheda del cantiere usa gia' per la squadra — quindi
+                    nessuna query nuova e cache condivisa.
+
+                    «Tu» quando sei tu: in un elenco dove quasi tutte le
+                    righe portano lo stesso nome, riconoscere le proprie
+                    e' piu' rapido leggendo una parola corta che
+                    rileggendo il proprio cognome dieci volte. Prima
+                    questa informazione stava come etichetta sotto lo
+                    stato, dove non c'entrava niente. */}
+                <td className="text-gray-600">
+                  {r.compilato_da === app?.userId ? (
+                    <span className="font-bold text-black">Tu</span>
+                  ) : (
+                    (nomiPerUtente.get(r.compilato_da ?? '') ?? '—')
+                  )}
                 </td>
                 <td className="whitespace-nowrap">
                   <StatoRapportino stato={r.stato} />
@@ -188,9 +222,6 @@ export function RapportiniPage() {
                     <p className="mt-1 max-w-xs text-[11px] font-semibold text-rose-700">
                       {r.motivo_rifiuto}
                     </p>
-                  )}
-                  {r.compilato_da === app?.userId && (
-                    <p className="mt-1 text-[10px] font-bold uppercase text-gray-500">tuo</p>
                   )}
                 </td>
                 <td className="text-right">
