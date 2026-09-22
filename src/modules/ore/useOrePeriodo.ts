@@ -433,6 +433,78 @@ export function inGriglia(righe: OreGiorno[]): RigaGriglia[] {
   return [...per.values()]
 }
 
+/* ─────────────────────────────────────────────────────────────────
+   IL RIEPILOGO DEL PERIODO: cio' che una giornata sola non sa dire.
+
+   Sono i numeri che stanno dietro il `+`, e la ragione per cui quel
+   gesto esiste ancora dopo che le celle si aprono da sole. Aprire una
+   cella risponde a «questo giorno com'e' andato»; aprire la riga
+   risponde a «dov'e' stato in tutta la settimana, e cosa non torna» —
+   due domande diverse che prima davano la stessa risposta, ripetuta
+   cinque volte. Segnalato dall'utente il 2026-09-22: «non vorrei che ci
+   fosse ridondanza».
+   ───────────────────────────────────────────────────────────────── */
+
+/** Un cantiere visto su tutto il periodo, non su un giorno solo. */
+export type CantiereDelPeriodo = {
+  cantiere_id: string
+  codice: string | null
+  denominazione: string | null
+  ore: number
+  /** In quante giornate distinte ci e' stato: «9 ore in 2 giorni» dice
+   *  una cosa diversa da «9 ore in un giorno solo». */
+  giorni: number
+}
+
+/**
+ * Dove e' stato in tutto il periodo, con le ore su ciascun cantiere.
+ *
+ * Si ricompone dalle giornate invece di chiederlo al database: le
+ * caselle sono gia' in casa, e una seconda chiamata per sommare cio'
+ * che abbiamo gia' sarebbe un viaggio per niente. La somma e' sicura
+ * perche' `OreGiorno.cantieri` arriva da una funzione `security
+ * definer` — non e' un dato filtrato dalla RLS a cui manchino pezzi.
+ */
+export function cantieriDelPeriodo(riga: RigaGriglia): CantiereDelPeriodo[] {
+  const per = new Map<string, CantiereDelPeriodo>()
+
+  for (const casella of riga.giorni.values()) {
+    for (const k of casella.cantieri) {
+      const gia = per.get(k.cantiere_id)
+      if (gia) {
+        gia.ore += Number(k.ore)
+        gia.giorni += 1
+      } else {
+        per.set(k.cantiere_id, {
+          cantiere_id: k.cantiere_id,
+          codice: k.codice,
+          denominazione: k.denominazione,
+          ore: Number(k.ore),
+          giorni: 1,
+        })
+      }
+    }
+  }
+
+  // Dal piu' frequentato al meno: la prima riga risponde a «dov'e'
+  // stato», che e' la domanda vera.
+  return [...per.values()].sort((a, b) => b.ore - a.ore)
+}
+
+/** Le giornate del periodo che hanno una motivazione, in ordine di
+ *  data. Sono cio' che va guardato: il resto e' andato come doveva. */
+export function giornateMotivate(riga: RigaGriglia): OreGiorno[] {
+  return [...riga.giorni.values()]
+    .filter((c) => c.giustificazione !== null)
+    .sort((a, b) => (a.data ?? '').localeCompare(b.data ?? ''))
+}
+
+/** Quante giornate distinte ha lavorato: le assenze non contano, e
+ *  nemmeno i giorni a zero. E' il divisore della media. */
+export function giorniLavorati(riga: RigaGriglia): number {
+  return [...riga.giorni.values()].filter((c) => lavorate(c) > 0).length
+}
+
 /** Il totale di una colonna: quante ore ha lavorato la squadra quel
  *  giorno. E' la lettura verticale della griglia, quella che dice «il
  *  venerdi' siamo sempre a mezzo servizio». */

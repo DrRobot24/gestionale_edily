@@ -7,7 +7,10 @@ import {
   etichetta,
   fuoriGriglia,
   funzioneMancante,
+  cantieriDelPeriodo,
   giorniDi,
+  giorniLavorati,
+  giornateMotivate,
   inGriglia,
   iso,
   lavorate,
@@ -295,13 +298,25 @@ function Griglia({
 
   return (
     <Table>
+      {/* LE LARGHEZZE, ridisegnate il 2026-09-22: «allarga le colonne
+          perche' lo spazio c'e', cosi' mi sembra molto stretto il
+          discorso settimana».
+
+          Prima la colonna della persona era `<col />` senza misura, e
+          in una tabella si prende TUTTO lo spazio avanzato: i nomi ne
+          usavano un terzo e i giorni restavano spremuti a destra in
+          sedici pixel l'uno. Adesso e' la persona ad avere una misura
+          fissa — larga abbastanza per «MICHALSKI VELMICHALAK NORBERT,
+          LUCASZ» e per la riga di sintesi sotto — e sono i GIORNI a
+          spartirsi il resto, che e' giusto perche' sono loro il
+          contenuto della pagina. */}
       <colgroup>
-        <col className="w-10" />
-        <col />
+        <col className="w-12" />
+        <col className="w-[26rem]" />
         {giorni.map((g) => (
-          <col key={g} className="w-16" />
+          <col key={g} />
         ))}
-        <col className="w-24" />
+        <col className="w-28" />
       </colgroup>
 
       <thead>
@@ -422,9 +437,16 @@ function RigaPersona({
   spenta?: boolean
 }) {
   const fuori = fuoriGriglia(riga, giorni)
-  const conGiustificazione = [...riga.giorni.values()].filter(
-    (c) => c.giustificazione !== null,
-  ).length
+  const motivate = giornateMotivate(riga)
+  const lavorati = giorniLavorati(riga)
+  const totale = riga.ordinarie + riga.straordinarie
+
+  /* La media giornaliera, che e' il numero che fa alzare un
+     sopracciglio: otto e mezzo di media su cinque giorni e' una
+     settimana normale, sei e' una settimana con qualcosa dentro. Si
+     dice qui, dove si legge senza aprire niente, perche' e' proprio il
+     tipo di cosa che nessuno va a cercare aprendo venti righe. */
+  const media = lavorati > 0 ? totale / lavorati : 0
 
   return (
     <>
@@ -451,7 +473,11 @@ function RigaPersona({
             onClick={() => onApri(riga.dipendente_id, null)}
             className="block text-left hover:underline"
           >
-            <span className="font-bold uppercase">{riga.nominativo}</span>
+            {/* `break-words`: l'anagrafica ha gia' un nome da trentasette
+                caratteri, e il prossimo potrebbe essere piu' lungo. Va a
+                capo invece di allargare la colonna e spremere i giorni,
+                che e' esattamente il difetto da cui veniamo. */}
+            <span className="break-words font-bold uppercase">{riga.nominativo}</span>
             {riga.matricola && (
               <span className="ml-2 text-[10px] font-bold text-gray-500">
                 matr. {riga.matricola}
@@ -464,13 +490,20 @@ function RigaPersona({
             {riga.tipo !== 'operaio' && (
               <Badge className="ml-2 bg-sky-200">{riga.tipo}</Badge>
             )}
-            {/* Si dichiara PRIMA di aprire cosa c'e' dentro: un «+» non
+            {/* LA SINTESI DELLA RIGA, che la fa raccontare qualcosa
+                prima ancora di aprirla. Si dichiara PRIMA: un «+» non
                 promette niente, e una motivazione che nessuno ha motivo
                 di cercare e' una motivazione che nessuno legge. */}
-            {!aperta && conGiustificazione > 0 && (
-              <span className="block text-[11px] font-semibold text-sky-700">
-                {conGiustificazione}{' '}
-                {conGiustificazione === 1 ? 'giornata motivata' : 'giornate motivate'}
+            {lavorati > 0 && (
+              <span className="block text-[11px] font-semibold text-gray-500">
+                {lavorati} {lavorati === 1 ? 'giorno' : 'giorni'} · {ore(media)} h al giorno
+                {motivate.length > 0 && (
+                  <span className="text-sky-700">
+                    {' · '}
+                    {motivate.length}{' '}
+                    {motivate.length === 1 ? 'motivata' : 'motivate'}
+                  </span>
+                )}
               </span>
             )}
           </button>
@@ -567,8 +600,14 @@ function Cella({
         onClick={onApri}
         aria-expanded={aperta}
         aria-label={`${assente ? 'Assenza' : `${ore(lav)} ore`} il ${dataEstesa(casella.data)}`}
+        /* Largo il giusto, non quanto la colonna. Con i giorni che si
+           spartiscono lo spazio una cella puo' arrivare a duecento
+           pixel, e un bersaglio cosi' per una cifra di due caratteri
+           sembra un errore di impaginazione: il riquadro si accende
+           lontanissimo dal numero che si sta guardando. `mx-auto` lo
+           tiene incollato alla cifra, al centro della colonna. */
         className={cn(
-          'relative w-full rounded-lg border-2 px-1 py-1.5 transition-colors',
+          'relative mx-auto block min-w-[3.5rem] rounded-lg border-2 px-3 py-1.5 transition-colors',
           aperta
             ? 'border-black bg-amber-300'
             : 'border-transparent hover:border-black hover:bg-amber-100',
@@ -606,12 +645,19 @@ function Cella({
 /**
  * Cosa c'e' dentro i numeri di una riga.
  *
- * Con `giorno` si guarda una giornata sola — si e' cliccata una cella —
- * e si puo' allargare a tutto il periodo. Senza, si e' premuto il `+` e
- * si vedono tutte le giornate in fila.
+ * DUE GESTI, DUE RISPOSTE DIVERSE — ed e' il punto di questo
+ * componente. Prima il `+` mostrava le stesse schede del click sul
+ * numero, solo cinque di fila: due strade che portavano allo stesso
+ * posto, cioe' una strada di troppo. Segnalato dall'utente il
+ * 2026-09-22: «non vorrei che ci fosse ridondanza».
  *
- * Tre cose per ogni giornata, nell'ordine in cui servono: quanto, dove,
- * perche'.
+ *   click su un numero   quella giornata: quanto, dove, perche'.
+ *                        E' la domanda «questo giorno com'e' andato».
+ *   il `+` sul nome      il PERIODO INTERO, che una giornata sola non
+ *                        sa dire: i totali per categoria, i cantieri
+ *                        della settimana con le ore su ciascuno, e le
+ *                        giornate che hanno qualcosa da spiegare. E'
+ *                        la domanda «dov'e' stato, e cosa non torna».
  */
 function Dettaglio({
   riga,
@@ -624,14 +670,53 @@ function Dettaglio({
   giorno: string | null
   onApri: (chi: string, giorno: string | null) => void
 }) {
-  /* Quando si guarda tutto il periodo si mostrano solo le giornate che
-     hanno qualcosa: le altre sono gia' un trattino nella griglia, e
-     ripeterle qui sarebbe una lista di «niente». */
-  const daMostrare = giorno
-    ? [giorno]
-    : [...riga.giorni.keys()].sort()
+  /* Una giornata sola: si e' cliccata una cella. */
+  if (giorno) {
+    return (
+      <div className="space-y-2">
+        <Giornata casella={riga.giorni.get(giorno)} giorno={giorno} tipo={riga.tipo} />
+        {/* Da una giornata si sale al periodo: chi ha cliccato una cella
+            per capire un numero spesso vuole poi vedere il resto, ed e'
+            un click e non una seconda ricerca. */}
+        <button
+          type="button"
+          onClick={() => onApri(riga.dipendente_id, null)}
+          className="text-[11px] font-black uppercase tracking-wide text-sky-700 underline decoration-2 underline-offset-2"
+        >
+          › Vedi il riepilogo di tutto il periodo
+        </button>
+      </div>
+    )
+  }
 
-  if (daMostrare.length === 0) {
+  /* Il periodo intero: si e' premuto il `+`. */
+  return <Riepilogo riga={riga} giorni={giorni} onApri={onApri} />
+}
+
+/**
+ * Il riepilogo del periodo: cio' che le singole giornate non dicono.
+ *
+ * Tre blocchi, nell'ordine in cui servono a chi fa le paghe: quanto in
+ * tutto, dove in tutto, e cosa e' da guardare. L'ultimo e' il piu'
+ * importante e sta in fondo perche' e' quello su cui ci si ferma —
+ * gli altri due si leggono di sfuggita e si va avanti.
+ */
+function Riepilogo({
+  riga,
+  giorni,
+  onApri,
+}: {
+  riga: RigaGriglia
+  giorni: string[]
+  onApri: (chi: string, giorno: string | null) => void
+}) {
+  const cantieri = cantieriDelPeriodo(riga)
+  const motivate = giornateMotivate(riga)
+  const lavorati = giorniLavorati(riga)
+  const fuori = fuoriGriglia(riga, giorni)
+  const totale = riga.ordinarie + riga.straordinarie
+
+  if (totale === 0 && riga.assenza === 0) {
     return (
       <div className="text-xs font-bold text-gray-600">
         Nessuna ora in questo periodo. Se ha lavorato, la giornata potrebbe essere ancora in
@@ -641,33 +726,155 @@ function Dettaglio({
   }
 
   return (
-    <div className="space-y-2">
-      {/* Da una giornata sola si torna a tutte: chi ha cliccato una
-          cella per capire un numero spesso vuole poi vedere il resto
-          della settimana, ed e' un click, non una seconda ricerca. */}
-      {giorno && (
-        <button
-          type="button"
-          onClick={() => onApri(riga.dipendente_id, null)}
-          className="text-[11px] font-black uppercase tracking-wide text-sky-700 underline decoration-2 underline-offset-2"
-        >
-          › Vedi tutte le giornate del periodo
-        </button>
-      )}
+    <div className="space-y-3">
+      {/* ── quanto, in tutto il periodo ─────────────────────────
+          I totali per categoria: sono le colonne che questa pagina
+          aveva prima del 2026-09-22, e qui hanno ritrovato il loro
+          posto — accanto ai cantieri che le spiegano, invece che al
+          posto dei giorni. Le voci a zero non si scrivono: una riga
+          «0 di trasferta» su ogni persona insegna a saltare il
+          riquadro. */}
+      <div className="flex flex-wrap gap-2">
+        <Numero etichetta="Ore nel periodo" valore={ore(totale)} forte />
+        <Numero etichetta="Giorni lavorati" valore={String(lavorati)} />
+        {lavorati > 0 && (
+          <Numero etichetta="Media al giorno" valore={`${ore(totale / lavorati)} h`} />
+        )}
+        {riga.straordinarie > 0 && (
+          <Numero etichetta="Straordinario" valore={ore(riga.straordinarie)} tono="rosa" />
+        )}
+        {riga.assenza > 0 && <Numero etichetta="Assenza" valore={ore(riga.assenza)} />}
+        {fuori > 0 && (
+          <Numero
+            etichetta="Nel fine settimana"
+            valore={ore(fuori)}
+            tono="celeste"
+          />
+        )}
+      </div>
 
-      {daMostrare.map((g) => (
-        <Giornata key={g} casella={riga.giorni.get(g)} giorno={g} tipo={riga.tipo} />
-      ))}
+      {/* ── dove, in tutto il periodo ───────────────────────────
+          Il pezzo che il giorno singolo non puo' dare: «nove ore sul
+          Villa Rossi in due giornate» e' una frase che si compone solo
+          guardando la settimana intera. Ordinati dal piu' frequentato,
+          perche' la prima riga deve rispondere a «dov'e' stato». */}
+      <div>
+        <h3 className="mb-1.5 text-[10px] font-black uppercase tracking-wider text-gray-500">
+          Dove ha lavorato, in tutto il periodo
+        </h3>
 
-      {/* Le ore fuori dalle colonne mostrate: il sabato lavorato. Lo si
-          DICE, invece di lasciarlo dedurre da una sottrazione fra il
-          totale della riga e la somma delle celle. */}
-      {!giorno && fuoriGriglia(riga, giorni) > 0 && (
-        <div className="rounded-lg border-2 border-black bg-sky-100 px-3 py-2 text-xs font-bold">
-          {ore(fuoriGriglia(riga, giorni))} ore nel fine settimana, fuori dalle colonne qui
-          sopra ma dentro il totale.
+        {cantieri.length === 0 ? (
+          <p className="text-xs font-semibold text-gray-600">
+            {riga.tipo === 'operaio'
+              ? 'Nessun cantiere in questo periodo.'
+              : riga.tipo === 'tecnico'
+                ? 'Ore dal foglio personale: il tecnico gira tutti i cantieri e le segna nel suo.'
+                : 'Ore dal foglio personale: lavoro in ufficio.'}
+          </p>
+        ) : (
+          <ul className="grid gap-1.5 sm:grid-cols-2">
+            {cantieri.map((k) => (
+              <li
+                key={k.cantiere_id}
+                className="flex items-baseline gap-3 rounded-lg border-2 border-black bg-white px-3 py-2"
+              >
+                <span className="numerico w-14 shrink-0 text-sm font-black">
+                  {ore(k.ore)} h
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="text-xs font-bold">{k.denominazione}</span>
+                  <span className="ml-2 text-[10px] font-bold text-gray-500">{k.codice}</span>
+                </span>
+                <span className="shrink-0 text-[10px] font-bold text-gray-500">
+                  {k.giorni} {k.giorni === 1 ? 'giorno' : 'giorni'}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {/* ── cosa e' da guardare ─────────────────────────────────
+          Le giornate che non tornano, tutte insieme. E' il blocco per
+          cui il `+` vale la pena di essere premuto: senza, per sapere
+          quali giornate hanno una motivazione bisognerebbe aprire le
+          celle una per una cercando il puntino.
+
+          Ogni riga riporta alla sua giornata: da qui si va al
+          dettaglio, non si ripete il dettaglio. */}
+      {motivate.length > 0 && (
+        <div>
+          <h3 className="mb-1.5 text-[10px] font-black uppercase tracking-wider text-gray-500">
+            Da guardare — {motivate.length}{' '}
+            {motivate.length === 1 ? 'giornata motivata' : 'giornate motivate'}
+          </h3>
+
+          <ul className="grid gap-1.5">
+            {motivate.map((c) => {
+              const g = c.giustificazione!
+              return (
+                <li key={c.data}>
+                  <button
+                    type="button"
+                    onClick={() => onApri(riga.dipendente_id, c.data)}
+                    className="flex w-full flex-wrap items-center gap-2 rounded-lg border-2 border-black bg-sky-50 px-3 py-2 text-left hover:bg-sky-100"
+                  >
+                    <span className="text-[11px] font-black uppercase">
+                      {c.data && giornoEtichetta(c.data)}
+                    </span>
+                    <span
+                      className={cn(
+                        'rounded-md border-2 border-black px-1.5 py-0.5 text-[10px] font-extrabold uppercase',
+                        g.tipo === 'mancanza' ? 'bg-rose-200' : 'bg-lime-200',
+                      )}
+                    >
+                      {g.tipo === 'mancanza' ? 'in meno' : 'in più'}
+                    </span>
+                    <span className="text-[11px] font-black uppercase">{g.motivo}</span>
+                    {Number(g.ore) > 0 && (
+                      <span className="numerico text-[11px] font-bold text-gray-600">
+                        {ore(g.ore)} h
+                      </span>
+                    )}
+                    {g.descrizione && (
+                      <span className="min-w-0 flex-1 truncate text-xs font-semibold text-gray-700">
+                        {g.descrizione}
+                      </span>
+                    )}
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
         </div>
       )}
+    </div>
+  )
+}
+
+/** Un numero con la sua etichetta, nel riepilogo. */
+function Numero({
+  etichetta: nome,
+  valore,
+  forte = false,
+  tono,
+}: {
+  etichetta: string
+  valore: string
+  forte?: boolean
+  tono?: 'rosa' | 'celeste'
+}) {
+  return (
+    <div
+      className={cn(
+        'rounded-lg border-2 border-black px-3 py-1.5',
+        tono === 'rosa' ? 'bg-rose-100' : tono === 'celeste' ? 'bg-sky-100' : 'bg-white',
+      )}
+    >
+      <div className="text-[9px] font-black uppercase tracking-wider text-gray-500">
+        {nome}
+      </div>
+      <div className={cn('numerico font-black', forte ? 'text-lg' : 'text-sm')}>{valore}</div>
     </div>
   )
 }
@@ -814,6 +1021,13 @@ function giornoCorto(g: string): string {
   return new Date(a, m - 1, d)
     .toLocaleDateString('it-IT', { weekday: 'short' })
     .replace('.', '')
+}
+
+/** «gio 17» — la giornata nominata per esteso quanto basta, nelle
+ *  righe del riepilogo. La data completa sta nella scheda che si apre:
+ *  qui serve solo a riconoscere quale colonna della griglia e'. */
+function giornoEtichetta(g: string): string {
+  return `${giornoCorto(g)} ${numeroGiorno(g)}`
 }
 
 /** Il numero del giorno, sotto il nome: senza, due settimane di fila
