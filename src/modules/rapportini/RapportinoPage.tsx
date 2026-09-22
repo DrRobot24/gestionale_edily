@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { useNavigate, useParams, useSearchParams } from 'react-router'
+import { useNavigate, useParams } from 'react-router'
 import { data as fmtData, numero as fmtNumero, ora } from '../../lib/formato'
 import { Avviso, Button, Card, Cifra, Percorso, Table, Vuoto } from '../../ui'
-import { foglio, risali, strada } from './percorso'
+import { foglio, risali, strada, type Appartenenza } from './percorso'
 import { useNoteContabili } from '../cantieri/noteContabili'
 import { useSession } from '../auth/SessionProvider'
 import { usePermission } from '../auth/usePermission'
@@ -14,8 +14,6 @@ import { StatoRapportino } from './stato'
 export function RapportinoPage() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const [params] = useSearchParams()
-  const ritorno = params.get('ritorno')
   const { app } = useSession()
   const { data: r, isPending, error } = useRapportino(id)
   const transizione = useTransizione()
@@ -59,6 +57,15 @@ export function RapportinoPage() {
   const mio = r.compilato_da === app?.userId
   const ore = r.rapportino_ore ?? []
 
+  // Il cantiere del foglio: e' il posto dove riporta la freccia, e il
+  // rapportino lo sa gia' senza doverlo chiedere all'indirizzo.
+  const dove: Appartenenza = {
+    cantiereId: r.cantiere_id,
+    data: r.data,
+    codice: r.cantieri?.codice,
+    denominazione: r.cantieri?.denominazione,
+  }
+
   const totale = ore.reduce(
     (s, o) => s + Number(o.ore_ordinarie) + Number(o.ore_straordinarie),
     0,
@@ -76,11 +83,12 @@ export function RapportinoPage() {
 
   return (
     <div className="mx-auto grid max-w-7xl gap-4">
-      {/* `ritorno` sa da dove sei entrato, e il percorso lo racconta:
-          dalle card della home, dalla scheda di un cantiere, o
-          dall'elenco. Scriverlo sempre "elenco" manderebbe indietro nel
-          posto giusto con il nome sbagliato. */}
-      <Percorso indietro={risali(ritorno)} qui={strada(ritorno, foglio(r.numero, r.anno))} />
+      {/* Un rapportino e' la giornata di un cantiere: si torna li',
+          sul giorno del foglio, da qualunque parte si sia entrati. */}
+      <Percorso
+        indietro={risali(dove)}
+        qui={strada(dove, foglio(r.numero, r.anno))}
+      />
 
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -281,7 +289,7 @@ export function RapportinoPage() {
                         // pagina di una scheda che non esiste piu'
                         // mostrerebbe "non trovo questo rapportino",
                         // cioe' un errore al posto di un risultato.
-                        onSuccess: () => navigate(risali(ritorno).a),
+                        onSuccess: () => navigate(risali(dove).a),
                       })
                     }
                   >
@@ -298,13 +306,7 @@ export function RapportinoPage() {
                     letto un motivo di rifiuto. */}
                 {mio && modificabile(r.stato) && (
                   <Button
-                    onClick={() =>
-                      navigate(
-                        ritorno
-                          ? `/rapportini/${r.id}/modifica?ritorno=${ritorno}`
-                          : `/rapportini/${r.id}/modifica`,
-                      )
-                    }
+                    onClick={() => navigate(`/rapportini/${r.id}/modifica`)}
                   >
                     Modifica
                   </Button>

@@ -272,9 +272,11 @@ function FasciaGiornata({
 }) {
   const navigate = useNavigate()
 
-  // Il ritorno riporta al giorno che si stava guardando, non a oggi:
-  // chi recupera il rapportino di ieri non deve ricercarselo a mano
-  // appena esce.
+  // Serve solo alla scheda NUOVA, che il cantiere non ce l'ha ancora
+  // scritto dentro: una volta salvata, e da ogni scheda gia' esistente,
+  // il rapportino sa da se' a quale cantiere e a quale giorno torna.
+  // Riporta al giorno che si stava guardando, non a oggi: chi recupera
+  // il rapportino di ieri non deve ricercarselo a mano appena esce.
   const ritorno = encodeURIComponent(`/cantieri/${cantiereId}?data=${giorno}`)
 
   const respinto = rapportino?.stato === 'respinto'
@@ -373,8 +375,8 @@ function FasciaGiornata({
                 onClick={() =>
                   navigate(
                     respinto && mio && puoCompilare
-                      ? `/rapportini/${rapportino.id}/modifica?ritorno=${ritorno}`
-                      : `/rapportini/${rapportino.id}?ritorno=${ritorno}`,
+                      ? `/rapportini/${rapportino.id}/modifica`
+                      : `/rapportini/${rapportino.id}`,
                   )
                 }
               >

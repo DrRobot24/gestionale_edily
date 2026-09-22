@@ -87,7 +87,7 @@ export function GiornateDaValidare() {
                 <RigaScheda
                   key={s.id}
                   scheda={s}
-                  onApri={() => navigate(`/rapportini/${s.id}?ritorno=/`)}
+                  onApri={() => navigate(`/rapportini/${s.id}`)}
                 />
               ))}
             </ul>

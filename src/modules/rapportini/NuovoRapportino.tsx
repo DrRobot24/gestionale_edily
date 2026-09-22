@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useSearchParams } from 'react-router'
 import { supabase } from '../../lib/supabase'
 import { Avviso, Button, Card, Percorso } from '../../ui'
-import { risali, strada } from './percorso'
+import { risali, strada, type Appartenenza } from './percorso'
 import { useSession } from '../auth/SessionProvider'
 import { useCantieri } from '../cantieri/useCantieri'
 import { useDipendenti } from '../anagrafiche/dipendenti'
@@ -175,6 +175,25 @@ export function NuovoRapportino() {
   }
 
   /**
+   * Il cantiere per cui si sta scrivendo, quando lo dice gia'
+   * l'indirizzo — cioe' quando si arriva dalla scheda di un cantiere o
+   * da una card della home. E' il posto dove riporta la freccia.
+   *
+   * Quando invece non lo dice — si e' entrati da «Nuovo rapportino» nel
+   * menu — il cantiere lo sceglie il form e qui non si sa ancora: la
+   * freccia ripiega sull'elenco, che e' davvero il posto da cui si e'
+   * arrivati.
+   */
+  const dove: Appartenenza | null = cantiereScelto
+    ? {
+        cantiereId: cantiereScelto,
+        data: giornoScelto ?? oggi(),
+        codice: cantieri.find((c) => c.id === cantiereScelto)?.codice,
+        denominazione: cantieri.find((c) => c.id === cantiereScelto)?.denominazione,
+      }
+    : null
+
+  /**
    * La squadra parte vuota e la si compone scegliendo chi c'era.
    *
    * Prima partiva al completo con otto ore a testa, e si toglieva chi
@@ -215,7 +234,10 @@ export function NuovoRapportino() {
 
   return (
     <div className="mx-auto grid max-w-7xl gap-4">
-      <Percorso indietro={risali(ritorno)} qui={strada(ritorno, { etichetta: 'Nuovo' })} />
+      <Percorso
+        indietro={risali(dove, ritorno)}
+        qui={strada(dove, { etichetta: 'Nuovo' })}
+      />
 
       <div>
         <h1 className="text-2xl font-extrabold text-black">Nuovo rapportino</h1>
@@ -254,7 +276,7 @@ export function NuovoRapportino() {
         inCorso={salva.isPending}
         errore={salva.isError ? (salva.error as Error).message : undefined}
         onSalva={(campi, foto, economia) => salva.mutate({ campi, foto, economia })}
-        onAnnulla={() => navigate(ritorno ?? '/rapportini')}
+        onAnnulla={() => navigate(risali(dove, ritorno).a)}
       />
       )}
     </div>

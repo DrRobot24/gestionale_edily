@@ -1,8 +1,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useNavigate, useParams, useSearchParams } from 'react-router'
+import { useNavigate, useParams } from 'react-router'
 import { supabase } from '../../lib/supabase'
 import { Avviso, Percorso } from '../../ui'
-import { foglio, strada } from './percorso'
+import { foglio, strada, type Appartenenza } from './percorso'
 import { useSession } from '../auth/SessionProvider'
 import { useCantieri } from '../cantieri/useCantieri'
 import { useDipendenti } from '../anagrafiche/dipendenti'
@@ -14,8 +14,6 @@ import type { CampiRapportino } from './campiRapportino'
 export function ModificaRapportino() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const [params] = useSearchParams()
-  const ritorno = params.get('ritorno')
   const { org, app } = useSession()
   const qc = useQueryClient()
 
@@ -105,7 +103,10 @@ export function ModificaRapportino() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['rapportino', id] })
       qc.invalidateQueries({ queryKey: ['rapportini'] })
-      navigate(ritorno ?? `/rapportini/${id}`)
+      // Si torna alla scheda appena corretta, non al posto da cui si
+      // era partiti: chi ha appena salvato vuole rileggere quello che
+      // ha scritto. Da li' la freccia porta al cantiere.
+      navigate(`/rapportini/${id}`)
     },
   })
 
@@ -124,6 +125,15 @@ export function ModificaRapportino() {
   }
   if (r.compilato_da !== app?.userId) {
     return <Avviso tono="errore">Puoi modificare solo i rapportini che hai scritto tu.</Avviso>
+  }
+
+  // Il cantiere del foglio, per il percorso: qui non si cambia, il
+  // campo e' bloccato nel form.
+  const dove: Appartenenza = {
+    cantiereId: r.cantiere_id,
+    data: r.data,
+    codice: r.cantieri?.codice,
+    denominazione: r.cantieri?.denominazione,
   }
 
   /**
@@ -150,14 +160,16 @@ export function ModificaRapportino() {
   return (
     <div className="mx-auto grid max-w-7xl gap-4">
       {/* Da un modulo si torna alla scheda che si stava correggendo,
-          sempre: e' da li' che si e' entrati, qualunque sia il `ritorno`
-          piu' a monte. Quello resta scritto nel percorso, che continua a
-          dire da dove viene tutto il giro. */}
+          sempre: e' da li' che si e' entrati, e da li' si risale al
+          cantiere con un altro passo. Il percorso intanto racconta
+          tutta la strada, cantiere compreso. */}
       <Percorso
         indietro={{ etichetta: 'Scheda', a: `/rapportini/${id}` }}
-        qui={strada(ritorno, { ...foglio(r.numero, r.anno), a: `/rapportini/${id}` }, {
-          etichetta: 'Modifica',
-        })}
+        qui={strada(
+          dove,
+          { ...foglio(r.numero, r.anno), a: `/rapportini/${id}` },
+          { etichetta: 'Modifica' },
+        )}
       />
 
       <div>
@@ -187,9 +199,7 @@ export function ModificaRapportino() {
         inCorso={salva.isPending}
         errore={salva.isError ? (salva.error as Error).message : undefined}
         onSalva={(campi) => salva.mutate(campi)}
-        onAnnulla={() =>
-          navigate(ritorno ? `/rapportini/${id}?ritorno=${ritorno}` : `/rapportini/${id}`)
-        }
+        onAnnulla={() => navigate(`/rapportini/${id}`)}
       />
     </div>
   )
