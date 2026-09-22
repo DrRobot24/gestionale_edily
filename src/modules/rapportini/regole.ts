@@ -57,3 +57,29 @@ export function inAttesaDiValidazione(stato: RapportinoStato): boolean {
 export function cancellabile(stato: RapportinoStato): boolean {
   return modificabile(stato)
 }
+
+/**
+ * Un rapportino CHIEDE ANCORA QUALCOSA a qualcuno.
+ *
+ * E' la regola che decide cosa si vede per primo nell'elenco, chiesta
+ * dall'utente il 2026-09-22 guardando ventotto righe di cui la meta'
+ * gia' chiuse: «mettimi un filtro per togliere dalla vista tutti i
+ * rapportini validati e quindi lasciare quelli da validare».
+ *
+ * La divisione non e' cronologica ma operativa, e cade nello stesso
+ * punto per tutti e tre i profili — per questo e' UNA regola e non tre:
+ *
+ *   bozza     aspetta che la giornata parta          → il tecnico
+ *   inviato   e' sul tavolo del titolare             → Giuseppe
+ *   respinto  e' tornato indietro da correggere      → il tecnico
+ *   ──────────────────────────────────────────────────────────────
+ *   validato        accettato, non chiede piu' niente
+ *   contabilizzato  entrato nei conti, non si tocca
+ *
+ * Chi guarda l'elenco vuole sapere cosa c'e' da fare, non cosa e' gia'
+ * andato bene: e' la stessa regola della home, dove la dashboard mostra
+ * solo cose da fare e mai una bacheca di cio' che e' riuscito.
+ */
+export function chiedeAncora(stato: RapportinoStato): boolean {
+  return stato === 'bozza' || stato === 'inviato' || stato === 'respinto'
+}
