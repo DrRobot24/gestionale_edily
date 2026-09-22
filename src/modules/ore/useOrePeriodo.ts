@@ -346,6 +346,16 @@ export function ore(n: number | string): string {
  * lavora» (utente, 2026-09-22). Cinque colonne invece di sette lasciano
  * respirare i numeri, e un sabato lavorato — che capita — non sparisce:
  * le sue ore restano nel totale della riga, e la pagina lo dice.
+ *
+ * ⚠️ IL FOGLIO PRESENZE NON LO USA PIU', dallo stesso 2026-09-22: poche
+ * ore dopo l'utente ha chiesto le settimane complete, sabati e domeniche
+ * compresi, «ovviamente evidenziando che sono sabati o domeniche». La
+ * regola non e' cambiata — quei giorni normalmente non si lavora — ma un
+ * foglio presenze li mostra lo stesso, in grigio, perche' il sabato
+ * lavorato deve avere la sua casella invece di finire in coda alla riga.
+ *
+ * Il parametro resta per chi volesse le sole colonne feriali. Nessuno lo
+ * usa oggi.
  */
 export function giorniDi(p: Periodo, soloFeriali = false): string[] {
   const giorni: string[] = []

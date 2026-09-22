@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Avviso, Badge, Button, Card, Table, Vuoto, cn } from '../../ui'
 import { dataEstesa } from '../../lib/formato'
+import { eFineSettimana, nomeNonFeriale } from '../../lib/giorni'
 import {
   conPasso,
   contieneOggi,
@@ -101,10 +102,22 @@ export function OrePeriodoPage() {
   const sospeso = useGiornateInSospeso(periodo)
 
   const righe = inGriglia(griglia.data ?? [])
-  /* Da lunedi' a venerdi': «ovviamente da lun a ven perche' i non
-     feriali non si lavora». Il sabato lavorato non sparisce — le sue
-     ore restano nel totale della riga, che lo dichiara. */
-  const giorni = giorniDi(periodo, true)
+  /* SETTIMANE COMPLETE, da lunedi' a domenica. Chiesto dall'utente il
+     2026-09-22: «mettimi pure i sabati e le domeniche cosi' abbiamo le
+     settimane complete, ovviamente evidenziando che sono sabati o
+     domeniche».
+
+     Prima erano solo i feriali, su sua indicazione del giorno prima:
+     «i non feriali non si lavora». Vero come regola, ma incompleto come
+     foglio presenze — il sabato lavorato capita, e finiva in un
+     «fuori settimana» in coda alla riga: un numero giusto in un posto
+     dove nessuno lo cerca. Con sette colonne quel caso ha la sua
+     casella, al suo posto nel calendario.
+
+     Il grigio delle due colonne dice «qui normalmente non si lavora»
+     senza toglierle: e' la stessa scelta dei calendari, dove sabato e
+     domenica sono grigi e non rossi. */
+  const giorni = giorniDi(periodo)
 
   /* Chi ha lavorato sopra, chi non ha niente in fondo. La tabella resta
      leggibile anche con venti operai di cui meta' fermi, e la riga di
@@ -349,9 +362,16 @@ function Griglia({
                    sotto sono centrate — e si legge come un errore di
                    impaginazione. Stessa trappola di `align-middle`. */
                 'border-l-2 border-gray-300 !text-center',
+                /* Sabato e domenica in grigio: si riconoscono a colpo
+                   d'occhio invece di far contare le colonne, e il
+                   grigio dice «qui normalmente non si lavora» senza
+                   dire «errore», che sarebbe il rosso. Stessa scelta
+                   dei calendari in home. */
+                eFineSettimana(g) && 'bg-gray-200 text-gray-500',
                 // Oggi si accende: su un periodo in corso dice a che
                 // punto si e', e quali colonne sono ancora da riempire.
-                g === oggi && 'bg-amber-200',
+                // Vince sul grigio: un sabato che e' oggi resta oggi.
+                g === oggi && 'bg-amber-200 text-black',
               )}
             >
               <div>{giornoCorto(g)}</div>
@@ -404,6 +424,10 @@ function Griglia({
                    questa riga verrebbe ignorata in silenzio. */
                 className={cn(
                   'border-l-2 border-gray-300 !align-top text-center',
+                  // Il fondo grigio continua anche qui: la colonna del
+                  // sabato dev'essere riconoscibile per tutta la sua
+                  // altezza, non solo in testa.
+                  eFineSettimana(g) && 'bg-gray-100',
                   t === 0 && 'font-semibold text-gray-300',
                 )}
               >
@@ -573,6 +597,7 @@ function RigaPersona({
         {giorni.map((g) => (
           <Cella
             key={g}
+            giorno={g}
             casella={riga.giorni.get(g)}
             aperta={aperta?.giorno === g}
             onApri={() => onApri(riga.dipendente_id, g)}
@@ -596,12 +621,20 @@ function RigaPersona({
               di cui {ore(riga.straordinarie)} str.
             </div>
           )}
-          {/* Il sabato lavorato non ha una colonna, ma sta nel totale:
-              dirlo evita che la riga sembri sbagliata a chi somma le
-              celle con l'occhio. */}
+          {/* Ore che stanno nel totale ma non in nessuna colonna
+              mostrata. Da quando le settimane sono complete (2026-09-22)
+              non dovrebbe piu' capitare: era il sabato lavorato, che ora
+              ha la sua casella.
+
+              IL CONTROLLO RESTA lo stesso, e non e' codice morto: e' la
+              rete che tiene onesta la riga se un giorno le colonne
+              tornassero a essere meno dei giorni del periodo. Un totale
+              che non torna con le sue celle si legge come un errore di
+              somma, ed e' il genere di sospetto che fa perdere fiducia a
+              tutta la pagina. Se compare, c'e' qualcosa da capire. */}
           {fuori > 0 && (
             <div className="numerico text-[10px] font-bold text-gray-500">
-              {ore(fuori)} fuori settimana
+              {ore(fuori)} fuori dalle colonne
             </div>
           )}
         </td>
@@ -637,14 +670,24 @@ function RigaPersona({
  * qualcosa da dire.
  */
 function Cella({
+  giorno,
   casella,
   aperta,
   onApri,
 }: {
+  /** Serve solo a riconoscere sabato e domenica: una cella vuota non
+   *  sa che giorno e', perche' `casella` li' non c'e'. */
+  giorno: string
   casella: OreGiorno | undefined
   aperta: boolean
   onApri: () => void
 }) {
+  /* Il fondo grigio del fine settimana. Sta sulla CELLA e non solo
+     sull'intestazione: una colonna riconoscibile in testa e bianca per
+     venti righe non si distingue piu' gia' dalla terza riga, che e'
+     dove si guarda davvero. */
+  const nonFeriale = eFineSettimana(giorno)
+
   if (!casella) {
     return (
       /* `p-1` come la cella piena, non il padding di serie della
@@ -653,7 +696,12 @@ function Cella({
          incolonnano non si confronta a occhio. E' il difetto che
          l'utente ha visto il 2026-09-22 — «ci sono pure i numeri
          disallineati». */
-      <td className="border-l-2 border-gray-300 p-1 text-center text-gray-300">
+      <td
+        className={cn(
+          'border-l-2 border-gray-300 p-1 text-center text-gray-300',
+          nonFeriale && 'bg-gray-100',
+        )}
+      >
         {/* Il trattino e non la cella vuota: una cella davvero vuota si
             confonde con un difetto di impaginazione, il trattino dice
             «qui ho guardato, e non c'era niente». Non e' cliccabile
@@ -662,7 +710,9 @@ function Cella({
         <span aria-hidden="true" className="inline-block py-1.5">
           —
         </span>
-        <span className="sr-only">Nessuna ora</span>
+        <span className="sr-only">
+          {nonFeriale ? `Nessuna ora — ${nomeNonFeriale(giorno)}` : 'Nessuna ora'}
+        </span>
       </td>
     )
   }
@@ -672,7 +722,13 @@ function Cella({
   const assente = lav === 0 && Number(casella.ore_assenza) > 0
 
   return (
-    <td className="border-l-2 border-gray-300 p-1 text-center">
+    /* UNA CELLA PIENA DI SABATO NON RESTA GRIGIA: se qualcuno ha
+       lavorato, quella e' una giornata vera e il grigio del «non si
+       lavora» direbbe il contrario. Il fondo torna bianco e il numero
+       si legge come gli altri — anzi, spicca proprio perche' intorno e'
+       grigio, che e' l'effetto giusto: un sabato lavorato E' una cosa
+       da notare. */
+    <td className={cn('border-l-2 border-gray-300 p-1 text-center')}>
       <button
         type="button"
         onClick={onApri}
@@ -1108,6 +1164,12 @@ function Legenda() {
         motivazione del tecnico
       </span>
       <span>— nessuna ora registrata</span>
+      {/* La colonna grigia si spiega, perche' e' l'unica cosa nella
+          griglia che parla col solo colore di fondo. */}
+      <span className="inline-flex items-center gap-1">
+        <span className="inline-block h-3 w-3 rounded border-2 border-gray-400 bg-gray-100" />{' '}
+        sabato e domenica
+      </span>
       <span className="text-gray-500">
         Il <strong>+</strong> apre tutto il periodo, un numero apre quel giorno.
       </span>
@@ -1141,7 +1203,10 @@ function giornoCorto(g: string): string {
  * una certa soglia la tabella scorre invece di schiacciarsi.
  */
 function larghezzaGiorno(quanti: number): string {
-  if (quanti <= 6) return 'w-[9rem]'
+  // Sette e' la settimana intera, da quando ci sono anche sabato e
+  // domenica: le colonne si stringono un po' rispetto alle cinque di
+  // prima, ma restano piu' larghe di quelle di un mese.
+  if (quanti <= 7) return 'w-[7.5rem]'
   if (quanti <= 12) return 'w-24'
   return 'w-20'
 }
