@@ -80,10 +80,56 @@ export type TecnicoInCampo = {
   nominativo: string
 }
 
+/* ── QUANTE SCHEDE ASPETTARSI, E DA CHI ─────────────────────────────
+
+   Rifatto il 2026-09-22 dopo una domanda dell'utente sul calendario del
+   titolare: «perche' ci sono tutti questi rossi quando il tecnico
+   l'invio l'ha fatto? Forse e' stato creato un cantiere e tu in maniera
+   retroattiva pretendi che il tecnico faccia rapportini dopo che
+   l'invio e' stato fatto?»
+
+   Era esattamente cosi'. Il denominatore era «quanti cantieri hanno
+   stato attivo ADESSO» — un numero di stasera applicato all'indietro a
+   tutto il mese. Due guasti in uno:
+
+     RETROATTIVO   un cantiere aperto oggi rendeva rosse le giornate
+                   della settimana scorsa, che erano complete. E ogni
+                   cantiere nuovo riscriveva il giudizio su tutto il
+                   passato: un calendario instabile, che accusa chi il
+                   lavoro l'aveva fatto.
+     DI CHIUNQUE   contava TUTTI gli attivi, anche quelli di un altro.
+                   La verifica sui dati veri l'ha mostrato subito:
+                   l'ottavo cantiere che mancava a Zito — Family Resort
+                   — non e' mai stato suo, e' di Giuseppe come direttore
+                   lavori.
+
+   Adesso l'attesa si ricava da `cantiere_assegnazioni`, che ha gia' la
+   forma della domanda: chi, su quale cantiere, da quando e fino a
+   quando. Incrociata con le date del cantiere, perche' l'assegnazione
+   da sola non basta — nei dati veri Monterosa risultava assegnato dal
+   14 mentre il cantiere apriva il 17, e per tre giorni si sarebbero
+   pretese schede di un cantiere chiuso. */
+export type AttesaCantiere = {
+  cantiereId: string
+  userId: string
+  /** Da quando quel cantiere e' in carico a quella persona. */
+  dal: string
+  /** Fino a quando, `null` se l'incarico e' ancora aperto. */
+  al: string | null
+  /** L'apertura del cantiere: prima di questa data non si lavora, per
+   *  quanto l'incarico possa essere stato registrato in anticipo. */
+  dataInizio: string | null
+  /** La chiusura vera, non quella prevista: una fine prevista che passa
+   *  non chiude un cantiere, e pretendere schede fino alla previsione
+   *  invece che fino alla chiusura e' lo stesso errore all'incontrario. */
+  dataFine: string | null
+}
+
 export type ConsegneDelMese = {
   tecnici: TecnicoInCampo[]
   rapportini: ConsegnaRapportino[]
   ore: ConsegnaOre[]
+  attese: AttesaCantiere[]
 }
 
 /** Il primo e l'ultimo giorno del mese che contiene `giorno`.
@@ -118,7 +164,7 @@ export function useConsegneDelMese(giorno: string) {
     queryKey: ['consegne-mese', org?.id, dal],
     enabled: Boolean(org?.id),
     queryFn: async (): Promise<ConsegneDelMese> => {
-      const [persone, schede, oreProprie] = await Promise.all([
+      const [persone, schede, oreProprie, assegnazioni] = await Promise.all([
         supabase
           .from('dipendenti')
           .select('id, nome, cognome, user_id')
@@ -141,11 +187,21 @@ export function useConsegneDelMese(giorno: string) {
           .eq('org_id', org!.id)
           .gte('data', dal)
           .lte('data', al),
+        /* NON filtrata per mese: un incarico aperto a maggio vale
+           ancora a settembre, e restringerla al mese mostrato
+           cancellerebbe proprio le assegnazioni di lunga durata — cioe'
+           quasi tutte. Sono poche righe per impresa, si leggono
+           intere. */
+        supabase
+          .from('cantiere_assegnazioni')
+          .select('cantiere_id, user_id, dal, al, cantieri ( data_inizio, data_fine_effettiva )')
+          .eq('org_id', org!.id),
       ])
 
       if (persone.error) throw persone.error
       if (schede.error) throw schede.error
       if (oreProprie.error) throw oreProprie.error
+      if (assegnazioni.error) throw assegnazioni.error
 
       const tecnici: TecnicoInCampo[] = (persone.data ?? [])
         // Senza `user_id` non si puo' dire cosa ha scritto: la sua
@@ -159,10 +215,25 @@ export function useConsegneDelMese(giorno: string) {
           nominativo: `${p.cognome} ${p.nome}`.trim(),
         }))
 
+      const attese: AttesaCantiere[] = (assegnazioni.data ?? []).map((a) => {
+        const c = (Array.isArray(a.cantieri) ? a.cantieri[0] : a.cantieri) as
+          | { data_inizio: string | null; data_fine_effettiva: string | null }
+          | null
+        return {
+          cantiereId: a.cantiere_id,
+          userId: a.user_id,
+          dal: a.dal,
+          al: a.al,
+          dataInizio: c?.data_inizio ?? null,
+          dataFine: c?.data_fine_effettiva ?? null,
+        }
+      })
+
       return {
         tecnici,
         rapportini: (schede.data ?? []) as unknown as ConsegnaRapportino[],
         ore: (oreProprie.data ?? []) as ConsegnaOre[],
+        attese,
       }
     },
   })
@@ -192,4 +263,40 @@ export function useTecniciScollegati() {
       return (data ?? []).map((p) => `${p.cognome} ${p.nome}`.trim())
     },
   })
+}
+
+/**
+ * Quanti rapportini aspettarsi da UNA persona in UN giorno.
+ *
+ * Il conto e' storico: vale il mondo com'era quel giorno, non com'e'
+ * stasera. Un cantiere aperto oggi non colora il passato, e uno chiuso
+ * la settimana scorsa non pretende schede da allora in poi.
+ *
+ * QUATTRO CONDIZIONI, e nessuna e' di troppo:
+ *
+ *   e' suo            l'assegnazione porta il `user_id`. Senza questa,
+ *                     a Zito veniva chiesto Family Resort, che e' di
+ *                     Giuseppe.
+ *   l'aveva gia'      `dal <= giorno`. I tre cantieri presi in carico
+ *                     il 21 non si pretendono il 17.
+ *   non l'ha piu'     `al` assente o `>= giorno`.
+ *   il cantiere era   `data_inizio <= giorno` e non ancora chiuso. Nei
+ *   aperto            dati veri Monterosa risultava assegnato dal 14
+ *                     mentre apriva il 17: l'incarico si registra anche
+ *                     in anticipo, il lavoro no.
+ *
+ * ⚠️ UN CANTIERE SENZA `data_inizio` CONTA LO STESSO. Un dato mancante
+ * non deve far sparire un'attesa: sparire sarebbe silenzioso, e una
+ * giornata verde per un buco in anagrafica e' peggio di una rossa, che
+ * almeno si vede. Comanda allora l'assegnazione, che c'e' sempre.
+ */
+export function cantieriAttesi(attese: AttesaCantiere[], userId: string, giorno: string): number {
+  return attese.filter(
+    (a) =>
+      a.userId === userId &&
+      a.dal <= giorno &&
+      (a.al === null || a.al >= giorno) &&
+      (a.dataInizio === null || a.dataInizio <= giorno) &&
+      (a.dataFine === null || a.dataFine >= giorno),
+  ).length
 }

@@ -133,14 +133,48 @@ export function statoGiornataTecnico(
   rapportini: Scheda[],
   cantieriAttesi: number,
   ore: Scheda | null,
+  /** Sabato o domenica: vedi sotto, cambia cosa si ha diritto di
+   *  aspettarsi. Ha un valore di riserva perche' il calendario del
+   *  tecnico non gliel'ha ancora passato, e li' il difetto non si vede
+   *  — ma quando lo passera', la regola e' gia' qui. */
+  nonFeriale = false,
 ): StatoGiornata {
   // Niente di niente: la giornata non e' cominciata. Bianca, non rossa
   // — festivi, ferie e giorni di chiusura non sono giornate perse.
   if (rapportini.length === 0 && !ore) return 'vuota'
 
   const pezzi: Scheda[] = ore ? [...rapportini, tradotte(ore)] : rapportini
+
+  /* ── SABATO E DOMENICA NON SI ASPETTANO NIENTE ────────────────────
+
+     Dall'utente, il 2026-09-22: «cosa c'entrano i sabati e le domeniche
+     in rosso? Se non ci sono lavorazioni che rapportini ti devono
+     mandare? Solo se si lavora verranno fatti e lo si sa di volta in
+     volta».
+
+     Il principio e' quello: nel fine settimana non si lavora finche'
+     non risulta il contrario, e il contrario si scopre perche' arriva
+     una scheda — non perche' il programma lo pretende in anticipo.
+
+     Quindi l'attesa scende a ZERO, e il ramo «ne mancano all'appello»
+     non puo' scattare. Restano vivi gli altri due motivi di rosso, e
+     devono restarlo: una scheda di sabato scritta e non inviata, o
+     respinta, e' ferma esattamente come in un giorno feriale.
+
+     Un sabato lavorato e consegnato e' percio' giallo, poi azzurro,
+     poi verde come tutti gli altri giorni — e' un giorno di lavoro
+     vero, solo non dovuto.
+
+     ⚠️ PERCHE' QUI E NON IN PAGINA: il conteggio «quante giornate da
+     ricevere» saltava gia' il fine settimana per conto suo, mentre il
+     colore no. La stessa card diceva «4 da ricevere» con sei caselle
+     rosse sotto, ed e' proprio il genere di incoerenza che toglie
+     fiducia a tutto il riquadro. Ora la regola e' una e sta in un
+     posto solo: le due letture non possono piu' divergere. */
+  const attesi = nonFeriale ? 0 : cantieriAttesi + 1
+
   // +1 per le sue ore: fanno parte della consegna quanto i rapportini.
-  return statoGiornata(pezzi, cantieriAttesi + 1)
+  return statoGiornata(pezzi, attesi)
 }
 
 /** Le ore proprie nel vocabolario dei rapportini: vedi la nota sopra. */

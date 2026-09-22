@@ -2,11 +2,12 @@ import { useState } from 'react'
 import { Avviso, Badge, Card, cn } from '../../ui'
 import { eFineSettimana } from '../../lib/giorni'
 import { dataEstesa, griglieDelMese, giornoPiu, meseEAnno, numero } from '../../lib/formato'
-import { useCantieri } from '../cantieri/useCantieri'
 import { oggi } from '../rapportini/campiRapportino'
 import {
+  cantieriAttesi,
   useConsegneDelMese,
   useTecniciScollegati,
+  type AttesaCantiere,
   type ConsegnaOre,
   type ConsegnaRapportino,
   type TecnicoInCampo,
@@ -31,21 +32,36 @@ import { LaGiornataDi } from './LaGiornataDi'
    secondo il suo calendario si incolonna sotto, nella stessa striscia a
    sinistra.
 
-   ── IL CONTEGGIO, e il suo limite dichiarato ────────────────────────
+   ── IL CONTEGGIO, rifatto il 2026-09-22 ─────────────────────────────
 
-   Una giornata e' completa quando sono arrivati i rapportini di tutti i
-   cantieri ATTIVI dell'impresa, piu' le ore che il tecnico dichiara per
-   se'. E' la scelta dell'utente fra due, e va detto cosa comporta: se
-   dei cinque cantieri attivi quel tecnico ne segue due, il suo conto
-   sara' 3 di 5 e la giornata risultera' rossa anche quando ha
-   consegnato tutto il suo.
+   Una giornata e' completa quando sono arrivati i rapportini dei
+   cantieri che QUEL GIORNO erano in carico a QUEL tecnico, piu' le ore
+   che dichiara per se'.
 
-   Per questo il denominatore E' SCRITTO IN PAGINA — «su 5 cantieri
-   attivi» — invece di restare nascosto dentro la formula: un rosso di
-   cui si vede la causa e' un'informazione, un rosso inspiegabile e' un
-   allarme che si impara a ignorare. Se in ufficio si vedra' che il
-   conto non torna mai, la regola da cambiare e' una funzione sola —
-   `statoGiornataTecnico` — e il resto della pagina non si tocca.
+   Non era cosi' fino al 2026-09-22: il conto era «quanti cantieri hanno
+   stato attivo adesso», e l'utente ha visto subito cosa produceva —
+   «perche' ci sono tutti questi rossi quando il tecnico l'invio l'ha
+   fatto? Forse e' stato creato un cantiere e tu in maniera retroattiva
+   pretendi che il tecnico faccia rapportini dopo che l'invio e' stato
+   fatto?».
+
+   Esattamente. Il 17 settembre Zito aveva consegnato sette schede su
+   quattro dovute, tutte validate, ore comprese: giornata completa,
+   segnata rossa perche' il programma contava gli otto cantieri di
+   stasera. E l'ottavo — Family Resort — non era nemmeno suo: e' di
+   Giuseppe, come direttore lavori.
+
+   Il conto ora esce da `cantieriAttesi()`, che legge le assegnazioni
+   con le loro date e le incrocia con l'apertura del cantiere. Il
+   ragionamento per esteso sta in `useConsegneDelMese.ts`, accanto ai
+   dati che lo alimentano.
+
+   Il denominatore resta SCRITTO IN PAGINA — «su 4 suoi cantieri» — per
+   la ragione di sempre: un rosso di cui si vede la causa e'
+   un'informazione, un rosso inspiegabile e' un allarme che si impara a
+   ignorare. Quello in intestazione e' pero' il conto di oggi, per dare
+   una frase leggibile; il colore di ogni casella usa il suo, giorno
+   per giorno.
 
    ── PERCHE' NON RIUSA IL CALENDARIO DEL TECNICO ─────────────────────
 
@@ -70,9 +86,6 @@ export function ConsegneDalCampo() {
 
   const { data, isPending, error } = useConsegneDelMese(mese)
   const { data: scollegati } = useTecniciScollegati()
-  const { data: cantieri } = useCantieri()
-
-  const attivi = (cantieri ?? []).filter((c) => c.stato === 'attivo').length
 
   if (error) {
     return (
@@ -158,7 +171,7 @@ export function ConsegneDalCampo() {
                 key={t.dipendenteId}
                 tecnico={t}
                 mese={mese}
-                cantieriAttivi={attivi}
+                attese={data!.attese}
                 rapportini={data!.rapportini}
                 ore={data!.ore}
                 giornoAperto={giornoAperto}
@@ -188,7 +201,7 @@ export function ConsegneDalCampo() {
                 <DettaglioGiorno
                   giorno={giornoAperto}
                   tecnici={tecnici}
-                  cantieriAttivi={attivi}
+                  attese={data!.attese}
                   rapportini={data!.rapportini}
                   ore={data!.ore}
                   onChiudi={() => setGiornoAperto(null)}
@@ -221,7 +234,7 @@ export function ConsegneDalCampo() {
 function CalendarioTecnico({
   tecnico,
   mese,
-  cantieriAttivi,
+  attese,
   rapportini,
   ore,
   giornoAperto,
@@ -229,7 +242,7 @@ function CalendarioTecnico({
 }: {
   tecnico: TecnicoInCampo
   mese: string
-  cantieriAttivi: number
+  attese: AttesaCantiere[]
   rapportini: ConsegnaRapportino[]
   ore: ConsegnaOre[]
   giornoAperto: string | null
@@ -245,9 +258,27 @@ function CalendarioTecnico({
      numero che il titolare cerca davvero: il calendario dice QUALI, il
      conteggio dice QUANTE senza doverle cercare con l'occhio. */
   const daRicevere = celle.filter((c): c is string => {
-    if (!c || c > adesso || eFineSettimana(c)) return false
-    return statoGiornataTecnico(suoi.get(c) ?? [], cantieriAttivi, sueOre.get(c) ?? null) === 'rosso'
+    if (!c || c > adesso) return false
+    /* IL FINE SETTIMANA NON SI SCARTA PIU' QUI: lo sa gia'
+       `statoGiornataTecnico`, che con `nonFeriale` porta a zero cio'
+       che si aspetta. Scartarlo anche qui nasconderebbe un sabato con
+       una scheda ferma in bozza — che e' fermo per davvero e va
+       sollecitato, lavorativo o no. */
+    return (
+      statoGiornataTecnico(
+        suoi.get(c) ?? [],
+        cantieriAttesi(attese, tecnico.userId, c),
+        sueOre.get(c) ?? null,
+        eFineSettimana(c),
+      ) === 'rosso'
+    )
   }).length
+
+  /* Il denominatore di OGGI, solo per scriverlo nell'intestazione. Il
+     colore di ogni casella usa il suo, giorno per giorno: qui serve
+     una frase che dica al titolare su quanti cantieri sta guardando
+     adesso, non un numero che entra nei conti. */
+  const suoiOggi = cantieriAttesi(attese, tecnico.userId, adesso)
 
   return (
     <Card className="overflow-hidden">
@@ -260,8 +291,7 @@ function CalendarioTecnico({
               file. Chi legge deve poter capire da solo perche' una
               giornata e' rossa. */}
           <p className="text-xs font-semibold text-gray-600">
-            su {cantieriAttivi} {cantieriAttivi === 1 ? 'cantiere attivo' : 'cantieri attivi'} · più
-            le sue ore
+            su {suoiOggi} {suoiOggi === 1 ? 'suo cantiere' : 'suoi cantieri'} · più le sue ore
           </p>
         </div>
 
@@ -291,13 +321,14 @@ function CalendarioTecnico({
         {celle.map((cella, k) => {
           if (!cella) return <span key={`vuota-${k}`} />
 
-          const stato = statoGiornataTecnico(
-            suoi.get(cella) ?? [],
-            cantieriAttivi,
-            sueOre.get(cella) ?? null,
-          )
           const futuro = cella > adesso
           const nonFeriale = eFineSettimana(cella)
+          const stato = statoGiornataTecnico(
+            suoi.get(cella) ?? [],
+            cantieriAttesi(attese, tecnico.userId, cella),
+            sueOre.get(cella) ?? null,
+            nonFeriale,
+          )
           const scelto = cella === giornoAperto
 
           return (
@@ -359,14 +390,14 @@ function CalendarioTecnico({
 function DettaglioGiorno({
   giorno,
   tecnici,
-  cantieriAttivi,
+  attese,
   rapportini,
   ore,
   onChiudi,
 }: {
   giorno: string
   tecnici: TecnicoInCampo[]
-  cantieriAttivi: number
+  attese: AttesaCantiere[]
   rapportini: ConsegnaRapportino[]
   ore: ConsegnaOre[]
   onChiudi: () => void
@@ -392,6 +423,10 @@ function DettaglioGiorno({
           const sueOre =
             ore.find((o) => o.data === giorno && o.dipendente_id === t.dipendenteId) ?? null
           const bozze = suoi.filter((r) => r.stato === 'bozza').length
+          /* Quanti ne doveva QUEL giorno, non quanti cantieri esistono
+             oggi: e' lo stesso conto che colora la casella, quindi il
+             badge e il calendario non possono contraddirsi. */
+          const attesi = cantieriAttesi(attese, t.userId, giorno)
 
           return (
             <li key={t.dipendenteId} className="px-5 py-3">
@@ -401,11 +436,11 @@ function DettaglioGiorno({
                   <Badge
                     className={cn(
                       'px-2 py-0.5 text-[10px]',
-                      suoi.length - bozze >= cantieriAttivi ? 'bg-lime-300' : 'bg-rose-300',
+                      suoi.length - bozze >= attesi ? 'bg-lime-300' : 'bg-rose-300',
                     )}
                   >
-                    {suoi.length - bozze} di {cantieriAttivi}{' '}
-                    {cantieriAttivi === 1 ? 'rapportino' : 'rapportini'}
+                    {suoi.length - bozze} di {attesi}{' '}
+                    {attesi === 1 ? 'rapportino' : 'rapportini'}
                     {/* Le bozze NON si contano come arrivate: sono
                         scritte, ma il titolare non le ha ricevute. Un
                         conteggio che le include direbbe «7 di 8»
