@@ -721,6 +721,37 @@ function Cella({
   const straordinario = Number(casella.ore_straordinarie) > 0
   const assente = lav === 0 && Number(casella.ore_assenza) > 0
 
+  /* SU QUANTI CANTIERI, dal 2026-09-22: «esiste un modo per segnalare,
+     nel numerino, se quelle ore sono state fatte in piu' cantieri o in
+     uno solo?» (utente).
+
+     Serve, e serve al titolare piu' che a chi fa le paghe: per la busta
+     paga otto ore sono otto ore, ma una persona che in un giorno
+     rimbalza fra tre cantieri o sta chiudendo qualcosa di corsa o e'
+     stata chiamata d'urgenza — ed e' proprio il dato che i costi per
+     cantiere poi devono spiegare.
+
+     Prima l'unico modo di saperlo era aprire l'espansione della
+     persona, che pero' somma TUTTO IL PERIODO: «8 h Monterosa» per una
+     settimana non dice in quale giorno e' stato dove.
+
+     UN PALLINO PER CANTIERE, E SOLO DA DUE IN SU. La cella con un
+     cantiere solo — la stragrande maggioranza — resta identica: nessun
+     segno. Si accende l'anomalia e nient'altro, come il semaforo dei
+     cantieri o la fascia «MANCA» sulla tariffa.
+
+     NON UN COLORE: in questa tabella il giallo dice gia' «oggi» e il
+     grigio «fine settimana»; un terzo colore sulla cella entrerebbe in
+     conflitto con due significati gia' assegnati. E non il numero
+     spezzato «6+2», che raddoppia la larghezza delle colonne e rompe
+     l'incolonnamento appena sistemato.
+
+     I cantieri con zero ore non si contano: una riga a zero c'e'
+     quando la giornata e' stata aperta e poi svuotata, e non e' un
+     posto dove la persona e' stata. */
+  const quantiCantieri = casella.cantieri.filter((k) => Number(k.ore) > 0).length
+  const sparso = quantiCantieri > 1
+
   return (
     /* UNA CELLA PIENA DI SABATO NON RESTA GRIGIA: se qualcuno ha
        lavorato, quella e' una giornata vera e il grigio del «non si
@@ -733,7 +764,20 @@ function Cella({
         type="button"
         onClick={onApri}
         aria-expanded={aperta}
-        aria-label={`${assente ? 'Assenza' : `${ore(lav)} ore`} il ${dataEstesa(casella.data)}`}
+        aria-label={`${assente ? 'Assenza' : `${ore(lav)} ore`} il ${dataEstesa(casella.data)}${
+          sparso ? ` su ${quantiCantieri} cantieri` : ''
+        }`}
+        /* Il dettaglio passando sopra, senza aprire niente: i pallini
+           dicono QUANTI, il `title` dice QUALI e con quante ore. Chi
+           vuole solo togliersi il dubbio non deve piu' espandere. */
+        title={
+          sparso
+            ? casella.cantieri
+                .filter((k) => Number(k.ore) > 0)
+                .map((k) => `${k.denominazione ?? k.codice ?? 'Cantiere'} ${ore(Number(k.ore))} h`)
+                .join(' · ')
+            : undefined
+        }
         /* Largo il giusto, non quanto la colonna: un bersaglio da
            duecento pixel per una cifra di due caratteri accende un
            riquadro lontanissimo dal numero che si sta guardando.
@@ -773,6 +817,25 @@ function Cella({
             )}
           >
             {ore(lav)}
+          </span>
+        )}
+
+        {/* SOTTO la cifra e non sopra: l'angolo in alto a destra ce
+            l'ha gia' il pallino azzurro della motivazione, e due segni
+            nello stesso angolo si leggono come uno solo. Qui i pallini
+            stanno in fila sotto il numero, neri come il testo —
+            appartengono alla cifra, non sono un'altra informazione.
+
+            `-mb-1` li riprende: senza, la cella coi pallini sarebbe
+            piu' alta delle altre e la riga ballerebbe. */}
+        {sparso && !assente && (
+          <span
+            aria-hidden="true"
+            className="-mb-1 mt-0.5 flex items-center justify-center gap-0.5"
+          >
+            {Array.from({ length: quantiCantieri }, (_, i) => (
+              <span key={i} className="h-1 w-1 rounded-full bg-black" />
+            ))}
           </span>
         )}
 
@@ -1162,6 +1225,16 @@ function Legenda() {
       <span className="inline-flex items-center gap-1">
         <span className="inline-block h-1.5 w-1.5 rounded-full bg-sky-600" /> c’è una
         motivazione del tecnico
+      </span>
+      {/* I pallini hanno bisogno della riga di legenda piu' di tutto il
+          resto: il rosso dello straordinario e la sigla dell'assenza si
+          intuiscono, due puntini neri no. */}
+      <span className="inline-flex items-center gap-1">
+        <span className="inline-flex items-center gap-0.5">
+          <span className="inline-block h-1 w-1 rounded-full bg-black" />
+          <span className="inline-block h-1 w-1 rounded-full bg-black" />
+        </span>{' '}
+        ore fatte su più cantieri (un pallino per cantiere)
       </span>
       <span>— nessuna ora registrata</span>
       {/* La colonna grigia si spiega, perche' e' l'unica cosa nella
