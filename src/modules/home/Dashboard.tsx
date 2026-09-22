@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useSearchParams } from 'react-router'
 import { Avviso } from '../../ui'
 import { useSession } from '../auth/SessionProvider'
 import { useRapportini } from '../rapportini/useRapportini'
@@ -66,7 +67,28 @@ export function Dashboard() {
 
      Le frecce nella fascia restano, e sono la strada per andare a ieri:
      un gesto esplicito, dove sai sempre dove sei. */
-  const [scelta, setScelta] = useState<string | null>(null)
+  /* IL GIORNO PUO' ARRIVARE DALL'INDIRIZZO, e deve: «Hai lasciato
+     indietro» manda qui con `?data=` per far vedere una giornata
+     rimasta ferma, ed e' l'unico posto dove esiste il pulsante che la
+     spedisce — l'invio e' della giornata, non della singola scheda.
+     Senza leggerlo, quel collegamento porterebbe a oggi e chi lo segue
+     si troverebbe davanti la giornata sbagliata senza capire perche'.
+
+     Stessa validazione di `MieOrePage`: un valore fuori formato o nel
+     futuro viene ignorato invece che creduto, perche' l'indirizzo lo
+     puo' scrivere chiunque.
+
+     Vale solo all'apertura: da li' in poi comanda `scelta`, cosi' le
+     frecce continuano a funzionare senza che l'indirizzo le contraddica
+     a ogni render. */
+  const [params] = useSearchParams()
+  const daIndirizzo = params.get('data')
+  const iniziale =
+    daIndirizzo && /^\d{4}-\d{2}-\d{2}$/.test(daIndirizzo) && daIndirizzo <= oggi()
+      ? daIndirizzo
+      : null
+
+  const [scelta, setScelta] = useState<string | null>(iniziale)
   const giorno = scelta ?? oggi()
   const setGiorno = setScelta
 

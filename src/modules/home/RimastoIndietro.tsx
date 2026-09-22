@@ -57,6 +57,15 @@ export function RimastoIndietro() {
   const daFare = quanteDaFare(data)
   const attesa = data.inAttesa.length
 
+  /* Le schede ferme, raggruppate per giornata e dalla piu' recente. */
+  const perGiorno = new Map<string, typeof data.rapportiniInBozza>()
+  for (const s of data.rapportiniInBozza) {
+    const gruppo = perGiorno.get(s.data)
+    if (gruppo) gruppo.push(s)
+    else perGiorno.set(s.data, [s])
+  }
+  const giornateFerme = [...perGiorno.entries()].sort((a, b) => b[0].localeCompare(a[0]))
+
   // Niente da dire: il riquadro non esiste proprio.
   if (daFare === 0 && attesa === 0) return null
 
@@ -128,14 +137,20 @@ export function RimastoIndietro() {
           </Sezione>
         )}
 
-        {data.rapportiniInBozza.length > 0 && (
+        {/* I rapportini fermi si raggruppano PER GIORNATA, non uno per
+            riga. L'invio e' collettivo — parte il foglio del giorno,
+            non la singola scheda — quindi sette righe dello stesso
+            lunedi' direbbero sette volte la stessa cosa da fare, e
+            nasconderebbero il fatto vero: che quella GIORNATA non e'
+            partita. Il 21 settembre erano appunto sette. */}
+        {giornateFerme.length > 0 && (
           <Sezione
-            titolo="Rapportini mai inviati"
-            nota="Scritti e fermi: il titolare non li ha ancora ricevuti."
+            titolo="Giornate mai inviate"
+            nota="Le schede sono scritte ma il foglio non è partito: il titolare non le ha ricevute."
             tono="attesa"
           >
-            {data.rapportiniInBozza.map((s) => (
-              <RigaScheda key={s.id} scheda={s} />
+            {giornateFerme.map(([giorno, schede]) => (
+              <RigaGiornataFerma key={giorno} giorno={giorno} quante={schede.length} />
             ))}
           </Sezione>
         )}
@@ -236,6 +251,38 @@ function RigaOre({
         {!mostraAttesa && (
           <Badge className="shrink-0 bg-amber-300 px-2 py-0.5 text-[10px]">apri</Badge>
         )}
+      </button>
+    </li>
+  )
+}
+
+/**
+ * Una giornata di schede ferme: porta in home a quel giorno, dove c'e'
+ * il pulsante che le manda tutte insieme.
+ *
+ * Non porta al singolo rapportino: aprirne uno non fa partire niente —
+ * l'invio e' della giornata — e si tornerebbe indietro senza aver
+ * risolto. La home di quel giorno e' l'unico posto dove il gesto esiste.
+ */
+function RigaGiornataFerma({ giorno, quante }: { giorno: string; quante: number }) {
+  const navigate = useNavigate()
+
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={() => navigate(`/?data=${giorno}`)}
+        className="neo-press flex w-full cursor-pointer flex-wrap items-center justify-between gap-2 rounded-lg border-2 border-black/20 px-3 py-2 text-left hover:border-black hover:bg-amber-50"
+      >
+        <div className="min-w-0">
+          <p className="truncate text-sm font-bold capitalize text-black">
+            {dataEstesa(giorno)}
+          </p>
+          <p className="text-xs font-semibold text-gray-600">
+            {quante} {quante === 1 ? 'scheda scritta' : 'schede scritte'}, mai inviate
+          </p>
+        </div>
+        <Badge className="shrink-0 bg-amber-300 px-2 py-0.5 text-[10px]">apri</Badge>
       </button>
     </li>
   )

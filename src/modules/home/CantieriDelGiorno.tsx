@@ -37,25 +37,44 @@ import { useGiornataPersonale, totaleOre } from '../oreproprie/orePersonali'
    contatore.
    ══════════════════════════════════════════════════════════════════ */
 
-type Semaforo = 'rosso' | 'giallo' | 'verde'
+type Semaforo = 'rosso' | 'giallo' | 'scritta' | 'verde'
 
 const ASPETTO: Record<Semaforo, { punto: string; fascia: string; testo: string }> = {
   rosso: { punto: 'bg-rose-500', fascia: 'bg-rose-300', testo: 'Da compilare' },
   giallo: { punto: 'bg-yellow-400', fascia: 'bg-yellow-300', testo: 'Respinta' },
-  verde: { punto: 'bg-lime-500', fascia: 'bg-lime-300', testo: 'Pronta' },
+  /* SCRITTA MA NON PARTITA, dal 2026-09-22. Prima era verde «Pronta»
+     come una scheda gia' dal titolare, e per quasi tutto il tempo la
+     differenza non si vedeva: si compilava e si mandava di seguito.
+
+     Ma il 21 settembre Zito ha avuto sette card verdi e «7/7» su una
+     giornata che non era mai partita — l'etichetta diceva «hai finito»
+     a chi non aveva mandato niente. Notato dall'utente guardando la
+     home: «ci sono cose incomplete non per colpa degli utenti ma del
+     programma che non avvisava gli utenti a fare cosa».
+
+     L'ambra e' scelta apposta fra il rosso e il verde: non e' un
+     errore — il lavoro e' fatto — ma non e' nemmeno finito. */
+  scritta: { punto: 'bg-amber-500', fascia: 'bg-amber-300', testo: 'Scritta, da inviare' },
+  verde: { punto: 'bg-lime-500', fascia: 'bg-lime-300', testo: 'Inviata' },
 }
 
 /**
- * Una bozza compilata e' VERDE, non gialla.
+ * Quattro stati, non tre.
  *
- * Da quando l'invio e' collettivo, la bozza non e' lavoro lasciato a
- * meta': e' una scheda finita che aspetta le altre. Il giallo serve per
- * cio' che il titolare ha rimandato indietro, che e' l'unica cosa che
- * puo' bloccare la partenza del foglio quando le caselle sono piene.
+ * Fino al 2026-09-22 una bozza era VERDE come una scheda gia' partita,
+ * col ragionamento che da quando l'invio e' collettivo la bozza non e'
+ * lavoro a meta' ma una scheda finita che aspetta le sorelle. Vero
+ * finche' la giornata parte in giornata; falso appena resta ferma —
+ * e allora sette card verdi dicono «fatto» a chi non ha mandato niente.
+ *
+ * Adesso `scritta` (ambra) e `verde` (inviata) sono cose diverse, e il
+ * contatore in alto conta le SECONDE. Il giallo resta per cio' che il
+ * titolare ha rimandato indietro.
  */
 function semaforoDi(r: Rapportino | undefined): Semaforo {
   if (!r) return 'rosso'
   if (r.stato === 'respinto') return 'giallo'
+  if (r.stato === 'bozza') return 'scritta'
   return 'verde'
 }
 
@@ -204,8 +223,18 @@ export function CantieriDelGiorno({
     return { cantiere: c, rapportino: r, semaforo: semaforoDi(r) }
   })
 
-  const fatte = schede.filter((s) => s.semaforo === 'verde').length
-  const complete = fatte === schede.length
+  /* DUE CONTI DIVERSI, e tenerli separati e' il punto.
+
+     `compilate` = c'e' una scheda, scritta o partita. E' cio' che
+     serve a sapere se la giornata PUO' partire.
+     `inviate`   = e' davvero dal titolare. E' cio' che il contatore in
+     alto mostra, perche' «7/7» deve voler dire «consegnate», non
+     «scritte». */
+  const compilate = schede.filter(
+    (s) => s.semaforo === 'verde' || s.semaforo === 'scritta',
+  ).length
+  const inviate = schede.filter((s) => s.semaforo === 'verde').length
+  const complete = compilate === schede.length
   // Se sono tutte gia' partite non c'e' piu' niente da spedire: il
   // pulsante resterebbe acceso a non fare nulla.
   const daSpedire = schede.some((s) => s.rapportino?.stato === 'bozza')
@@ -226,7 +255,7 @@ export function CantieriDelGiorno({
           </p>
         </div>
 
-        <Avanzamento fatte={fatte} totale={schede.length} />
+        <Avanzamento inviate={inviate} compilate={compilate} totale={schede.length} />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -285,7 +314,7 @@ export function CantieriDelGiorno({
         <p className="text-sm font-bold text-black">
           {mancanoLeMieOre && complete
             ? 'Mancano le tue ore: dichiara quante ne hai lavorate in questa giornata.'
-            : riepilogo(schede.length, fatte, daSpedire)}
+            : riepilogo(schede.length, compilate, daSpedire)}
         </p>
         {/* Quando a bloccare sono le proprie ore, il pulsante che serve
             non e' quello dell'invio: e' la strada per andare a
@@ -311,20 +340,47 @@ export function CantieriDelGiorno({
 /** Una riga sola che dice a che punto sei e, se sei fermo, cosa manca:
  *  un contatore senza spiegazione lascia indovinare perche' il pulsante
  *  non si accende. */
-function riepilogo(totale: number, fatte: number, daSpedire: boolean): string {
-  if (fatte < totale) {
-    const mancano = totale - fatte
+function riepilogo(totale: number, compilate: number, daSpedire: boolean): string {
+  if (compilate < totale) {
+    const mancano = totale - compilate
     return mancano === 1
       ? 'Manca una scheda prima di poter mandare la giornata.'
       : `Mancano ${mancano} schede prima di poter mandare la giornata.`
   }
   if (!daSpedire) return 'La giornata è già partita: tutte le schede sono dal titolare.'
-  return 'Tutte le schede sono pronte: la giornata può partire.'
+  /* «NON E' ANCORA PARTITA» e non «può partire»: la seconda descrive
+     una possibilita', la prima dice che manca qualcosa. Su una giornata
+     rimasta ferma per giorni, «può partire» si legge come una nota di
+     colore e si scorre oltre. */
+  return 'Le schede sono tutte scritte, ma la giornata NON è ancora partita.'
 }
 
 /* ── pezzi ─────────────────────────────────────────────────────── */
 
-function Avanzamento({ fatte, totale }: { fatte: number; totale: number }) {
+/**
+ * L'avanzamento a tre stati: inviate, scritte, mancanti.
+ *
+ * IL NUMERO GRANDE CONTA LE INVIATE, non le compilate. Prima contava
+ * tutto cio' che aveva una scheda, e su una giornata scritta e mai
+ * partita diceva «7/7»: un punteggio pieno per un lavoro non
+ * consegnato. Chi lo legge smette di cercare altro, ed e' esattamente
+ * cosi' che il 21 settembre e' rimasto fermo.
+ *
+ * Le scritte non spariscono: sono pallini ambra, e la scritta sotto le
+ * nomina. Cosi' si legge in un colpo «ne ho fatte sette, ne ho mandate
+ * zero», che e' la frase vera di quella giornata.
+ */
+function Avanzamento({
+  inviate,
+  compilate,
+  totale,
+}: {
+  inviate: number
+  compilate: number
+  totale: number
+}) {
+  const scritte = compilate - inviate
+
   return (
     <div className="flex items-center gap-3">
       <div className="flex gap-1">
@@ -333,14 +389,21 @@ function Avanzamento({ fatte, totale }: { fatte: number; totale: number }) {
             key={i}
             className={cn(
               'h-2.5 w-6 rounded-full border-2 border-black',
-              i < fatte ? 'bg-lime-400' : 'bg-white',
+              i < inviate ? 'bg-lime-400' : i < compilate ? 'bg-amber-400' : 'bg-white',
             )}
           />
         ))}
       </div>
-      <span className="text-sm font-extrabold text-black">
-        {fatte}/{totale}
-      </span>
+      <div className="text-right">
+        <span className="text-sm font-extrabold text-black">
+          {inviate}/{totale}
+        </span>
+        {scritte > 0 && (
+          <span className="block text-[10px] font-bold uppercase leading-none text-amber-800">
+            +{scritte} da inviare
+          </span>
+        )}
+      </div>
     </div>
   )
 }
