@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
-import { Avviso, Badge, Button, Card, Input, Select, Table, Vuoto, cn } from '../../ui'
+import { Avviso, Button, Card, Input, Select, Table, Vuoto, cn } from '../../ui'
 import { data as fmtData } from '../../lib/formato'
 import { oggi } from '../rapportini/campiRapportino'
 import { filtra, useOreEconomia, type NotaConCantiere } from '../cantieri/noteContabili'
@@ -168,7 +168,7 @@ export function EconomiaPage() {
         </div>
       </Card>
 
-      <Riepilogo note={viste} />
+      <Riepilogo note={viste} scelto={cantiere} onScegli={setCantiere} />
 
       {isPending ? (
         <p className="text-sm font-bold text-gray-600">Carico i lavori extra…</p>
@@ -242,16 +242,29 @@ export function EconomiaPage() {
  * (2026-09-15) il numero che dice qualcosa e' quante volte si e' usciti
  * dal progetto, non un monte ore che nessuno usa.
  */
-function Riepilogo({ note }: { note: NotaConCantiere[] }) {
+function Riepilogo({
+  note,
+  scelto,
+  onScegli,
+}: {
+  note: NotaConCantiere[]
+  /** Il cantiere filtrato adesso, `''` quando sono tutti. */
+  scelto: string
+  onScegli: (id: string) => void
+}) {
   if (note.length === 0) return null
 
-  const perCantiere = new Map<string, { nome: string; quante: number }>()
+  /* L'ID VIAGGIA INSIEME AL NOME, e prima non lo faceva: la mappa
+     teneva solo nome e conteggio, che basta a scrivere una riga ma non
+     a filtrare. Senza l'id la chip non saprebbe cosa dire alla
+     tendina. */
+  const perCantiere = new Map<string, { id: string; nome: string; quante: number }>()
   for (const n of note) {
     const chiave = n.cantiere_id ?? 'senza'
     const riga = perCantiere.get(chiave)
     const nome = n.cantiere ? `${n.cantiere.codice} — ${n.cantiere.denominazione}` : 'Cantiere rimosso'
     if (riga) riga.quante += 1
-    else perCantiere.set(chiave, { nome, quante: 1 })
+    else perCantiere.set(chiave, { id: chiave, nome, quante: 1 })
   }
 
   const righe = [...perCantiere.values()].sort((x, y) => y.quante - x.quante)
@@ -272,17 +285,63 @@ function Riepilogo({ note }: { note: NotaConCantiere[] }) {
         </p>
       </div>
 
-      {/* La ripartizione compare solo con piu' di un cantiere: con uno
-          solo ripeterebbe il totale con altre parole. */}
-      {righe.length > 1 && (
+      {/* LE CHIPS FILTRANO, dal 2026-09-22: «dammi la possibilita' di
+          toccare la chip del cantiere cosi' da filtrare tutti quei
+          lavori extra per quel cantiere» (utente).
+
+          Erano etichette di sola lettura, e la cosa si notava: dicevano
+          «GIARRIZZO CASA · 2» proprio sopra un elenco dove quelle due
+          righe stavano mescolate alle altre, e per isolarle bisognava
+          scendere alla tendina e ritrovare lo stesso nome.
+
+          PILOTANO LA TENDINA, non un secondo filtro: e' lo stesso
+          `cantiere` di stato, quindi premendo una chip la tendina
+          sopra si muove da sola e le due non possono raccontare cose
+          diverse. Due filtri indipendenti sulla stessa colonna sono il
+          modo piu' rapido di far dubitare di cio' che si vede.
+
+          RIPREMERE TOGLIE IL FILTRO. Una chip accesa senza via d'uscita
+          costringe a cercare «Tutti i cantieri» nella tendina per
+          disfare un gesto fatto qui: l'annullamento sta dove sta
+          l'azione.
+
+          La chip scelta e' AMBRA, come il bottone del periodo attivo
+          qui sopra: in questa pagina l'ambra vuol gia' dire «e' questo
+          che stai guardando».
+
+          ⚠️ La ripartizione si mostra anche con UN cantiere solo quando
+          il filtro e' acceso. Prima spariva sotto i due — «con uno solo
+          ripeterebbe il totale» — ma filtrando resta un cantiere solo e
+          la chip sparirebbe nel momento esatto in cui serve a
+          spegnersi. */}
+      {(righe.length > 1 || scelto !== '') && (
         <ul className="flex flex-wrap gap-2">
-          {righe.map((r) => (
-            <li key={r.nome}>
-              <Badge className="bg-white px-3 py-1 text-xs normal-case">
-                {r.nome} · <strong>{r.quante}</strong>
-              </Badge>
-            </li>
-          ))}
+          {righe.map((r) => {
+            const attiva = scelto === r.id
+            return (
+              <li key={r.id}>
+                <button
+                  type="button"
+                  onClick={() => onScegli(attiva ? '' : r.id)}
+                  aria-pressed={attiva}
+                  title={
+                    attiva
+                      ? 'Premi di nuovo per vedere tutti i cantieri'
+                      : `Mostra solo ${r.nome}`
+                  }
+                  className={cn(
+                    'neo-press cursor-pointer rounded-full border-2 border-black px-3 py-1 text-xs font-bold normal-case text-black',
+                    attiva ? 'bg-amber-400 shadow-neo-xs' : 'bg-white hover:bg-amber-100',
+                  )}
+                >
+                  {r.nome} · <strong>{r.quante}</strong>
+                  {/* La × dice che si puo' disfare: senza, una chip
+                      accesa sembra uno stato e non un interruttore. */}
+                  {attiva && <span className="ml-1.5 font-black">×</span>}
+                </button>
+              </li>
+            )
+          })}
         </ul>
       )}
     </Card>
