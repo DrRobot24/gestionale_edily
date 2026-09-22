@@ -72,6 +72,22 @@ export const RUOLI: Record<RuoloFigura, { breve: string; esteso: string }> = {
 export const RUOLI_DI: Record<AmbitoFigura, RuoloFigura[]> = {
   cliente: ['amministratore', 'referente', 'altro'],
   cantiere: [
+    /* L'AMMINISTRATORE STA ANCHE QUI, dal 2026-09-22.
+
+       Il 21 settembre era solo del cliente, col ragionamento che non
+       cambia da un lavoro all'altro. Poi l'utente ha deciso il
+       contrario — «e' un'informazione che riguarda il cantiere» — e ha
+       ragione sul caso che conta: chi e' in cantiere cerca il numero
+       dell'amministratore li', non risalendo al cliente.
+
+       Resta ANCHE sul cliente: per un condominio con un amministratore
+       stabile e' il posto giusto, e toglierlo vorrebbe dire riscriverlo
+       a ogni lavoro. Il database accetta qualunque ruolo su qualunque
+       ambito, quindi nessuna migrazione: e' il form a proporre.
+
+       Primo della lista, prima del RUP: e' la persona che decide e
+       che paga, e in un condominio e' il primo numero che si cerca. */
+    'amministratore',
     'rup',
     'dl',
     'progettista',

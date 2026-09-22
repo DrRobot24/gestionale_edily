@@ -66,7 +66,12 @@ export function CantieriPage() {
               <th>D.L. e sicurezza</th>
               <th>Inizio</th>
               <th>Fine prevista</th>
-              <th className="text-right">Contratto</th>
+              {/* `!` obbligatorio: la primitiva `Table` impone
+                  `[&_th]:text-left`, un selettore discendente che per
+                  specificita' batte una classe sulla cella. Senza,
+                  l'intestazione restava a sinistra mentre gli importi
+                  sotto andavano a destra. */}
+              <th className="!text-right">Contratto</th>
               <th>Stato</th>
               <th />
             </tr>

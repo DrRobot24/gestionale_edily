@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router'
 import { Avviso, Badge, Button, Table, Vuoto } from '../../ui'
 import { usePermission } from '../auth/usePermission'
 import { useClienti } from './clienti'
-import { useFigureRiepilogo } from './figure'
 
 export function ClientiPage() {
   const navigate = useNavigate()
@@ -11,15 +10,12 @@ export function ClientiPage() {
   const puoScrivere = usePermission('anagrafiche.write')
 
   const { data: clienti, isPending, error } = useClienti({ soloAttivi: !conArchiviati })
-  /* Le figure in colonna: «così so ogni cantiere che personaggi ha
-     all'interno» (utente, 2026-09-21). Una chiamata sola per tutto
-     l'elenco, non una per riga: la vista ha gia' raggruppato.
 
-     Se la vista non c'e' ancora la colonna resta vuota e l'elenco
-     funziona lo stesso — `figure.sql` e' un file dello schema che si
-     esegue a mano, e una pagina che si rompe perche' manca una colonna
-     accessoria sarebbe una punizione sproporzionata. */
-  const { data: figure } = useFigureRiepilogo('cliente')
+  /* QUI STAVA `useFigureRiepilogo('cliente')`, che riempiva la colonna
+     Amministratore. Tolta col 2026-09-22 insieme alla colonna: le
+     figure restano nella scheda del cliente e ora anche in quella del
+     cantiere, che e' dove si vanno a cercare davvero. Una query in meno
+     a ogni apertura dell'elenco. */
 
   if (isPending) return <p className="text-sm font-bold text-gray-600">Carico i clienti…</p>
   if (error) return <Avviso tono="errore">Non riesco a leggere i clienti: {error.message}</Avviso>
@@ -59,13 +55,27 @@ export function ClientiPage() {
           un cantiere.
         </Vuoto>
       ) : (
-        <Table>
+        /* TRE COLONNE, non cinque. Il 2026-09-22 l'utente ha tolto
+           Comune — «non e' un dato interessante»: il lavoro si fa in
+           cantiere, e il comune del cliente non serve a riconoscerlo —
+           e Amministratore, che e' passato fra le figure del cantiere.
+
+           `table-fixed` con le larghezze dichiarate: a layout
+           automatico il browser dimensiona ogni colonna sul contenuto,
+           e le righe con una mail lunga spostavano le colonne rispetto
+           a quelle con un trattino. Stesso rimedio di Risorse. */
+        <Table className="table-fixed">
+          <colgroup>
+            <col />
+            <col className="w-44" />
+            <col className="w-80" />
+            <col className="w-24" />
+          </colgroup>
+
           <thead>
             <tr>
               <th>Ragione sociale</th>
               <th>Partita IVA</th>
-              <th>Comune</th>
-              <th>Amministratore</th>
               <th>Contatti</th>
               <th />
             </tr>
@@ -74,20 +84,19 @@ export function ClientiPage() {
             {clienti.map((c) => (
               <tr key={c.id} className={c.attivo ? undefined : 'bg-gray-50 text-gray-500'}>
                 <td className="font-semibold">
-                  {c.ragione_sociale}
-                  {!c.attivo && <Badge className="ml-2 px-2 py-0.5 text-[10px]">archiviato</Badge>}
+                  <span className="block truncate">
+                    {c.ragione_sociale}
+                    {!c.attivo && (
+                      <Badge className="ml-2 px-2 py-0.5 text-[10px]">archiviato</Badge>
+                    )}
+                  </span>
                 </td>
                 <td className="numerico text-gray-600">{c.partita_iva ?? '—'}</td>
-                <td className="text-gray-600">
-                  {c.comune ? `${c.comune}${c.provincia ? ` (${c.provincia})` : ''}` : '—'}
-                </td>
-                <td className="text-gray-600">
-                  {figure?.get(c.id)?.amministratore ??
-                    figure?.get(c.id)?.referente ??
-                    '—'}
-                </td>
-                <td className="text-gray-600">{c.email ?? c.telefono ?? '—'}</td>
-                <td className="text-right">
+                {/* `truncate`: due indirizzi di posta su una riga sola
+                    sforerebbero la colonna e spingerebbero il pulsante
+                    fuori asse. Per esteso stanno nella scheda. */}
+                <td className="truncate text-gray-600">{c.email ?? c.telefono ?? '—'}</td>
+                <td className="!text-right">
                   <Button
                     dimensione="sm"
                     onClick={() => navigate(`/anagrafiche/clienti/${c.id}`)}
