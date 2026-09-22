@@ -297,7 +297,21 @@ function Griglia({
   const oggi = iso(new Date())
 
   return (
-    <Table>
+    /* `table-fixed` E' LA CORREZIONE VERA, non una rifinitura.
+
+       Senza, la tabella e' a layout automatico: il browser IGNORA le
+       misure del colgroup e dimensiona ogni colonna sul suo contenuto.
+       Le colonne con un numero dentro diventavano larghe, quelle con un
+       trattino strette, e la settimana usciva sbilenca — «le colonne in
+       cui ci sono i numeri sono molto piu' larghe di quelle senza»
+       (utente, 2026-09-22). Con `table-fixed` comanda il colgroup, e
+       cinque giorni sono cinque colonne identiche.
+
+       Sta qui e non nella primitiva `Table`: quella impagina nove
+       elenchi dove il layout automatico e' giusto — una colonna di
+       ragioni sociali deve potersi allargare. Qui invece le colonne
+       sono una griglia, e una griglia ha i passi uguali. */
+    <Table className="table-fixed">
       {/* LE LARGHEZZE, ridisegnate il 2026-09-22: «allarga le colonne
           perche' lo spazio c'e', cosi' mi sembra molto stretto il
           discorso settimana».
@@ -314,7 +328,7 @@ function Griglia({
         <col className="w-12" />
         <col className="w-[26rem]" />
         {giorni.map((g) => (
-          <col key={g} />
+          <col key={g} className={larghezzaGiorno(giorni.length)} />
         ))}
         <col className="w-28" />
       </colgroup>
@@ -578,12 +592,21 @@ function Cella({
 }) {
   if (!casella) {
     return (
-      <td className="border-l-2 border-gray-300 text-center text-gray-300">
+      /* `p-1` come la cella piena, non il padding di serie della
+         tabella: con due padding diversi i trattini e le cifre cadono
+         su due verticali diverse, e una colonna di numeri che non si
+         incolonnano non si confronta a occhio. E' il difetto che
+         l'utente ha visto il 2026-09-22 — «ci sono pure i numeri
+         disallineati». */
+      <td className="border-l-2 border-gray-300 p-1 text-center text-gray-300">
         {/* Il trattino e non la cella vuota: una cella davvero vuota si
             confonde con un difetto di impaginazione, il trattino dice
             «qui ho guardato, e non c'era niente». Non e' cliccabile
-            perche' non ha niente da raccontare. */}
-        <span aria-hidden="true">—</span>
+            perche' non ha niente da raccontare, ma occupa la stessa
+            altezza della cella piena: senza, le righe ballano. */}
+        <span aria-hidden="true" className="inline-block py-1.5">
+          —
+        </span>
         <span className="sr-only">Nessuna ora</span>
       </td>
     )
@@ -600,14 +623,18 @@ function Cella({
         onClick={onApri}
         aria-expanded={aperta}
         aria-label={`${assente ? 'Assenza' : `${ore(lav)} ore`} il ${dataEstesa(casella.data)}`}
-        /* Largo il giusto, non quanto la colonna. Con i giorni che si
-           spartiscono lo spazio una cella puo' arrivare a duecento
-           pixel, e un bersaglio cosi' per una cifra di due caratteri
-           sembra un errore di impaginazione: il riquadro si accende
-           lontanissimo dal numero che si sta guardando. `mx-auto` lo
-           tiene incollato alla cifra, al centro della colonna. */
+        /* Largo il giusto, non quanto la colonna: un bersaglio da
+           duecento pixel per una cifra di due caratteri accende un
+           riquadro lontanissimo dal numero che si sta guardando.
+           `mx-auto` lo tiene al centro, incollato alla cifra.
+
+           NIENTE `min-w` QUI: la larghezza della colonna la decide il
+           `colgroup`, non il contenuto. Con `min-w` sul bottone erano
+           le colonne CON i numeri a diventare larghe e quelle coi
+           trattini a restare strette — la tabella e' a layout
+           automatico e dimensiona su cio' che trova dentro. */
         className={cn(
-          'relative mx-auto block min-w-[3.5rem] rounded-lg border-2 px-3 py-1.5 transition-colors',
+          'relative mx-auto block w-14 rounded-lg border-2 py-1.5 transition-colors',
           aperta
             ? 'border-black bg-amber-300'
             : 'border-transparent hover:border-black hover:bg-amber-100',
@@ -1021,6 +1048,26 @@ function giornoCorto(g: string): string {
   return new Date(a, m - 1, d)
     .toLocaleDateString('it-IT', { weekday: 'short' })
     .replace('.', '')
+}
+
+/**
+ * Quanto e' larga una colonna-giorno.
+ *
+ * Si dichiara invece di lasciarla dedurre al browser. Senza una misura
+ * la tabella e' a layout automatico e dimensiona ogni colonna sul suo
+ * contenuto: quelle con un numero dentro diventavano larghe, quelle con
+ * un trattino strette, e la settimana usciva sbilenca. Segnalato
+ * dall'utente il 2026-09-22 — «le colonne in cui ci sono i numeri sono
+ * molto piu' larghe di quelle senza».
+ *
+ * Cinque giorni si prendono tutto lo spazio che avanza, ventidue (un
+ * mese) devono starci: la misura cambia col numero di colonne, e sotto
+ * una certa soglia la tabella scorre invece di schiacciarsi.
+ */
+function larghezzaGiorno(quanti: number): string {
+  if (quanti <= 6) return 'w-[9rem]'
+  if (quanti <= 12) return 'w-24'
+  return 'w-20'
 }
 
 /** «gio 17» — la giornata nominata per esteso quanto basta, nelle
