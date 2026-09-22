@@ -1,6 +1,6 @@
 # Stato lavori — Gestionale Edily
 
-> Aggiornato al **18 settembre 2026**, sera.
+> Aggiornato al **22 settembre 2026**, sera.
 > Questo file raccoglie fatti **verificati contro il database reale**, non dedotti
 > dallo schema. Dove c'è scritto "verificato" vuol dire che è stato provato con
 > una query e ne è stato osservato l'esito.
@@ -60,18 +60,44 @@ nuova sia per chi ci torna dopo giorni.
    proposito, per provare prima il blocco in ufficio. Il punto 1 e il
    subappalto aspettano l'utente e non vanno anticipati.
 
-   *Il 18 settembre 2026* sono uscite **le ore dai lavori extra**, che era il
-   primo lavoro in coda ed era già tutto deciso. Il prossimo pezzo è la **vista
-   delle ore per persona**, che però ha quattro domande da fare a Stefania
-   prima di scriverla: vedi i prossimi passi.
+   *La vista delle ore per persona È STATA COSTRUITA*: è `/ore`, il foglio
+   presenze — operai in riga, giorni in colonna, tutti quelli in anagrafica
+   anche a zero. Mostra solo le giornate **validate dal titolare**, con un
+   avviso quando nel periodo ce ne sono di non ancora validate: i totali
+   sarebbero parziali, e un buco potrebbe essere una giornata ferma invece di
+   un giorno non lavorato.
+
+   **I due pezzi in coda adesso**, entrambi rimandati dall'utente e da non
+   anticipare:
+
+   1. **La coda di Stefania** — «queste giornate validate aspettano il tuo
+      lavoro». Oggi non ha una schermata sua: le giornate le arrivano, ma non
+      c'è un posto dove le veda in fila. È il gradino che manca perché la
+      catena vada avanti fino al Riepilogo Economico.
+   2. **Le assenze.** Rimandate esplicitamente dall'utente il 2026-09-22: «se
+      io sono assente lo sono dovunque, quindi non devo mettermi in nessun
+      rapportino di alcun cantiere». È uno scenario che **esula dal cantiere**
+      e va disegnato a parte, non incastrato nei rapportini.
+
+   *Il Riepilogo Economico* è MENSILE: Stefania inserisce le tariffe, che
+   possono variare di mese in mese, e a fine mese solare manda il RE al
+   titolare per la seconda firma. Poi lo aggiorna man mano che arrivano
+   conguagli e adeguamenti ISTAT. Sia il Foglio Riepilogativo di Giornata sia
+   il RE sono **riepiloghi virtuali**: punti di arrivo e di snodo, non tabelle
+   nuove nel database.
 5. **Tre cose decise il 15 settembre 2026**, da non rimettere in discussione:
    - **`cantieri.assign` resta a owner e admin.** Le assegnazioni dei tecnici
      ai cantieri le fa **solo Giuseppe**, non l'amministrazione. La matrice
      attuale è già così: non va toccata.
-   - **Stefania fuori dalla squadra.** La sua scheda operaio era stata
-     collegata a `amministrazione@cassia.com`, e quel collegamento la faceva
-     comparire fra gli assegnabili. Va sciolto o la scheda cancellata: lei
-     riceve le ore, non le presta.
+   - **Stefania fuori dalla squadra.** ✅ *Chiuso il 2026-09-22, ma non come
+     previsto qui:* la scheda operaio non esisteva affatto — in anagrafica
+     c'erano nove persone e lei non c'era. È stata **creata** con
+     `tipo = 'impiegato'`, che la tiene fuori dalle squadre per via di un
+     trigger nel database. Sono due cose distinte che si somigliano: stare in
+     **anagrafica** è esistere come persona dell'azienda (ce l'ha anche il
+     tecnico, che in cantiere non va mai), stare in **squadra** è essere
+     assegnabile a un cantiere. Senza scheda non le compariva «Le mie ore» e
+     non poteva dichiarare le proprie.
    - **Il modello del magazzino è deciso** — i luoghi, e nessun «consumato».
      Vedi il punto 9 dei prossimi passi.
 6. **Due cose aperte che aspettano l'utente** e non vanno indovinate: le
@@ -178,8 +204,8 @@ e l'altra non resta traccia di chi ha lanciato cosa.
 [`supabase/schema/verifica-stato.sql`](supabase/schema/verifica-stato.sql). È
 di sola lettura e dice riga per riga cosa è FATTO e cosa è DA FARE.
 
-**Esito all'11 settembre 2026: tutti eseguiti**, compreso
-`invio-controllo-ore.sql` dell'ultima riga.
+**Esito al 22 settembre 2026: tutti eseguiti.** Nessun file in sospeso, a parte
+`rapportino-foto-stato.sql`, non eseguito di proposito (vedi i difetti noti).
 
 
 | File | Stato |
@@ -199,6 +225,10 @@ di sola lettura e dice riga per riga cosa è FATTO e cosa è DA FARE.
 | [`invio-due-posti.sql`](supabase/schema/invio-due-posti.sql) | ✅ eseguito il 2026-09-17 |
 | [`invio-controllo-ore.sql`](supabase/schema/invio-controllo-ore.sql) | ✅ eseguito l'11 settembre 2026, verificato: `invia_foglio_giornata` c'è ed è `security invoker`, `ore_in_lettere()` pure. Provato prima su un Postgres 17 usa e getta, nove casi (vedi sotto) |
 | [`cliente-tipo.sql`](supabase/schema/cliente-tipo.sql) | ✅ eseguito il 2026-09-22, verificato: 5 aziende e 5 privati, nessuna riga senza tipo. La colonna `clienti.tipo` è nullable con un check — non un enum, perché il database è condiviso |
+| [`pulizia-ore-weekend.sql`](supabase/schema/pulizia-ore-weekend.sql) | ✅ eseguito il 2026-09-22. Toglie due giornate di prova (sabato 19 e domenica 20, 8 h in bozza mai inviate) nate premendo Salva sul foglio ore, che proponeva 8 ore anche nei festivi. Mirato su bozze mai inviate di quei due giorni: un sabato lavorato e inviato non viene toccato |
+| [`scheda-stefania.sql`](supabase/schema/scheda-stefania.sql) | ✅ eseguito il 2026-09-22, verificato: `Corritore Stefania · impiegato · amministrazione@cassia.com`, dieci persone in anagrafica. `tipo = 'impiegato'` la tiene fuori dalle squadre |
+| [`verifica-attesi.sql`](supabase/schema/verifica-attesi.sql) | 📖 sola lettura, non modifica niente. Serve a capire quante schede aspettarsi in un giorno: ha mostrato che Family Resort non era di Zito e che tutti i cantieri aprono il 17 |
+| [`verifica-weekend.sql`](supabase/schema/verifica-weekend.sql) | 📖 sola lettura. Ha smascherato le due giornate di prova del weekend guardando i `created_at`: due secondi l'una dall'altra |
 
 **Si possono rilanciare tutti senza danno**, ed è una proprietà voluta: questi
 file si eseguono a mano e fra una sessione e l'altra nessuno ricorda cosa aveva
@@ -444,9 +474,14 @@ metterla `NOT NULL` va considerato che non tutte le imprese hanno sempre un
 committente (lavori in economia, manutenzione della propria sede): è una regola
 del *tenant*, non della piattaforma.
 
-### 🟡 Il tipo di cliente (azienda/privato) non è salvato
-Non esiste una colonna `tipo` in `clienti`: il form lo deduce dai dati. Serve una
-migration piccola.
+### ✅ Il tipo di cliente (azienda/privato) non era salvato
+Risolto il 2026-09-22 con
+[`cliente-tipo.sql`](supabase/schema/cliente-tipo.sql): `clienti.tipo` è una
+colonna vera, nullable con un check — non un enum, perché il database è
+condiviso con wbs-office. Verificata: 5 aziende e 5 privati, nessuna riga senza
+tipo. Il form legge la colonna con una deduzione di riserva per le righe scritte
+da wbs-office, e **dopo la creazione la scheda blocca il tipo**: era una
+richiesta esplicita dell'utente, «è una cosa importante questa, strutturale».
 
 ### ⚫ Due modelli di ruoli convivono nel database
 `profiles.role` con l'enum `user_role` (`admin`/`moderator`/`user`) è di
@@ -483,6 +518,80 @@ Da fare **prima** di toccare le policy.
 
 ## Prossimi passi
 
+> **Chiusi il 2026-09-22.** Giornata sul **punto di vista del titolare**, nata
+> da una richiesta sola — «voglio un calendarietto per capire cosa devo ancora
+> ricevere dal mio tecnico» — e finita a scoprire che il programma accusava di
+> ritardo chi il lavoro l'aveva fatto. Sei commit, tutti su difetti veri emersi
+> guardando i dati, non ipotizzati.
+>
+> *Cosa è stato costruito:*
+>
+> - **«Cosa aspetto dal campo»** in home — un calendario per tecnico, coi
+>   colori semaforici, e a fianco il dettaglio della giornata. Il pannello sta
+>   **accanto** al calendario e non sotto: sotto sprecava mezza pagina.
+> - **«Cos'è successo»**, il riquadro che racconta la giornata intera — tutti i
+>   cantieri, tutte le persone, anche ciò che è già firmato. Nasce da «perché
+>   non ci sono le frecce dal POV titolare?»: la risposta non erano le frecce
+>   (non avrebbero mosso niente, quei riquadri non guardano un giorno) ma il
+>   fatto che «cos'è successo giovedì 17?» non avesse un posto dove essere
+>   chiesta.
+> - **«Rimasto indietro»** per il tecnico — respinte, bozze mai inviate, e in
+>   azzurro ciò che aspetta il titolare. Chiesto d'urgenza: «il tecnico deve
+>   sapere che ha delle giornate mai inviate. Consapevolezza al massimo».
+> - **I pallini nel foglio presenze**: sotto il numero delle ore, un pallino
+>   per cantiere quando sono più di uno. La cella con un cantiere solo resta
+>   identica — si accende solo l'anomalia.
+>
+> *I difetti trovati e chiusi,* tutti sullo stesso meccanismo:
+>
+> - **Il calendario pretendeva rapportini non dovuti.** Il denominatore era
+>   «quanti cantieri hanno stato attivo ADESSO»: un numero di stasera applicato
+>   all'indietro a tutto il mese. Il 17 settembre Zito aveva consegnato 7 schede
+>   su **4** dovute, tutte validate, ore comprese — e risultava in difetto. Ed
+>   era instabile: ogni cantiere nuovo riscriveva il giudizio sul passato.
+>   Peggio, contava anche i cantieri **di altri** — l'ottavo che mancava a Zito
+>   era Family Resort, che è di Giuseppe come direttore lavori. Ora l'attesa
+>   esce da `cantiere_assegnazioni` incrociata con le date del cantiere: è suo,
+>   ce l'aveva già quel giorno, non l'ha lasciato, e il cantiere era aperto.
+>   Servono tutte e quattro — Monterosa risultava assegnato dal 14 mentre
+>   apriva il 17.
+> - **Sabato e domenica non si pretendono.** «Sono giornate festive e nessuno
+>   ha lavorato; se qualcuno lavorerà vedrai il rapportino spuntare». L'attesa
+>   scende a zero. Resta rosso ciò che è fermo davvero (bozze, respinte), che è
+>   fermo anche di sabato. La regola sta in `statoGiornata.ts`, in un punto
+>   solo: prima il conteggio saltava il weekend e il colore no, e la stessa card
+>   diceva «4 da ricevere» con sei caselle rosse sotto.
+> - **Il foglio ore proponeva 8 ore di domenica.** Da lì erano nate due
+>   giornate in bozza sul 19 e sul 20, create a due secondi l'una dall'altra
+>   scorrendo le frecce: bastava premere Salva. Ora nei festivi si parte da zero
+>   con un avviso. **Nessun blocco**: un sabato di lavoro esiste, e vietarlo
+>   costringerebbe a spostare le ore su un altro giorno, cioè a falsificare le
+>   paghe.
+> - **Verde e azzurro erano invertiti.** Il verde stava per `contabilizzato`,
+>   cioè dopo il Riepilogo Economico: coerente col processo ma sbagliato per chi
+>   guarda, perché quella è la schermata del titolare e lì il traguardo è il
+>   suo. E siccome il RE è mensile, il verde non sarebbe mai comparso prima del
+>   30 — un colore che si accende una volta al mese non è un semaforo. Ora
+>   **validata = verde, archiviata = azzurro**, in entrambi i calendari.
+> - **«7 di 4»** nel badge. Succede per davvero quando uno consegna più del
+>   dovuto, ma un numeratore più grande del denominatore si legge come un errore
+>   di conto. Il denominatore **si vede sempre** (richiesta dell'utente: «7 di 7
+>   me gusta mucho»), e quando le schede superano l'atteso diventa il numero
+>   stesso.
+>
+> *Sui dati:* creata la **scheda di Stefania Corritore** in anagrafica
+> (`impiegato`, collegata alla sua utenza) — senza, non le compariva «Le mie
+> ore» e non poteva dichiarare le proprie. E cancellate le due giornate di
+> prova del weekend.
+>
+> **Prima di questa giornata** erano usciti: allineamento colonne su Risorse /
+> Clienti / Cantieri (`table-fixed` + colgroup), le griglie di card su Clienti e
+> Risorse, il filtro di stato sui cantieri, «Compilato da» al posto di «Orario»
+> nei rapportini, le chips filtranti nei lavori extra, i sabati e le domeniche
+> nel foglio presenze, e la colonna `clienti.tipo`.
+>
+> ---
+>
 > **Chiusi il 2026-09-15.** Aperto il **punto di vista dell'amministrazione** e
 > provato in ufficio con Stefania. Non è stato scritto codice nuovo di
 > funzionalità: si è guardato lavorare qualcuno e si è sistemato ciò che

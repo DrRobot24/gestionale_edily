@@ -43,7 +43,7 @@ where o.data in ('2026-09-19', '2026-09-20')
 -- ② POI CANCELLA ──────────────────────────────────────────────────
 -- Scommenta ed esegui dopo aver controllato che ① mostri le due righe
 -- di Zito e nient'altro.
--- delete from ore_personali
--- where data in ('2026-09-19', '2026-09-20')
---   and stato = 'bozza'
---   and inviato_at is null;
+ delete from ore_personali
+ where data in ('2026-09-19', '2026-09-20')
+   and stato = 'bozza'
+   and inviato_at is null;
