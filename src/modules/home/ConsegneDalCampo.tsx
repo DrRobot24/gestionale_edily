@@ -27,8 +27,9 @@ import { ASPETTO_GIORNATA, statoGiornataTecnico, type StatoGiornata } from './st
    me l'ha mandato». Un calendario unico risponderebbe alla prima
    domanda e costringerebbe ad aprire il giorno per avere la seconda;
    cosi' il nome sta scritto sopra la griglia e la risposta si legge
-   senza cliccare. Oggi Edily ha un tecnico solo, e la colonna e' una:
-   quando ne arrivera' un secondo si affiancano da sole.
+   senza cliccare. Oggi Edily ha un tecnico solo; quando ne arrivera' un
+   secondo il suo calendario si incolonna sotto, nella stessa striscia a
+   sinistra.
 
    ── IL CONTEGGIO, e il suo limite dichiarato ────────────────────────
 
@@ -121,12 +122,37 @@ export function ConsegneDalCampo() {
 
       {isPending && <p className="text-sm font-bold text-gray-600">Carico le consegne…</p>}
 
+      {/* IL DETTAGLIO STA DI FIANCO, non sotto.
+
+          Sotto c'era, ed era sbagliato: un calendario e' largo quanto
+          sette caselle e basta, quindi con un tecnico solo restava
+          mezza schermata bianca a destra — e il dettaglio, che e' fatto
+          di righe corte, andava a stendersi sotto a tutta pagina per
+          contenerle. Due sprechi in una volta, lo spazio vuoto sopra e
+          quello dentro le righe allargate. Segnalato dall'utente il
+          2026-09-22 guardando la sua home.
+
+          Le due colonne non sono uguali: il calendario chiede la sua
+          larghezza naturale e non di piu', il dettaglio si prende il
+          resto. `lg:w-[22rem] lg:shrink-0` sulla prima e `flex-1` sulla
+          seconda fanno esattamente questo, mentre `lg:grid-cols-2`
+          avrebbe diviso a meta' allargando le caselle per niente.
+
+          `items-start` perche' il dettaglio non deve allungarsi fino in
+          fondo al calendario quando ha tre righe: si ferma dov'e'
+          finito.
+
+          Sul telefono si impilano, calendario sopra e dettaglio sotto,
+          che e' l'ordine del gesto: clicchi un giorno, leggi cosa c'e'
+          dentro. */}
       {!isPending && tecnici.length > 0 && (
-        <>
-          {/* Due per riga e non tre: la griglia di un calendario sotto
-              una certa larghezza diventa illeggibile, e le caselle sono
-              bersagli da cliccare. */}
-          <div className="grid gap-4 lg:grid-cols-2">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+          {/* I calendari restano in colonna anche con piu' tecnici: due
+              affiancati qui dentro rimangerebbero lo spazio al
+              dettaglio, che e' proprio cio' che si stava correggendo.
+              In verticale si confrontano lo stesso — stesso mese,
+              stessa griglia, uno sotto l'altro. */}
+          <div className="grid gap-4 lg:w-[22rem] lg:shrink-0">
             {tecnici.map((t) => (
               <CalendarioTecnico
                 key={t.dipendenteId}
@@ -141,21 +167,32 @@ export function ConsegneDalCampo() {
             ))}
           </div>
 
-          {/* Il dettaglio STA SOTTO e non dentro la casella: un popup
-              sopra una griglia di quaranta bersagli copre proprio cio'
-              che si stava guardando. Qui si apre, si legge, e il
-              calendario resta visibile sopra. */}
-          {giornoAperto && (
-            <DettaglioGiorno
-              giorno={giornoAperto}
-              tecnici={tecnici}
-              cantieriAttivi={attivi}
-              rapportini={data!.rapportini}
-              ore={data!.ore}
-              onChiudi={() => setGiornoAperto(null)}
-            />
-          )}
-        </>
+          <div className="lg:flex-1 lg:min-w-0">
+            {giornoAperto ? (
+              <DettaglioGiorno
+                giorno={giornoAperto}
+                tecnici={tecnici}
+                cantieriAttivi={attivi}
+                rapportini={data!.rapportini}
+                ore={data!.ore}
+                onChiudi={() => setGiornoAperto(null)}
+              />
+            ) : (
+              /* L'invito compare SOLO da schermo largo (`hidden lg:`):
+                 sul telefono le due colonne si impilano, e un
+                 segnaposto grigio fra il calendario e il resto della
+                 pagina sarebbe un ostacolo da scorrere. Da desktop
+                 invece riempie il posto del dettaglio e dice cosa fare
+                 per vederlo — senza, la colonna vuota sembra un pezzo
+                 che non ha caricato. */
+              <div className="hidden h-full min-h-64 place-content-center rounded-xl border-2 border-dashed border-black/25 bg-white/50 p-6 text-center lg:grid">
+                <p className="text-sm font-bold text-gray-500">
+                  Clicca una giornata per vedere cosa è arrivato e cosa manca.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
       )}
     </div>
   )
@@ -372,6 +409,14 @@ function DettaglioGiorno({
                 </div>
               </div>
 
+              {/* IL CANTIERE, non «Scheda». Sette righe che dicevano
+                  tutte «Scheda · validato» erano indistinguibili, e la
+                  domanda del titolare e' proprio quale cantiere manca:
+                  una lista che non nomina le cose non risponde.
+
+                  Lo stato va a destra e in fondo, perche' si legge
+                  DOPO: prima si cerca il cantiere, poi si guarda com'e'
+                  messo. */}
               {suoi.length > 0 && (
                 <ul className="mt-2 grid gap-1">
                   {suoi.map((r) => (
@@ -379,9 +424,17 @@ function DettaglioGiorno({
                       <button
                         type="button"
                         onClick={() => navigate(`/rapportini/${r.id}`)}
-                        className="neo-press w-full cursor-pointer rounded-lg border-2 border-black/20 px-3 py-1.5 text-left text-xs font-semibold hover:border-black hover:bg-amber-50"
+                        className="neo-press flex w-full cursor-pointer items-center justify-between gap-3 rounded-lg border-2 border-black/20 px-3 py-1.5 text-left text-xs font-semibold hover:border-black hover:bg-amber-50"
                       >
-                        Scheda · <span className="font-bold">{r.stato}</span>
+                        <span className="min-w-0 truncate">
+                          {r.cantieri?.codice && (
+                            <span className="font-bold">{r.cantieri.codice} — </span>
+                          )}
+                          {r.cantieri?.denominazione ?? 'Cantiere non indicato'}
+                        </span>
+                        <span className="shrink-0 font-bold uppercase text-gray-600">
+                          {r.stato}
+                        </span>
                       </button>
                     </li>
                   ))}

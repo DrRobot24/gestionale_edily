@@ -51,6 +51,11 @@ export type ConsegnaRapportino = {
   cantiere_id: string
   stato: string
   compilato_da: string | null
+  /** Il nome del cantiere, annidato da PostgREST attraverso la chiave
+   *  esterna. Serve al dettaglio del giorno: sette righe che dicono
+   *  tutte «Scheda · validato» non si distinguono l'una dall'altra, e
+   *  la domanda del titolare e' proprio QUALE cantiere manca. */
+  cantieri: { codice: string; denominazione: string } | null
 }
 
 /** La giornata di ore che il tecnico dichiara per se'. */
@@ -114,7 +119,7 @@ export function useConsegneDelMese(giorno: string) {
           .order('cognome'),
         supabase
           .from('rapportini')
-          .select('id, data, cantiere_id, stato, compilato_da')
+          .select('id, data, cantiere_id, stato, compilato_da, cantieri ( codice, denominazione )')
           .eq('org_id', org!.id)
           .gte('data', dal)
           .lte('data', al)
@@ -145,7 +150,7 @@ export function useConsegneDelMese(giorno: string) {
 
       return {
         tecnici,
-        rapportini: (schede.data ?? []) as ConsegnaRapportino[],
+        rapportini: (schede.data ?? []) as unknown as ConsegnaRapportino[],
         ore: (oreProprie.data ?? []) as ConsegnaOre[],
       }
     },
