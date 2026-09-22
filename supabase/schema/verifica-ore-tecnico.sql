@@ -17,6 +17,11 @@
 --
 -- Queste query dicono QUALE dei tre.
 --
+-- ⚠️ UNA PER VOLTA. Il SQL Editor di Supabase mostra SOLO il risultato
+-- dell'ultima query quando se ne lanciano piu' d'una: lanciandole tutte
+-- insieme si vede la ③ e si perdono le prime due, che sono quelle che
+-- rispondono. Selezionare la query con il mouse e premere Esegui.
+--
 -- ⚠️ LE PRIME TRE LEGGONO LE TABELLE e girano sempre. L'ultima chiama
 -- `ore_griglia`, che controlla `paghe.read`: nel SQL Editor si gira con
 -- un ruolo Postgres e non con la propria utenza Supabase, quindi quel
@@ -24,6 +29,31 @@
 -- e' il cancello che fa il suo mestiere — per questo sta in fondo,
 -- staccata: cosi' il suo errore non interrompe le altre.
 -- =====================================================================
+
+
+-- ⓪ LA RISPOSTA IN UNA RIGA SOLA.
+--    Se si lancia una query sola, e' questa: conta le giornate del
+--    tecnico per stato, e dice cosa vuol dire ognuno.
+--    Nessuna riga in risposta = non ha mai compilato niente.
+select
+  d.cognome || ' ' || d.nome            as chi,
+  p.stato,
+  count(*)                              as giornate,
+  min(p.data)                           as dalla,
+  max(p.data)                           as alla,
+  case p.stato
+    when 'bozza'     then '❌ SCRITTE MA NON INVIATE — deve premere «invia al titolare»'
+    when 'inviato'   then '⏳ inviate, aspettano la firma di Giuseppe'
+    when 'respinto'  then '↩️ rimandate indietro: deve correggerle'
+    when 'validato'  then '✅ firmate: queste la griglia LE MOSTRA'
+    else p.stato
+  end                                   as cosa_vuol_dire
+from public.ore_personali p
+join public.dipendenti d on d.id = p.dipendente_id
+where d.tipo in ('tecnico', 'impiegato')
+  and p.data >= current_date - interval '60 days'
+group by d.cognome, d.nome, p.stato
+order by chi, p.stato;
 
 
 -- ① LE SUE RIGHE, CON LO STATO. E' la risposta alla domanda.
