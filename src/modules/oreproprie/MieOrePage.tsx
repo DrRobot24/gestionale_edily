@@ -4,6 +4,7 @@ import { Avviso, Badge, Button, Campo, CampoArea, CampoSelect, Card, Percorso, T
 import { useMioDipendente } from '../anagrafiche/dipendenti'
 import { ASSENZE, oggi } from '../rapportini/campiRapportino'
 import { data as fmtData, giornoPiu } from '../../lib/formato'
+import { eFineSettimana, nomeNonFeriale } from '../../lib/giorni'
 import {
   modificabile,
   totaleOre,
@@ -134,7 +135,33 @@ function FormGiornata({
      nel genitore rimonta il form quando cambia la data, che e' il modo
      di React per dire «questa e' un'altra giornata» senza un effetto
      che sincronizzi. */
-  const [ordinarie, setOrdinarie] = useState(String(giornata?.ore_ordinarie ?? 8))
+  /* ── OTTO ORE SOLO NEI GIORNI IN CUI SI LAVORA ──────────────────
+
+     Il modulo si apriva precompilato a 8 ore su QUALUNQUE giorno,
+     sabato e domenica compresi, e non diceva niente di diverso. Il
+     22 settembre l'utente ha trovato due giornate da 8 ore in bozza
+     sul 19 e sul 20, create a due secondi di distanza scorrendo le
+     frecce della data: il modulo le proponeva, bastava premere Salva.
+
+     Quelle due righe poi accendevano il rosso nel calendario del
+     titolare — «cosa c'entrano i sabati e le domeniche in rosso? Sono
+     giornate festive e nessuno ha lavorato».
+
+     Nel fine settimana si parte da ZERO. Chi ha lavorato davvero
+     scrive le sue ore e salva come sempre — nessun blocco, perche' un
+     sabato di lavoro esiste e vietarlo costringerebbe a spostarlo su
+     un altro giorno, cioe' a falsificare le paghe. Ma il programma non
+     lo propone piu': il valore di partenza e' un suggerimento, e
+     suggerire otto ore di lavoro su una domenica e' un suggerimento
+     sbagliato.
+
+     ⚠️ Vale solo per una giornata NUOVA. Se la riga esiste gia' — e
+     quindi qualcuno ha davvero scritto quelle ore — si legge il suo
+     valore e non si azzera niente. */
+  const festivo = eFineSettimana(giorno)
+  const [ordinarie, setOrdinarie] = useState(
+    String(giornata?.ore_ordinarie ?? (festivo ? 0 : 8)),
+  )
   const [straordinarie, setStraordinarie] = useState(String(giornata?.ore_straordinarie ?? 0))
   const [assenza, setAssenza] = useState(String(giornata?.ore_assenza ?? 0))
   const [tipoAssenza, setTipoAssenza] = useState(giornata?.tipo_assenza ?? '')
@@ -214,6 +241,22 @@ function FormGiornata({
           {stato === 'respinto' && giornata?.motivo_rifiuto && (
             <Avviso tono="errore">
               <strong>Respinta:</strong> {giornata.motivo_rifiuto}
+            </Avviso>
+          )}
+
+          {/* IL FESTIVO SI DICE, non si vieta. Chi apre un sabato quasi
+              sempre ci e' arrivato scorrendo le frecce, e senza una
+              riga che lo avverta il modulo sembra un giorno come gli
+              altri — che e' come sono nate le due giornate di prova
+              del 19 e del 20.
+
+              Non compare se la giornata esiste gia': a quel punto
+              qualcuno HA lavorato quel sabato, e ricordargli che e'
+              festivo sarebbe una lezione, non un aiuto. */}
+          {festivo && !futuro && !giornata && (
+            <Avviso tono="info">
+              È {nomeNonFeriale(giorno)}: di norma non si lavora, e infatti le ore partono
+              da zero. Se hai lavorato davvero, scrivile pure e invia come sempre.
             </Avviso>
           )}
 
