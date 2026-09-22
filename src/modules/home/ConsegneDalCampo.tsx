@@ -13,6 +13,7 @@ import {
   type TecnicoInCampo,
 } from './useConsegneDelMese'
 import { ASPETTO_GIORNATA, statoGiornataTecnico, type StatoGiornata } from './statoGiornata'
+import { LaGiornataDi } from './LaGiornataDi'
 
 /* ══════════════════════════════════════════════════════════════════
    COSA DEVO ANCORA RICEVERE DAL CAMPO.
@@ -169,14 +170,32 @@ export function ConsegneDalCampo() {
 
           <div className="lg:flex-1 lg:min-w-0">
             {giornoAperto ? (
-              <DettaglioGiorno
-                giorno={giornoAperto}
-                tecnici={tecnici}
-                cantieriAttivi={attivi}
-                rapportini={data!.rapportini}
-                ore={data!.ore}
-                onChiudi={() => setGiornoAperto(null)}
-              />
+              /* DUE RIQUADRI, e rispondono a due domande diverse sullo
+                 stesso giorno.
+
+                 Sopra «cosa manca», che e' il perimetro del tecnico:
+                 quante schede ha consegnato, se ha dichiarato le sue
+                 ore, cosa resta in bozza. Sotto «cos'e' successo», che
+                 e' la giornata intera — tutti i cantieri, tutte le
+                 persone, anche cio' che e' gia' firmato e quindi non
+                 manca piu' a nessuno.
+
+                 Il secondo e' nato il 2026-09-22 da «perche' non ci
+                 sono le frecce dal POV titolare?»: la risposta non
+                 erano le frecce — non avrebbero mosso niente in quella
+                 home — ma il fatto che «cos'e' successo giovedi' 17?»
+                 non avesse un posto dove essere chiesta. */
+              <div className="grid gap-4">
+                <DettaglioGiorno
+                  giorno={giornoAperto}
+                  tecnici={tecnici}
+                  cantieriAttivi={attivi}
+                  rapportini={data!.rapportini}
+                  ore={data!.ore}
+                  onChiudi={() => setGiornoAperto(null)}
+                />
+                <LaGiornataDi giorno={giornoAperto} onChiudi={() => setGiornoAperto(null)} />
+              </div>
             ) : (
               /* L'invito compare SOLO da schermo largo (`hidden lg:`):
                  sul telefono le due colonne si impilano, e un
