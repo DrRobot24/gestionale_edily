@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Avviso, Badge, Button, Card, Table, Cifra, Vuoto, cn } from '../../ui'
+import { Avviso, Badge, Button, Card, Table, Vuoto, cn } from '../../ui'
 import { dataEstesa } from '../../lib/formato'
 import {
   conPasso,
@@ -17,6 +17,7 @@ import {
   nelFuturo,
   ore,
   periodoCorrente,
+  presentiGiorno,
   sposta,
   totaleGiorno,
   useGiornateInSospeso,
@@ -366,30 +367,55 @@ function Griglia({
           />
         ))}
 
-        {/* La riga dei totali per giorno: la lettura verticale, e da
-            sola giustifica la forma a griglia. Sta sotto chi ha
-            lavorato e sopra chi non ha niente, perche' e' il totale di
-            cio' che sta sopra. */}
+        {/* ── LA RIGA DEI TOTALI ──────────────────────────────────
+            La lettura verticale, e da sola giustifica la forma a
+            griglia. Sta sotto chi ha lavorato e sopra chi non ha
+            niente, perche' e' il totale di cio' che sta sopra.
+
+            DUE CIFRE PER GIORNO, non una. «61 ore» da solo non dice se
+            erano otto persone a sette ore o sette a otto e mezzo: il
+            numero delle presenze sotto le ore fa vedere il venerdi' a
+            mezzo organico senza contare le celle a mano. E' la lettura
+            che una riga di totali settimanali non puo' dare. */}
         <tr className="border-t-2 border-black bg-gray-100 font-black">
           <td />
           <td className="uppercase">Totale {periodo === 'mese' ? 'mese' : 'settimana'}</td>
           {giorni.map((g) => {
             const t = totaleGiorno(conOre, g)
+            const presenti = presentiGiorno(conOre, g)
             return (
               <td
                 key={g}
+                /* Allineate in ALTO: le celle con due righe sono piu'
+                   alte, e al centro le ore di un giorno pieno
+                   finirebbero sotto il trattino di un giorno vuoto. In
+                   alto tutte le cifre delle ore stanno sulla stessa
+                   linea, che e' il punto di una riga di totali.
+
+                   `!` obbligatorio: la primitiva `Table` impone
+                   `[&_td]:align-middle`, un selettore discendente che
+                   per specificita' batte una classe sulla cella. Senza,
+                   questa riga verrebbe ignorata in silenzio. */
                 className={cn(
-                  'numerico border-l-2 border-gray-300 text-center',
+                  'border-l-2 border-gray-300 !align-top text-center',
                   t === 0 && 'font-semibold text-gray-300',
                 )}
               >
-                {t === 0 ? '—' : ore(t)}
+                <div className="numerico">{t === 0 ? '—' : ore(t)}</div>
+                {presenti > 0 && (
+                  <div className="numerico text-[10px] font-bold text-gray-500">
+                    {presenti} {presenti === 1 ? 'persona' : 'persone'}
+                  </div>
+                )}
               </td>
             )
           })}
-          <Cifra className="border-l-2 border-black">
+          {/* Il totale del periodo si scrive piu' grande di tutti gli
+              altri numeri della pagina: e' l'unico che finisce davvero
+              in busta paga, e tutta la griglia esiste per farlo tornare. */}
+          <td className="numerico border-l-2 border-black px-3 py-2 text-right text-base font-black">
             {ore(conOre.reduce((s, r) => s + r.ordinarie + r.straordinarie, 0))}
-          </Cifra>
+          </td>
         </tr>
 
         {/* ── chi non ha ore ─────────────────────────────────────
@@ -464,7 +490,19 @@ function RigaPersona({
 
   return (
     <>
-      <tr className={cn(aperta && 'bg-amber-50', spenta && 'text-gray-500')}>
+      {/* La riga si accende tutta al passaggio del mouse. Su una
+          griglia larga l'occhio perde la riga fra il nome a sinistra e
+          il totale a destra: una fascia continua tiene insieme i due
+          capi, ed e' il modo piu' economico di dire «stai leggendo
+          questa persona». `group` serve alle celle, che schiariscono un
+          filo meno per restare distinguibili dal loro hover. */}
+      <tr
+        className={cn(
+          'group transition-colors',
+          aperta ? 'bg-amber-50' : 'hover:bg-amber-50/60',
+          spenta && 'text-gray-500',
+        )}
+      >
         <td>
           <button
             type="button"
