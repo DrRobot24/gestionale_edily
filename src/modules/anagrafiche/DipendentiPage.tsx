@@ -82,19 +82,40 @@ export function DipendentiPage() {
           tecnici che li seguono e chi lavora in ufficio.
         </Vuoto>
       ) : (
-        <Table>
+        /* `table-fixed` E LE LARGHEZZE, dal 2026-09-22: «allineami questi
+           dati nelle colonne che cosi non si possono guardare».
+
+           A layout automatico il browser dimensiona ogni colonna sul suo
+           contenuto: le righe con un badge diventavano larghe, quelle con
+           un trattino strette, e le stesse informazioni cadevano su
+           verticali diverse riga per riga. Con `table-fixed` comanda il
+           colgroup e le colonne stanno ferme.
+
+           Sta qui e non nella primitiva `Table`: quella impagina anche
+           elenchi dove il layout automatico e' giusto — una colonna di
+           ragioni sociali deve potersi allargare. */
+        <Table className="table-fixed">
+          <colgroup>
+            <col />
+            <col className="w-28" />
+            <col className="w-40" />
+            {/* Assunto tiene la data E il badge del suo stato: prima
+                erano due colonne, e il badge finiva a mezza pagina di
+                distanza dalla data che qualifica. */}
+            <col className="w-56" />
+            <col className="w-32" />
+            <col className="w-28" />
+            <col className="w-24" />
+          </colgroup>
+
           <thead>
             <tr>
               <th>Cognome e nome</th>
               <th>Tipo</th>
               <th>Mansione</th>
               <th>Assunto</th>
-              {/* Senza intestazione: e' la colonna degli allarmi, e la
-                  maggior parte delle volte e' vuota. Intitolarla
-                  vorrebbe dire una parola fissa sopra il nulla. */}
-              <th />
-              <th className="text-right">Costo orario</th>
-              <th className="text-right">Straord.</th>
+              <th className="!text-right">Costo orario</th>
+              <th className="!text-right">Straord.</th>
               <th />
             </tr>
           </thead>
@@ -123,46 +144,66 @@ export function DipendentiPage() {
                     </Badge>
                   </td>
 
-                  <td className="text-gray-600">{d.mansione ?? '—'}</td>
-                  <td className="numerico text-gray-600">{fmtData(d.data_assunzione)}</td>
+                  <td className="truncate text-gray-600">{d.mansione ?? '—'}</td>
 
-                  {/* LA COLONNA DEGLI ALLARMI, vuota quando va tutto bene.
+                  {/* LA DATA E IL SUO STATO NELLA STESSA CELLA.
 
-                      Due cose che chiedono di fare qualcosa: un contratto
-                      che manca e un permesso che sta per scadere. Un
-                      badge «assunto» su venti righe su venti sarebbe
-                      inchiostro che non dice niente, e finirebbe per far
-                      saltare l'occhio anche sugli altri due. */}
-                  <td className="space-x-1 whitespace-nowrap">
-                    {d.stato_rapporto === 'da_inquadrare' && (
-                      <Badge colore="errore" className="px-2 py-0.5 text-[10px]">
-                        da inquadrare
-                      </Badge>
-                    )}
-                    {d.stato_rapporto === 'in_prova' && (
-                      <Badge colore="attesa" className="px-2 py-0.5 text-[10px]">
-                        in prova
-                      </Badge>
-                    )}
-                    {permesso === 'scaduto' && (
-                      <Badge colore="errore" className="px-2 py-0.5 text-[10px]">
-                        permesso scaduto
-                      </Badge>
-                    )}
-                    {permesso === 'in-scadenza' && d.permesso_scadenza && (
-                      <Badge colore="attesa" className="px-2 py-0.5 text-[10px]">
-                        permesso: {giorniA(d.permesso_scadenza)} gg
-                      </Badge>
-                    )}
+                      Erano due colonne, e il risultato si vedeva: la
+                      data a sinistra, il badge che la qualifica a mezza
+                      pagina di distanza, dove l'occhio lo attribuiva
+                      alla colonna del costo. Sono la stessa
+                      informazione — «da quando, e a che titolo» — e
+                      stanno insieme.
+
+                      Il badge SOTTO e non accanto: le date sono brevi e
+                      i badge no, e affiancandoli la colonna si
+                      allargherebbe per la riga peggiore. Sotto, ogni
+                      data resta incolonnata con le altre.
+
+                      La colonna degli allarmi e' vuota quando va tutto
+                      bene: un badge «assunto» su venti righe su venti
+                      sarebbe inchiostro che non dice niente, e
+                      farebbe saltare l'occhio anche sugli altri due. */}
+                  <td className="text-gray-600">
+                    <span className="numerico block">{fmtData(d.data_assunzione)}</span>
+                    <span className="mt-0.5 block space-x-1 whitespace-nowrap">
+                      {d.stato_rapporto === 'da_inquadrare' && (
+                        <Badge colore="errore" className="px-2 py-0.5 text-[10px]">
+                          da inquadrare
+                        </Badge>
+                      )}
+                      {d.stato_rapporto === 'in_prova' && (
+                        <Badge colore="attesa" className="px-2 py-0.5 text-[10px]">
+                          in prova
+                        </Badge>
+                      )}
+                      {permesso === 'scaduto' && (
+                        <Badge colore="errore" className="px-2 py-0.5 text-[10px]">
+                          permesso scaduto
+                        </Badge>
+                      )}
+                      {permesso === 'in-scadenza' && d.permesso_scadenza && (
+                        <Badge colore="attesa" className="px-2 py-0.5 text-[10px]">
+                          permesso: {giorniA(d.permesso_scadenza)} gg
+                        </Badge>
+                      )}
+                    </span>
                   </td>
 
                   {/* Nessuna tariffa non e' un dettaglio estetico: senza,
                       le ore di questa persona valgono zero euro nel
                       consuntivo del cantiere. Va gridato, non nascosto. */}
+                  {/* `!text-right` anche sul badge: la primitiva `Table`
+                      impone `[&_td]:...` con un selettore discendente
+                      che per specificita' batte una classe sulla cella.
+                      Senza, «MANCA» restava al centro mentre gli importi
+                      andavano a destra — due allineamenti nella stessa
+                      colonna, che e' cio' che rendeva illeggibile la
+                      pagina. */}
                   {t ? (
                     <Cifra>{euro(t.costo_orario)}</Cifra>
                   ) : (
-                    <td className="text-right">
+                    <td className="!text-right">
                       <Badge colore="errore" className="px-2 py-0.5 text-[10px]">
                         manca
                       </Badge>
@@ -172,7 +213,7 @@ export function DipendentiPage() {
                     {t?.costo_orario_straordinario ? euro(t.costo_orario_straordinario) : '—'}
                   </Cifra>
 
-                  <td className="text-right">
+                  <td className="!text-right">
                     <Button
                       dimensione="sm"
                       onClick={() => navigate(`/anagrafiche/operai/${d.id}`)}
