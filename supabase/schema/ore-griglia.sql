@@ -73,6 +73,26 @@
 -- in casa.
 -- =====================================================================
 
+-- ⚠️ IL DROP PRIMA DEL CREATE, e non e' una precauzione di stile.
+--
+-- `create or replace` NON sa cambiare il tipo di ritorno di una
+-- funzione che esiste gia': su una `returns table` basta una colonna in
+-- piu' e Postgres si ferma con «cannot change return type of existing
+-- function». E' successo esattamente qui — la prima stesura aveva 12
+-- colonne, l'aggiunta di `nota_assenza` le ha portate a 13 — e la
+-- stessa trappola e' gia' annotata in `ore-giornata.sql`.
+--
+-- Con il drop davanti, questo file si puo' RIESEGUIRE ogni volta che
+-- cambia, senza doversi ricordare se il tipo e' cambiato o no. La
+-- funzione sparisce per un istante dentro la transazione del SQL
+-- Editor: nessuna vista e nessun trigger dipende da lei, quindi
+-- `cascade` non serve e non si usa — se un domani qualcosa dipendesse,
+-- e' giusto che il drop fallisca invece di portarselo via in silenzio.
+--
+-- I permessi si riassegnano in fondo al file, perche' il drop porta via
+-- anche quelli.
+drop function if exists public.ore_griglia(uuid, date, date);
+
 create or replace function public.ore_griglia(
   p_org uuid,
   p_dal date,

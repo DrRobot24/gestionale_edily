@@ -363,5 +363,17 @@ begin
 end;
 $fn$;
 
+-- NIENTE `drop function` QUI, al contrario di `ore-griglia.sql`: questa
+-- restituisce `integer`, un tipo che non cambia mai, quindi
+-- `create or replace` basta — e il drop sarebbe dannoso, perche'
+-- porterebbe via i permessi lasciando la funzione inaccessibile al
+-- frontend finche' qualcuno non se ne accorge.
+--
+-- I grant si riscrivono lo stesso, per due motivi: sono idempotenti, e
+-- il giorno che qualcuno aggiungesse un drop qui sopra la funzione
+-- continuerebbe a funzionare invece di rompersi in silenzio.
+revoke all on function public.invia_foglio_giornata(uuid, date) from public;
+grant execute on function public.invia_foglio_giornata(uuid, date) to authenticated;
+
 comment on function public.invia_foglio_giornata(uuid, date) is
   'Invia al titolare tutte le bozze di una giornata, dopo cinque controlli in fila: ogni cantiere attivo ha la sua scheda, chi compila ha scritto le proprie ore, NESSUN OPERAIO IN FORZA e rimasto fuori, le ore di ognuno tornano a otto (o sono gia giustificate), nessuna scheda e ancora da correggere.';
