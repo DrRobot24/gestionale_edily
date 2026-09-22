@@ -41,7 +41,7 @@ export type OrePersonaliDaValidare = {
   ore_straordinarie: number
   ore_assenza: number
   tipo_assenza: string | null
-  note: string | null
+  descrizione: string | null
   dipendenti: { nome: string; cognome: string } | null
 }
 
@@ -55,7 +55,7 @@ export function useOrePersonaliDaValidare() {
       const { data, error } = await supabase
         .from('ore_personali')
         .select(
-          'id, data, dipendente_id, ore_ordinarie, ore_straordinarie, ore_assenza, tipo_assenza, note, dipendenti ( nome, cognome )',
+          'id, data, dipendente_id, ore_ordinarie, ore_straordinarie, ore_assenza, tipo_assenza, descrizione, dipendenti ( nome, cognome )',
         )
         .eq('org_id', org!.id)
         // Solo l'inviato, come per i rapportini: una giornata gia'

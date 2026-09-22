@@ -242,7 +242,7 @@ function RigaOreProprie({ riga }: { riga: OrePersonaliDaValidare }) {
               ` · ${formattaNumero(Number(riga.ore_assenza))} di assenza${
                 riga.tipo_assenza ? ` (${riga.tipo_assenza})` : ''
               }`}
-            {riga.note && ` · ${riga.note}`}
+            {riga.descrizione && ` · ${riga.descrizione}`}
           </p>
         </div>
 
