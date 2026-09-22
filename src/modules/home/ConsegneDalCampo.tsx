@@ -428,23 +428,28 @@ function DettaglioGiorno({
              badge e il calendario non possono contraddirsi. */
           const attesi = cantieriAttesi(attese, t.userId, giorno)
           const arrivati = suoi.length - bozze
-          /* «7 DI 4» NON SI SCRIVE. Chiesto dall'utente il 2026-09-22
-             vedendolo comparire: «fa veramente vomitare» — e aveva
-             ragione, perche' un numeratore piu' grande del
-             denominatore si legge come un errore di conto, non come
-             una consegna abbondante.
+          /* IL DENOMINATORE SI VEDE SEMPRE — «voglio vedere sempre il
+             denominatore, quindi 7 di 7» (utente, 2026-09-22). La
+             frazione dice piu' del numero solo: «7 di 7» conferma che
+             il conto torna, «7» da solo lo lascia credere.
 
-             Succede per davvero e non e' un difetto: il 17 settembre
-             Zito ha rapportato SETTE cantieri quando gliene toccavano
-             quattro, perche' aveva gia' in mano lavoro di cantieri che
-             gli sarebbero stati assegnati dopo. Piu' del dovuto non e'
-             un problema da segnalare.
+             ⚠️ QUELLO CHE NON SI SCRIVE E' «7 DI 4», e non e' la stessa
+             cosa. Un numeratore piu' grande del denominatore si legge
+             come un errore di conto, non come una consegna abbondante
+             — l'utente lo ha visto comparire e la reazione e' stata
+             immediata. Succede per davvero: il 17 settembre Zito ha
+             rapportato SETTE cantieri quando gliene toccavano quattro,
+             perche' aveva gia' in mano lavoro di cantieri che gli
+             sarebbero stati assegnati dopo.
 
-             Quindi quando il conto e' in pari o in eccesso sparisce il
-             denominatore e resta il fatto: «7 rapportini». La
-             frazione serve solo finche' manca qualcosa, che e' l'unico
-             caso in cui il titolare deve sapere quanti ne aspetta. */
+             Quando arrivano piu' schede del dovuto il denominatore
+             diventa il numero stesso — «7 di 7» — perche' e' cio' che
+             quella giornata ha prodotto davvero, ed e' comunque
+             completa. Il dettaglio sotto elenca tutte e sette le
+             schede: nulla si nasconde, si evita solo di scrivere una
+             frazione impossibile. */
           const completo = arrivati >= attesi
+          const suQuanti = Math.max(arrivati, attesi)
 
           return (
             <li key={t.dipendenteId} className="px-5 py-3">
@@ -457,8 +462,8 @@ function DettaglioGiorno({
                       completo ? 'bg-lime-300' : 'bg-rose-300',
                     )}
                   >
-                    {completo ? arrivati : `${arrivati} di ${attesi}`}{' '}
-                    {arrivati === 1 && completo ? 'rapportino' : 'rapportini'}
+                    {arrivati} di {suQuanti}{' '}
+                    {suQuanti === 1 ? 'rapportino' : 'rapportini'}
                     {/* Le bozze NON si contano come arrivate: sono
                         scritte, ma il titolare non le ha ricevute. Un
                         conteggio che le include direbbe «7 di 8»
