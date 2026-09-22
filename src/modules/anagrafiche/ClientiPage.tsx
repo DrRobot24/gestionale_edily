@@ -87,6 +87,19 @@ export function ClientiPage() {
             const quanti = cantieriPer?.get(c.id) ?? 0
             const contatto = c.email ?? c.telefono
 
+            /* IL TIPO ARRIVA DALLA COLONNA, da `cliente-tipo.sql`
+               (eseguito il 2026-09-22). Il ripiego sulla vecchia
+               deduzione serve alle righe scritte da wbs-office, che la
+               colonna non la passa: li' `tipo` resta nullo, e senza
+               ripiego quelle card non avrebbero badge senza che si
+               capisca perche'.
+
+               E' la stessa regola che applica `ClienteForm` riaprendo
+               una scheda: se un domani cambia, cambia in due posti. */
+            const privato =
+              c.tipo === 'privato' ||
+              (!c.tipo && !c.partita_iva && c.codice_fiscale?.trim().length === 16)
+
             return (
               /* UN `button`, non una `Card` con `onClick`: la primitiva
                  e' un `div`, quindi si clicca col mouse ma non si
@@ -109,12 +122,6 @@ export function ClientiPage() {
                   !c.attivo && 'bg-gray-50',
                 )}
               >
-                {/* Il nome e' il titolo della card e si prende lo spazio
-                    che merita: e' l'unica cosa con cui si riconosce un
-                    cliente. `line-clamp-2` invece di `truncate` perche'
-                    «Adriana Ciancio Paratore» su una riga sola si
-                    taglierebbe a meta' cognome, e due righe in una card
-                    non spostano niente. */}
                 {/* `min-h-28` sul corpo: l'altezza minima comune che
                     rende uguali tutte le card della pagina, non solo
                     quelle della stessa riga.
@@ -129,9 +136,58 @@ export function ClientiPage() {
                     Chi ha meno da dire ha piu' aria dentro, ed e' il
                     prezzo di una griglia regolare. */}
                 <div className="min-h-28 flex-1 p-4">
-                  <p className="line-clamp-2 text-base font-extrabold leading-tight text-black">
-                    {c.ragione_sociale}
-                  </p>
+                  {/* IL NOME E IL TIPO SULLA STESSA RIGA, come nelle
+                      Risorse: le due griglie si guardano nella stessa
+                      sessione di lavoro e devono dire le stesse cose
+                      nello stesso posto.
+
+                      `line-clamp-2` e non `truncate`: «Adriana Ciancio
+                      Paratore» su una riga sola si taglierebbe a meta'
+                      cognome, e due righe in una card non spostano
+                      niente.
+
+                      L'emoji sta FUORI dal badge e prima: dentro, su un
+                      fondo colorato, si confonderebbe col colore invece
+                      di staccarsene. Stessa scelta delle Risorse. */}
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="line-clamp-2 text-base font-extrabold leading-tight text-black">
+                      {c.ragione_sociale}
+                    </p>
+
+                    <span className="flex shrink-0 items-center gap-1.5">
+                      <span
+                        role="img"
+                        aria-label={privato ? 'Privato' : 'Azienda o ente'}
+                        title={
+                          privato
+                            ? 'Privato — persona fisica'
+                            : 'Azienda o ente — si fattura con partita IVA'
+                        }
+                        className="text-base leading-none"
+                      >
+                        {privato ? '👤' : '🏢'}
+                      </span>
+                      {/* `successo` e `neutro`, non `info`/`accento`:
+                          quei due nelle Risorse sono gia' presi da
+                          Tecnico e Impiegato, e riusarli qui con un
+                          significato diverso insegnerebbe che l'azzurro
+                          non vuol dire niente di preciso. Le due
+                          griglie si guardano nella stessa mezz'ora di
+                          lavoro.
+
+                          Il verde all'azienda e' il colore che in
+                          questa pagina dice gia' «cantieri aperti»:
+                          resta nella famiglia di cio' che lavora. Il
+                          privato e' bianco, che e' il «nessuno stato
+                          particolare» previsto dalla primitiva. */}
+                      <Badge
+                        colore={privato ? 'neutro' : 'successo'}
+                        className="px-2 py-0.5 text-[10px]"
+                      >
+                        {privato ? 'Privato' : 'Azienda'}
+                      </Badge>
+                    </span>
+                  </div>
 
                   {!c.attivo && (
                     <Badge className="mt-2 px-2 py-0.5 text-[10px]">archiviato</Badge>
