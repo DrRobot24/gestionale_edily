@@ -366,8 +366,8 @@ function CalendarioTecnico({
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t-2 border-black bg-gray-50 px-4 py-2">
         <Legenda colore="bg-rose-300" testo="da ricevere" />
         <Legenda colore="bg-yellow-300" testo="da firmare" />
-        <Legenda colore="bg-sky-300" testo="firmata" />
-        <Legenda colore="bg-lime-300" testo="archiviata" />
+        <Legenda colore="bg-lime-300" testo="validata da te" />
+        <Legenda colore="bg-sky-300" testo="archiviata" />
       </div>
     </Card>
   )
@@ -427,6 +427,24 @@ function DettaglioGiorno({
              oggi: e' lo stesso conto che colora la casella, quindi il
              badge e il calendario non possono contraddirsi. */
           const attesi = cantieriAttesi(attese, t.userId, giorno)
+          const arrivati = suoi.length - bozze
+          /* «7 DI 4» NON SI SCRIVE. Chiesto dall'utente il 2026-09-22
+             vedendolo comparire: «fa veramente vomitare» — e aveva
+             ragione, perche' un numeratore piu' grande del
+             denominatore si legge come un errore di conto, non come
+             una consegna abbondante.
+
+             Succede per davvero e non e' un difetto: il 17 settembre
+             Zito ha rapportato SETTE cantieri quando gliene toccavano
+             quattro, perche' aveva gia' in mano lavoro di cantieri che
+             gli sarebbero stati assegnati dopo. Piu' del dovuto non e'
+             un problema da segnalare.
+
+             Quindi quando il conto e' in pari o in eccesso sparisce il
+             denominatore e resta il fatto: «7 rapportini». La
+             frazione serve solo finche' manca qualcosa, che e' l'unico
+             caso in cui il titolare deve sapere quanti ne aspetta. */
+          const completo = arrivati >= attesi
 
           return (
             <li key={t.dipendenteId} className="px-5 py-3">
@@ -436,11 +454,11 @@ function DettaglioGiorno({
                   <Badge
                     className={cn(
                       'px-2 py-0.5 text-[10px]',
-                      suoi.length - bozze >= attesi ? 'bg-lime-300' : 'bg-rose-300',
+                      completo ? 'bg-lime-300' : 'bg-rose-300',
                     )}
                   >
-                    {suoi.length - bozze} di {attesi}{' '}
-                    {attesi === 1 ? 'rapportino' : 'rapportini'}
+                    {completo ? arrivati : `${arrivati} di ${attesi}`}{' '}
+                    {arrivati === 1 && completo ? 'rapportino' : 'rapportini'}
                     {/* Le bozze NON si contano come arrivate: sono
                         scritte, ma il titolare non le ha ricevute. Un
                         conteggio che le include direbbe «7 di 8»
@@ -578,8 +596,9 @@ function Legenda({ colore, testo }: { colore: string; testo: string }) {
 function descrizione(stato: StatoGiornata): string {
   if (stato === 'rosso') return 'Manca qualcosa: apri il giorno per sapere cosa'
   if (stato === 'giallo') return 'Arrivata, aspetta la tua firma'
-  if (stato === 'azzurro') return 'Firmata. Aspetta il riepilogo di fine mese per chiudersi'
-  if (stato === 'verde') return 'Archiviata: la giornata è chiusa'
+  if (stato === 'verde') return 'Validata da te: per te è fatta'
+  if (stato === 'azzurro')
+    return 'Archiviata: passata anche dal riepilogo di Stefania, non torna più indietro'
   return 'Non è arrivato niente'
 }
 

@@ -19,34 +19,41 @@
               tornata indietro. Qualcosa e' cominciato e non e' finito.
      giallo   le schede ci sono tutte e sono partite, ma non sono ancora
               firmate.
-     azzurro  il titolare ha firmato (validazione ①), ma la giornata non
-              e' ancora archiviata: aspetta il Riepilogo Economico di
-              fine mese e la seconda firma.
-     verde    contabilizzata. La giornata e' CHIUSA davvero.
+     verde    il titolare ha firmato (validazione ①). Per LUI la
+              giornata e' fatta: ha ricevuto tutto e l'ha approvato.
+     azzurro  archiviata. E' passato anche il Riepilogo Economico di
+              Stefania e la seconda firma: la giornata ha finito il suo
+              giro e non torna piu' indietro.
 
    Il titolare li legge con gli stessi colori del tecnico — scelta
    dell'utente il 2026-09-22 — cosi' le due schermate non si
    contraddicono: se il tecnico vede giallo, giallo vede anche il
    titolare, e stanno parlando dello stesso fatto.
 
-   ── PERCHE' L'AZZURRO, aggiunto il 2026-09-22 ───────────────────────
+   ── IL VERDE E' LA FIRMA DEL TITOLARE, non l'archivio ───────────────
 
-   Spiegando il processo, l'utente ha chiarito che la firma del titolare
-   NON chiude la giornata: apre il secondo tempo. I dati passano a
-   Stefania, che a fine mese solare manda il Riepilogo Economico, e solo
-   dopo la seconda firma la giornata va in archivio.
+   Deciso dall'utente il 2026-09-22, ed e' l'inverso di come l'avevo
+   fatto la mattina: «voglio, in qualita' di titolare, vedere il verde
+   su tutte le giornate che ho validato; poi l'azzurro dovra' apparire
+   sul giorno solo quando le giornate saranno archiviate».
 
-   Fra le due firme c'e' un limbo che dura settimane — il 3 settembre
-   resta validato fino al 30 — e prima l'azzurro non esisteva: quelle
-   giornate erano verdi, cioe' dichiarate chiuse quando erano a meta'
-   strada. Adesso il verde vuol dire archiviata, e si vede a colpo
-   d'occhio cosa ha finito il suo giro e cosa no.
+   Il mio primo giro teneva il verde per `contabilizzato`. Era coerente
+   col processo ma sbagliato per chi guarda: il calendario e' la
+   schermata del TITOLARE, e in quella schermata il traguardo e' il suo,
+   non quello di Stefania. Uno che ha ricevuto tutto e ha firmato ha
+   finito — il verde deve dirglielo subito, non fra due settimane.
 
-   ⚠️ CONSEGUENZA PREVISTA: per gran parte del mese il calendario del
-   titolare sara' quasi tutto azzurro, e il verde arrivera' in blocco a
-   fine mese. Non e' un difetto, e' la verita' del processo — ma se in
-   ufficio risultera' che «il verde non lo vedo mai», la lettura da dare
-   e' che il verde e' diventato un evento mensile.
+   E c'era una conseguenza pratica che l'aveva gia' resa inutile: il
+   Riepilogo Economico arriva a fine mese solare, quindi il verde non
+   sarebbe MAI comparso prima del 30, e poi tutto il mese sarebbe
+   diventato verde insieme. Un colore che si accende una volta al mese
+   non e' un semaforo, e' un rendiconto — e in mezzo il titolare vedeva
+   azzurro su giornate che per lui erano chiuse da giorni.
+
+   L'archivio resta segnato, perche' e' un fatto vero e serve sapere
+   cosa non torna piu' indietro: prende l'azzurro, che e' il colore
+   giusto per una cosa conclusa e ferma. Chi ha bisogno di sapere dove
+   sia arrivato il lavoro di Stefania lo legge li'.
    ══════════════════════════════════════════════════════════════════ */
 
 export type StatoGiornata = 'vuota' | 'rosso' | 'giallo' | 'azzurro' | 'verde'
@@ -81,24 +88,26 @@ export function statoGiornata(schede: Scheda[], attesi: number): StatoGiornata {
   const inBozza = schede.some((r) => r.stato === 'bozza')
   if (respinte || inBozza || schede.length < attesi) return 'rosso'
 
-  /* Il verde e' l'ARCHIVIO, non la firma del titolare. Sono tutte
-     `contabilizzato`: il Riepilogo Economico di fine mese e' passato e
-     Giuseppe ha firmato la seconda volta. La giornata ha finito il suo
-     giro.
+  /* L'AZZURRO E' L'ARCHIVIO: tutte `contabilizzato`, cioe' il
+     Riepilogo Economico di Stefania e' passato e Giuseppe ha firmato la
+     seconda volta. La giornata ha finito il suo giro e non torna piu'
+     indietro.
 
-     Una giornata mista — qualche scheda contabilizzata e qualche altra
-     solo validata — resta AZZURRA, non verde: non e' archiviata finche'
-     non lo sono tutti i suoi pezzi. E' la definizione stessa di
-     «giornata conclusa» decisa con l'utente, visto che il foglio non
-     esiste come riga e lo stato si calcola dai rapportini. */
+     Una giornata mista — qualche scheda archiviata e qualche altra solo
+     validata — resta VERDE, non azzurra: non e' archiviata finche' non
+     lo sono tutti i suoi pezzi. E' la definizione di «giornata
+     conclusa» decisa con l'utente, visto che il foglio non esiste come
+     riga e lo stato si calcola dai rapportini. */
   const tutteArchiviate = schede.every((r) => r.stato === 'contabilizzato')
-  if (tutteArchiviate) return 'verde'
+  if (tutteArchiviate) return 'azzurro'
 
-  // Tutte firmate ma non ancora archiviate: il limbo fra le due firme.
+  /* Tutte firmate dal titolare: per LUI la giornata e' fatta, anche se
+     Stefania deve ancora lavorarci. Vedi la nota in testa al file sul
+     perche' il traguardo di questo calendario e' il suo. */
   const tutteFirmate = schede.every(
     (r) => r.stato === 'validato' || r.stato === 'contabilizzato',
   )
-  return tutteFirmate ? 'azzurro' : 'giallo'
+  return tutteFirmate ? 'verde' : 'giallo'
 }
 
 /**

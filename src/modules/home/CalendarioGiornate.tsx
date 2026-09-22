@@ -168,8 +168,14 @@ export function CalendarioGiornate({
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t-2 border-black bg-gray-50 px-4 py-2">
         <Legenda colore="bg-rose-300" testo="da chiudere" />
         <Legenda colore="bg-yellow-300" testo="dal titolare" />
-        <Legenda colore="bg-sky-300" testo="validata" />
-        <Legenda colore="bg-lime-300" testo="archiviata" />
+        {/* Verde = validata, azzurro = archiviata: scambiati il
+            2026-09-22 insieme al calendario del titolare. I due
+            calendari leggono la stessa funzione e devono dire la stessa
+            cosa — se qui il verde volesse dire un'altra cosa, tecnico e
+            titolare guarderebbero lo stesso giorno vedendo due colori
+            diversi. */}
+        <Legenda colore="bg-lime-300" testo="validata" />
+        <Legenda colore="bg-sky-300" testo="archiviata" />
       </div>
     </Card>
   )
