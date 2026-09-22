@@ -342,7 +342,13 @@ function Griglia({
             <th
               key={g}
               className={cn(
-                'border-l-2 border-gray-300 text-center',
+                /* `!` obbligatorio: la primitiva `Table` impone
+                   `[&_th]:text-left`, un selettore discendente che per
+                   specificita' batte una classe sulla cella. Senza, il
+                   nome del giorno resta a sinistra mentre le cifre
+                   sotto sono centrate — e si legge come un errore di
+                   impaginazione. Stessa trappola di `align-middle`. */
+                'border-l-2 border-gray-300 !text-center',
                 // Oggi si accende: su un periodo in corso dice a che
                 // punto si e', e quali colonne sono ancora da riempire.
                 g === oggi && 'bg-amber-200',
@@ -352,7 +358,7 @@ function Griglia({
               <div className="text-[13px] font-black">{numeroGiorno(g)}</div>
             </th>
           ))}
-          <th className="border-l-2 border-black text-center">Totale</th>
+          <th className="border-l-2 border-black !text-center">Totale</th>
         </tr>
       </thead>
 
