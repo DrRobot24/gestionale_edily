@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { Avviso, Badge, Card, cn } from '../../ui'
 import { eFineSettimana } from '../../lib/giorni'
-import { dataEstesa, griglieDelMese, giornoPiu, meseEAnno } from '../../lib/formato'
+import { dataEstesa, griglieDelMese, giornoPiu, meseEAnno, numero } from '../../lib/formato'
 import { useCantieri } from '../cantieri/useCantieri'
 import { oggi } from '../rapportini/campiRapportino'
 import {
@@ -317,7 +317,8 @@ function CalendarioTecnico({
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t-2 border-black bg-gray-50 px-4 py-2">
         <Legenda colore="bg-rose-300" testo="da ricevere" />
         <Legenda colore="bg-yellow-300" testo="da firmare" />
-        <Legenda colore="bg-lime-300" testo="firmata" />
+        <Legenda colore="bg-sky-300" testo="firmata" />
+        <Legenda colore="bg-lime-300" testo="archiviata" />
       </div>
     </Card>
   )
@@ -404,7 +405,7 @@ function DettaglioGiorno({
                           : 'bg-yellow-300',
                     )}
                   >
-                    {!sueOre ? 'ore non dichiarate' : `sue ore: ${sueOre.stato}`}
+                    {!sueOre ? 'ore non dichiarate' : `sue ore: ${riassuntoOre(sueOre)}`}
                   </Badge>
                 </div>
               </div>
@@ -483,6 +484,29 @@ function SfogliaMese({ mese, onCambia }: { mese: string; onCambia: (g: string) =
   )
 }
 
+/**
+ * Le ore proprie in poche parole: QUANTE, e come stanno.
+ *
+ * Diceva solo lo stato — «sue ore: inviato» — e non bastava: il
+ * titolare sapeva che erano arrivate, non se erano otto o quattro, che
+ * sono due giornate diverse. Segnalato il 2026-09-22.
+ *
+ * L'assenza si nomina quando c'e', perche' e' proprio il caso che
+ * spiega una giornata corta: «4 h · malattia» si legge da solo, mentre
+ * un «4 h» solitario sembra un errore da andare a chiedere.
+ */
+function riassuntoOre(o: ConsegnaOre): string {
+  const lavorate = Number(o.ore_ordinarie ?? 0) + Number(o.ore_straordinarie ?? 0)
+  const assenza = Number(o.ore_assenza ?? 0)
+
+  const pezzi = [`${numero(lavorate)} h`]
+  if (assenza > 0) pezzi.push(o.tipo_assenza ?? 'assenza')
+  // Lo stato resta, ma in coda: prima cosa ha fatto, poi a che punto e'.
+  pezzi.push(o.stato)
+
+  return pezzi.join(' · ')
+}
+
 function Legenda({ colore, testo }: { colore: string; testo: string }) {
   return (
     <span className="flex items-center gap-1.5">
@@ -495,7 +519,8 @@ function Legenda({ colore, testo }: { colore: string; testo: string }) {
 function descrizione(stato: StatoGiornata): string {
   if (stato === 'rosso') return 'Manca qualcosa: apri il giorno per sapere cosa'
   if (stato === 'giallo') return 'Arrivata, aspetta la tua firma'
-  if (stato === 'verde') return 'Firmata'
+  if (stato === 'azzurro') return 'Firmata. Aspetta il riepilogo di fine mese per chiudersi'
+  if (stato === 'verde') return 'Archiviata: la giornata è chiusa'
   return 'Non è arrivato niente'
 }
 

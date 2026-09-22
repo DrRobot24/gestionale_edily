@@ -20,11 +20,18 @@ import type { RapportinoCantiere } from '../rapportini/useRapportini'
    cantiere, e di schede per giorno ce n'e' una sola — ma «a che punto e'
    la scheda di quel giorno»:
 
-     giallo  scritta e non ancora partita, o rimandata indietro dal
-             titolare: chiede ancora qualcosa a qualcuno
-     verde   validata o contabilizzata: chiusa
-     grigio  nessuna attivita' dichiarata — il cantiere era fermo, ed e'
-             un'informazione, non un buco
+     giallo   scritta e non ancora partita, o rimandata indietro dal
+              titolare: chiede ancora qualcosa a qualcuno
+     azzurro  validata dal titolare, ma non ancora archiviata: aspetta
+              il Riepilogo Economico di fine mese e la seconda firma
+     verde    contabilizzata: la scheda ha finito il suo giro
+     grigio   nessuna attivita' dichiarata — il cantiere era fermo, ed e'
+              un'informazione, non un buco
+
+   L'azzurro e' arrivato il 2026-09-22 insieme al processo completo:
+   la firma del titolare non chiude niente, apre il secondo tempo. Prima
+   `validato` e `contabilizzato` erano lo stesso verde, che dichiarava
+   chiusa una scheda a meta' strada.
 
    Un giorno senza scheda resta BIANCO: su un cantiere non si lavora
    tutti i giorni, e colorare di rosso ogni domenica e ogni giorno in cui
@@ -37,10 +44,11 @@ import type { RapportinoCantiere } from '../rapportini/useRapportini'
    si compila: il calendario non e' solo da guardare.
    ══════════════════════════════════════════════════════════════════ */
 
-type Stato = 'vuoto' | 'giallo' | 'verde' | 'fermo'
+type Stato = 'vuoto' | 'giallo' | 'azzurro' | 'verde' | 'fermo'
 
 const COLORE: Record<Exclude<Stato, 'vuoto'>, string> = {
   giallo: 'bg-yellow-300',
+  azzurro: 'bg-sky-300',
   verde: 'bg-lime-300',
   fermo: 'bg-gray-300',
 }
@@ -50,7 +58,8 @@ const INIZIALI = ['L', 'M', 'M', 'G', 'V', 'S', 'D']
 function statoDi(r: RapportinoCantiere | undefined): Stato {
   if (!r) return 'vuoto'
   if (r.nessuna_attivita) return 'fermo'
-  if (r.stato === 'validato' || r.stato === 'contabilizzato') return 'verde'
+  if (r.stato === 'contabilizzato') return 'verde'
+  if (r.stato === 'validato') return 'azzurro'
   return 'giallo'
 }
 
@@ -210,7 +219,8 @@ export function CalendarioCantiere({
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t-2 border-black bg-gray-50 px-4 py-2">
         <Voce colore="bg-yellow-300" testo="da chiudere" />
-        <Voce colore="bg-lime-300" testo="validata" />
+        <Voce colore="bg-sky-300" testo="validata" />
+        <Voce colore="bg-lime-300" testo="archiviata" />
         <Voce colore="bg-gray-300" testo="cantiere fermo" />
       </div>
     </Card>

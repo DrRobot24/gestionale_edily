@@ -58,11 +58,20 @@ export type ConsegnaRapportino = {
   cantieri: { codice: string; denominazione: string } | null
 }
 
-/** La giornata di ore che il tecnico dichiara per se'. */
+/** La giornata di ore che il tecnico dichiara per se'.
+ *
+ *  Porta anche i NUMERI e non solo lo stato: sapere che le ore sono
+ *  arrivate senza sapere quante non risponde alla domanda del titolare.
+ *  Otto ore e quattro ore sono due giornate diverse, e un badge che
+ *  dice solo «inviato» le fa sembrare la stessa cosa. */
 export type ConsegnaOre = {
   data: string
   dipendente_id: string
   stato: string
+  ore_ordinarie: number
+  ore_straordinarie: number
+  ore_assenza: number
+  tipo_assenza: string | null
 }
 
 export type TecnicoInCampo = {
@@ -126,7 +135,9 @@ export function useConsegneDelMese(giorno: string) {
           .order('data', { ascending: true }),
         supabase
           .from('ore_personali')
-          .select('data, dipendente_id, stato')
+          .select(
+            'data, dipendente_id, stato, ore_ordinarie, ore_straordinarie, ore_assenza, tipo_assenza',
+          )
           .eq('org_id', org!.id)
           .gte('data', dal)
           .lte('data', al),

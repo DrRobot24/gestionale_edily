@@ -13,25 +13,48 @@
    regola condivisa che vive dentro una delle due parti non e'
    condivisa: e' prestata.
 
-   I TRE COLORI, che sono gli stessi per tutti:
+   I COLORI, che sono gli stessi per tutti:
 
-     rosso   la giornata non e' completa: mancano schede, oppure una e'
-             tornata indietro. Qualcosa e' cominciato e non e' finito.
-     giallo  le schede ci sono tutte e sono partite, ma non sono ancora
-             firmate.
-     verde   tutte validate (o contabilizzate). Chiuso.
+     rosso    la giornata non e' completa: mancano schede, oppure una e'
+              tornata indietro. Qualcosa e' cominciato e non e' finito.
+     giallo   le schede ci sono tutte e sono partite, ma non sono ancora
+              firmate.
+     azzurro  il titolare ha firmato (validazione ①), ma la giornata non
+              e' ancora archiviata: aspetta il Riepilogo Economico di
+              fine mese e la seconda firma.
+     verde    contabilizzata. La giornata e' CHIUSA davvero.
 
    Il titolare li legge con gli stessi colori del tecnico — scelta
    dell'utente il 2026-09-22 — cosi' le due schermate non si
    contraddicono: se il tecnico vede giallo, giallo vede anche il
    titolare, e stanno parlando dello stesso fatto.
+
+   ── PERCHE' L'AZZURRO, aggiunto il 2026-09-22 ───────────────────────
+
+   Spiegando il processo, l'utente ha chiarito che la firma del titolare
+   NON chiude la giornata: apre il secondo tempo. I dati passano a
+   Stefania, che a fine mese solare manda il Riepilogo Economico, e solo
+   dopo la seconda firma la giornata va in archivio.
+
+   Fra le due firme c'e' un limbo che dura settimane — il 3 settembre
+   resta validato fino al 30 — e prima l'azzurro non esisteva: quelle
+   giornate erano verdi, cioe' dichiarate chiuse quando erano a meta'
+   strada. Adesso il verde vuol dire archiviata, e si vede a colpo
+   d'occhio cosa ha finito il suo giro e cosa no.
+
+   ⚠️ CONSEGUENZA PREVISTA: per gran parte del mese il calendario del
+   titolare sara' quasi tutto azzurro, e il verde arrivera' in blocco a
+   fine mese. Non e' un difetto, e' la verita' del processo — ma se in
+   ufficio risultera' che «il verde non lo vedo mai», la lettura da dare
+   e' che il verde e' diventato un evento mensile.
    ══════════════════════════════════════════════════════════════════ */
 
-export type StatoGiornata = 'vuota' | 'rosso' | 'giallo' | 'verde'
+export type StatoGiornata = 'vuota' | 'rosso' | 'giallo' | 'azzurro' | 'verde'
 
 export const ASPETTO_GIORNATA: Record<Exclude<StatoGiornata, 'vuota'>, string> = {
   rosso: 'bg-rose-300',
   giallo: 'bg-yellow-300',
+  azzurro: 'bg-sky-300',
   verde: 'bg-lime-300',
 }
 
@@ -58,8 +81,24 @@ export function statoGiornata(schede: Scheda[], attesi: number): StatoGiornata {
   const inBozza = schede.some((r) => r.stato === 'bozza')
   if (respinte || inBozza || schede.length < attesi) return 'rosso'
 
-  const tutteChiuse = schede.every((r) => r.stato === 'validato' || r.stato === 'contabilizzato')
-  return tutteChiuse ? 'verde' : 'giallo'
+  /* Il verde e' l'ARCHIVIO, non la firma del titolare. Sono tutte
+     `contabilizzato`: il Riepilogo Economico di fine mese e' passato e
+     Giuseppe ha firmato la seconda volta. La giornata ha finito il suo
+     giro.
+
+     Una giornata mista — qualche scheda contabilizzata e qualche altra
+     solo validata — resta AZZURRA, non verde: non e' archiviata finche'
+     non lo sono tutti i suoi pezzi. E' la definizione stessa di
+     «giornata conclusa» decisa con l'utente, visto che il foglio non
+     esiste come riga e lo stato si calcola dai rapportini. */
+  const tutteArchiviate = schede.every((r) => r.stato === 'contabilizzato')
+  if (tutteArchiviate) return 'verde'
+
+  // Tutte firmate ma non ancora archiviate: il limbo fra le due firme.
+  const tutteFirmate = schede.every(
+    (r) => r.stato === 'validato' || r.stato === 'contabilizzato',
+  )
+  return tutteFirmate ? 'azzurro' : 'giallo'
 }
 
 /**
@@ -77,6 +116,17 @@ export function statoGiornata(schede: Scheda[], attesi: number): StatoGiornata {
  * torna e la giornata e' rossa; se sono arrivate ma non firmate,
  * tirano la giornata sul giallo come farebbe un rapportino inviato.
  *
+ * ⚠️ LE ORE PERSONALI NON ARRIVANO A `contabilizzato`. Il loro ciclo e'
+ * `bozza → inviato → validato → respinto` e basta: quello stato non
+ * esiste proprio in `ore_personali`. Passarle cosi' com'e' a
+ * `statoGiornata` terrebbe ogni giornata AZZURRA per sempre — anche
+ * archiviata, perche' un pezzo non sarebbe mai `contabilizzato`.
+ *
+ * Quindi `validato` sulle ore vale quanto `contabilizzato`: per loro
+ * quello E' il capolinea. Non e' una scorciatoia, e' la traduzione fra
+ * due cicli di lunghezza diversa — e sta QUI, in un punto solo, invece
+ * che sparsa in ogni schermata che legge le due cose insieme.
+ *
  * @param ore  `null` quando il tecnico non ha ancora compilato niente.
  */
 export function statoGiornataTecnico(
@@ -88,7 +138,12 @@ export function statoGiornataTecnico(
   // — festivi, ferie e giorni di chiusura non sono giornate perse.
   if (rapportini.length === 0 && !ore) return 'vuota'
 
-  const pezzi: Scheda[] = ore ? [...rapportini, ore] : rapportini
+  const pezzi: Scheda[] = ore ? [...rapportini, tradotte(ore)] : rapportini
   // +1 per le sue ore: fanno parte della consegna quanto i rapportini.
   return statoGiornata(pezzi, cantieriAttesi + 1)
+}
+
+/** Le ore proprie nel vocabolario dei rapportini: vedi la nota sopra. */
+function tradotte(ore: Scheda): Scheda {
+  return ore.stato === 'validato' ? { stato: 'contabilizzato' } : ore
 }

@@ -23,6 +23,7 @@ import { MieOrePage } from './modules/oreproprie/MieOrePage'
 import { OrePeriodoPage } from './modules/ore/OrePeriodoPage'
 import { useOreDaLeggere } from './modules/ore/useOreDaLeggere'
 import { DipendenteForm } from './modules/anagrafiche/DipendenteForm'
+import { useMioDipendente } from './modules/anagrafiche/dipendenti'
 import type { Permission } from './modules/auth/session'
 import { env } from './lib/env'
 import { Button, Card, cn } from './ui'
@@ -41,6 +42,19 @@ type Voce = {
   etichetta: string
   /** Una lista vuol dire OR: basta averne uno. */
   perm?: Permission | Permission[]
+  /**
+   * Il cancello che NON e' un permesso: «hai una scheda in anagrafica
+   * collegata a questa utenza».
+   *
+   * Serve a «Le mie ore» e non si poteva esprimere con `perm` perche'
+   * non e' un privilegio: e' un fatto anagrafico. Chi lavora qui
+   * dichiara le proprie ore, punto — non perche' gli sia stato
+   * concesso qualcosa.
+   *
+   * Quando c'e', si somma al permesso in OR: entra chi ha il permesso
+   * OPPURE chi ha la scheda.
+   */
+  seHaScheda?: boolean
   elemento: ReactNode
 }
 
@@ -163,10 +177,29 @@ const VOCI: Voce[] = [
      `rapportini.create` e non il ruolo: e' esattamente il permesso di
      chi lavora sul campo, e vale da se' per qualunque impresa futura
      senza che nessuno debba ricordarsi un'eccezione su «owner». */
+  /* DAL 2026-09-22 IL CANCELLO E' LA SCHEDA, non `rapportini.create`.
+
+     Il permesso descriveva chi va in cantiere, non chi lavora — e
+     Stefania non ce l'ha da quando i rapportini sono usciti dal suo
+     menu (2026-09-15). Risultato: non aveva NESSUNA strada per
+     dichiarare le proprie ore, e la sua riga nel foglio presenze
+     restava a zero per sempre. Proprio la riga vuota che `/ore` e'
+     fatto per far notare, e che nessuno poteva chiudere.
+
+     E' lo stesso buco delle ore del tecnico trovato il 2026-09-22, un
+     anello piu' a monte: li' mancava chi le firmava, qui mancava chi le
+     poteva scrivere.
+
+     Il cancello giusto e' anagrafico — «esisti come persona in questa
+     impresa» — e vale da se' per ogni impiegato futuro senza eccezioni
+     da ricordare. Il titolare resta fuori lo stesso, ma per il motivo
+     vero: non ha una scheda dipendente, perche' non presta ore.
+     Prima ci restava per via di un permesso che gli era stato tolto
+     per un'altra ragione, il che funzionava per caso. */
   {
     to: '/mie-ore',
     etichetta: 'Le mie ore',
-    perm: 'rapportini.create',
+    seHaScheda: true,
     elemento: <MieOrePage />,
   },
 
@@ -365,9 +398,32 @@ export default function App() {
 
 function Layout() {
   const { can } = useSession()
-  const visibili = VOCI.filter(
-    (v) => !v.perm || (Array.isArray(v.perm) ? v.perm.some(can) : can(v.perm)),
-  )
+
+  /* La scheda personale si interroga UNA VOLTA qui, non a ogni voce.
+     Era il motivo per cui «Le mie ore» stava su un permesso invece che
+     su questo fatto: «una query nel menu per ogni pagina caricata».
+     L'obiezione era giusta allora e non vale piu' — `useMioDipendente`
+     e' un hook di TanStack Query con la sua chiave, quindi la risposta
+     sta in cache e la query parte una volta per sessione, non a ogni
+     navigazione.
+
+     Mentre carica `mio` e' `undefined` e la voce NON compare: meglio
+     che spunti un attimo dopo, piuttosto che lampeggi e sparisca a chi
+     la scheda non ce l'ha. */
+  const { data: mio } = useMioDipendente()
+
+  const visibili = VOCI.filter((v) => {
+    const perPermesso = v.perm
+      ? Array.isArray(v.perm)
+        ? v.perm.some(can)
+        : can(v.perm)
+      : false
+    const perScheda = Boolean(v.seHaScheda && mio)
+
+    // Nessun cancello dichiarato: la voce e' di tutti.
+    if (!v.perm && !v.seHaScheda) return true
+    return perPermesso || perScheda
+  })
 
   return (
     <div className="flex min-h-screen">

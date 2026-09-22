@@ -168,7 +168,8 @@ export function CalendarioGiornate({
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t-2 border-black bg-gray-50 px-4 py-2">
         <Legenda colore="bg-rose-300" testo="da chiudere" />
         <Legenda colore="bg-yellow-300" testo="dal titolare" />
-        <Legenda colore="bg-lime-300" testo="validata" />
+        <Legenda colore="bg-sky-300" testo="validata" />
+        <Legenda colore="bg-lime-300" testo="archiviata" />
       </div>
     </Card>
   )
@@ -186,7 +187,8 @@ function Legenda({ colore, testo }: { colore: string; testo: string }) {
 function descrizione(stato: StatoGiornata): string {
   if (stato === 'rosso') return 'Giornata da chiudere'
   if (stato === 'giallo') return 'Inviata, in attesa del titolare'
-  if (stato === 'verde') return 'Validata dal titolare'
+  if (stato === 'azzurro') return 'Validata dal titolare'
+  if (stato === 'verde') return 'Archiviata: la giornata è chiusa'
   return 'Nessuna scheda'
 }
 
