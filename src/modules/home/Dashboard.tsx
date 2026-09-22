@@ -8,6 +8,7 @@ import { data as formattaData } from '../../lib/formato'
 import { Benvenuto } from './Benvenuto'
 import { CalendarioGiornate } from './CalendarioGiornate'
 import { CantieriDelGiorno } from './CantieriDelGiorno'
+import { ConsegneDalCampo } from './ConsegneDalCampo'
 import { ControlloOre } from './ControlloOre'
 import { MieOre } from './MieOre'
 import { GiornateDaValidare } from './GiornateDaValidare'
@@ -90,6 +91,24 @@ export function Dashboard() {
         <div className="grid gap-6">
           {/* ── Chi valida: le giornate, non le schede sciolte ── */}
           {puoValidare && <GiornateDaValidare />}
+
+          {/* Le consegne dal campo STANNO SOTTO la coda da validare, e
+              l'ordine e' quello del lavoro: prima cio' che e' arrivato
+              e aspetta la sua firma — un gesto da fare adesso — poi
+              cio' che NON e' arrivato, che e' un sollecito da fare a
+              qualcun altro.
+
+              Chiesto dall'utente il 2026-09-22: «voglio sapere, di
+              tutti i cantieri che gli ho assegnato, se mi ha fatto i
+              rapportini e se mi ha inviato il foglio di giornata
+              incluso delle sue ore». Il calendario da solo non basta a
+              rispondere: il colore dice CHE manca qualcosa, il giorno
+              aperto dice COSA.
+
+              Sul permesso `rapportini.validate` e non sul ruolo, come
+              ovunque qui: il giorno che la firma va a qualcun altro, il
+              riquadro lo segue senza toccare questo file. */}
+          {puoValidare && <ConsegneDalCampo />}
 
           {/* ── Chi compila: prima la giornata, poi le code ── */}
           {puoCompilare && (

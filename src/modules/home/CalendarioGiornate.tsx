@@ -4,6 +4,7 @@ import { griglieDelMese, giornoPiu, meseEAnno } from '../../lib/formato'
 import { useCantieri } from '../cantieri/useCantieri'
 import { useRapportini, type Rapportino } from '../rapportini/useRapportini'
 import { oggi } from '../rapportini/campiRapportino'
+import { ASPETTO_GIORNATA, statoGiornata, type StatoGiornata } from './statoGiornata'
 
 /* ══════════════════════════════════════════════════════════════════
    Il calendario da scrivania delle giornate.
@@ -42,40 +43,14 @@ import { oggi } from '../rapportini/campiRapportino'
    che aveva «Giornate rimaste aperte».
    ══════════════════════════════════════════════════════════════════ */
 
-/* Tipo e regola restano PRIVATI del file: nessuno li usa da fuori, e
-   esportarli accanto a un componente rompe il fast refresh di Vite
-   (`react-refresh/only-export-components`). Se un giorno la stessa
-   regola servira' altrove — per esempio al titolare — va in un file
-   suo, non esportata da qui. */
-type StatoGiornata = 'vuota' | 'rosso' | 'giallo' | 'verde'
-
-const ASPETTO: Record<Exclude<StatoGiornata, 'vuota'>, string> = {
-  rosso: 'bg-rose-300',
-  giallo: 'bg-yellow-300',
-  verde: 'bg-lime-300',
-}
+/* LA REGOLA DEL COLORE NON STA PIU' QUI. Era privata del file, con
+   scritto che se un giorno fosse servita anche al titolare andava in un
+   file suo: e' successo il 2026-09-22, quando la home del titolare ha
+   avuto il suo calendarietto delle consegne. Ora sta in
+   `statoGiornata.ts` e la usano in due, cosi' i due calendari non
+   possono dire cose diverse sullo stesso giorno. */
 
 const INIZIALI = ['L', 'M', 'M', 'G', 'V', 'S', 'D']
-
-/**
- * Lo stato di una giornata, dalle schede di quel giorno.
- *
- * L'ordine dei controlli non e' casuale: prima cio' che chiede lavoro a
- * chi guarda, poi cio' che aspetta qualcun altro. Una giornata con una
- * scheda respinta e cinque validate e' rossa, perche' quella respinta e'
- * il fatto che conta.
- */
-function statoGiornata(schede: Rapportino[], cantieriAttivi: number): StatoGiornata {
-  if (schede.length === 0) return 'vuota'
-
-  const respinte = schede.some((r) => r.stato === 'respinto')
-  const inBozza = schede.some((r) => r.stato === 'bozza')
-  if (respinte || inBozza || schede.length < cantieriAttivi) return 'rosso'
-
-  // Tutte arrivate in fondo: il titolare ha firmato.
-  const tutteChiuse = schede.every((r) => r.stato === 'validato' || r.stato === 'contabilizzato')
-  return tutteChiuse ? 'verde' : 'giallo'
-}
 
 export function CalendarioGiornate({
   giorno,
@@ -169,7 +144,7 @@ export function CalendarioGiornate({
                   ? nonFeriale
                     ? 'bg-gray-200 text-gray-500'
                     : 'bg-white'
-                  : ASPETTO[stato],
+                  : ASPETTO_GIORNATA[stato],
                 scelto ? 'border-black ring-2 ring-black ring-offset-1' : 'border-black/30',
                 futuro
                   ? 'cursor-not-allowed text-gray-300'
