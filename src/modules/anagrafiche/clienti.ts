@@ -14,7 +14,7 @@ import { useSession } from '../auth/SessionProvider'
    ══════════════════════════════════════════════════════════════════ */
 
 const SELECT =
-  'id, ragione_sociale, partita_iva, codice_fiscale, indirizzo, comune, provincia, cap, email, pec, telefono, codice_sdi, note, attivo' as const
+  'id, tipo, ragione_sociale, partita_iva, codice_fiscale, indirizzo, comune, provincia, cap, email, pec, telefono, codice_sdi, note, attivo' as const
 
 export function useClienti({ soloAttivi = true } = {}) {
   const { org } = useSession()
@@ -99,6 +99,9 @@ export function useCantieriPerCliente() {
 }
 
 export type DatiCliente = {
+  /** `azienda` | `privato`. Dal 2026-09-22 e' una colonna vera e non
+   *  piu' una deduzione dai campi fiscali: vedi `cliente-tipo.sql`. */
+  tipo: string
   ragione_sociale: string
   partita_iva: string | null
   codice_fiscale: string | null

@@ -20,11 +20,28 @@ const vuoto = (v: string) => (v.trim() === '' ? null : v.trim())
    aiutava, gli chiedeva la "ragione sociale" e lo lasciava salvare senza
    nessun identificativo fiscale, cioe' inutilizzabile per fatturare.
 
-   Qui il tipo e' uno stato dell'interfaccia, dedotto dai dati quando si
-   riapre una scheda: chi ha una partita IVA e' un'azienda, chi ha un
-   codice fiscale di 16 caratteri e' una persona. Regge per tutti i casi
-   reali. Il modo pulito sarebbe una colonna `tipo` in Postgres — una
-   migration piccola, da fare quando toccheremo lo schema.
+   DAL 2026-09-22 IL TIPO E' UNA COLONNA VERA (`cliente-tipo.sql`).
+   Prima era uno stato dell'interfaccia, dedotto dai campi fiscali
+   riaprendo la scheda: niente partita IVA piu' codice fiscale di 16
+   caratteri voleva dire «privato», tutto il resto «azienda».
+
+   La deduzione reggeva quasi sempre, ma sbagliava in due casi reali:
+   un privato di cui non si conosce ancora il codice fiscale risultava
+   «azienda», e una ditta individuale — codice fiscale di 16 caratteri
+   come una persona — risultava «privato» se le mancava la partita IVA.
+   In tutti e due il programma cambiava idea da solo su una cosa che
+   l'utente aveva scelto.
+
+   IL TAB SI SPEGNE IN MODIFICA, chiesto dall'utente: «dopo che io creo
+   un cliente e lo creo come privato, perche' e' ancora possibile
+   cambiare il tab? Non e' che mi permetti di fare ste cose». Adesso che
+   il tipo e' un dato salvato e non un indovinello, congelarlo ha senso:
+   si sta proteggendo una scelta, non una deduzione. La scelta si fa una
+   volta, alla creazione.
+
+   Per i clienti creati PRIMA della migration il tipo e' stato scritto
+   con la stessa regola di deduzione, cosi' nessuna scheda cambia
+   aspetto il giorno dell'esecuzione.
    ══════════════════════════════════════════════════════════════════ */
 type Tipo = 'azienda' | 'privato'
 
@@ -136,10 +153,18 @@ export function ClienteForm() {
 
   useEffect(() => {
     if (!cliente) return
-    const dedotto: Tipo =
-      !cliente.partita_iva && cliente.codice_fiscale?.trim().length === 16 ? 'privato' : 'azienda'
+    /* Si LEGGE la colonna. Il ripiego sulla vecchia deduzione serve
+       solo alle righe scritte da wbs-office, che la colonna non la
+       passa: li' `tipo` e' nullo e va comunque mostrato qualcosa di
+       sensato invece di un tab spento su niente. */
+    const suo: Tipo =
+      cliente.tipo === 'privato' || cliente.tipo === 'azienda'
+        ? cliente.tipo
+        : !cliente.partita_iva && cliente.codice_fiscale?.trim().length === 16
+          ? 'privato'
+          : 'azienda'
     reset({
-      tipo: dedotto,
+      tipo: suo,
       ragione_sociale: cliente.ragione_sociale,
       partita_iva: cliente.partita_iva ?? '',
       codice_fiscale: cliente.codice_fiscale ?? '',
@@ -175,6 +200,7 @@ export function ClienteForm() {
     const salvato = await salva.mutateAsync({
       id,
       dati: {
+        tipo: c.tipo,
         ragione_sociale: c.ragione_sociale.trim(),
         partita_iva: vuoto(c.partita_iva),
         codice_fiscale: vuoto(c.codice_fiscale)?.toUpperCase() ?? null,
@@ -238,7 +264,20 @@ export function ClienteForm() {
       <form onSubmit={handleSubmit(onSubmit)} className="grid gap-4" noValidate>
         <Card className="grid gap-4 p-5">
           {/* La scelta viene per prima perche' decide quali campi
-              servono davvero e come si chiamano. */}
+              servono davvero e come si chiamano.
+
+              SI SCEGLIE UNA VOLTA SOLA, alla creazione. In modifica i
+              due bottoni sono spenti e resta solo quello scelto, con
+              scritto sotto perche'. Prima si potevano premere entrambi
+              anche su un cliente gia' salvato, e passando ad «azienda»
+              il form cancellava partita IVA e codice SdI in silenzio:
+              chi toccava il tab per sbaglio perdeva due campi senza
+              accorgersene fino al salvataggio.
+
+              Non e' un divieto assoluto e non finge di esserlo: chi
+              deve davvero cambiare la natura di un cliente lo dice a
+              chi tiene le anagrafiche. La frase sotto lo indica invece
+              di lasciare davanti a un muro. */}
           <div className="grid gap-1.5">
             <span className="text-xs font-bold uppercase text-black">Tipo di cliente</span>
             <div className="flex gap-2">
@@ -247,21 +286,35 @@ export function ClienteForm() {
                   ['azienda', 'Azienda o ente'],
                   ['privato', 'Privato'],
                 ] as const
-              ).map(([valore, etichetta]) => (
-                <button
-                  key={valore}
-                  type="button"
-                  disabled={!puoScrivere}
-                  onClick={() => cambiaTipo(valore)}
-                  className={cn(
-                    'neo-press cursor-pointer rounded-xl border-2 border-black px-4 py-2 text-sm font-bold',
-                    tipo === valore ? 'bg-amber-400 shadow-neo-xs' : 'bg-white',
-                  )}
-                >
-                  {etichetta}
-                </button>
-              ))}
+              )
+                // In modifica resta il solo tipo scelto: due bottoni di
+                // cui uno spento chiedono di provare a premerlo.
+                .filter(([valore]) => nuovo || tipo === valore)
+                .map(([valore, etichetta]) => (
+                  <button
+                    key={valore}
+                    type="button"
+                    disabled={!puoScrivere || !nuovo}
+                    onClick={() => cambiaTipo(valore)}
+                    className={cn(
+                      'rounded-xl border-2 border-black px-4 py-2 text-sm font-bold',
+                      tipo === valore ? 'bg-amber-400 shadow-neo-xs' : 'bg-white',
+                      nuovo && puoScrivere
+                        ? 'neo-press cursor-pointer'
+                        : 'cursor-default',
+                    )}
+                  >
+                    {etichetta}
+                  </button>
+                ))}
             </div>
+
+            {!nuovo && (
+              <p className="text-xs font-semibold text-gray-600">
+                Il tipo si sceglie alla creazione e non si cambia: decide come questo
+                cliente viene fatturato. Se è sbagliato, va corretto dall&rsquo;amministrazione.
+              </p>
+            )}
           </div>
 
           <Campo
