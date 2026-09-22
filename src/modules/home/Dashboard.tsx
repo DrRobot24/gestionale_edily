@@ -178,8 +178,22 @@ export function Dashboard() {
               `paghe.read` e non il ruolo, come sempre: e' il permesso di
               chi le ore deve elaborarle. Il riquadro sparisce da solo
               quando non c'e' niente di nuovo — la home mostra cose da
-              fare, mai una bacheca di cio' che e' gia' andato bene. */}
-          {can('paghe.read') && <OreArrivate />}
+              fare, mai una bacheca di cio' che e' gia' andato bene.
+
+              MA NON A CHI VALIDA. E' la stessa separazione dei compiti
+              che decide chi contabilizza: `owner` ha tutti e sedici i
+              permessi, quindi `paghe.read` da solo avrebbe messo il
+              riquadro anche in home a Giuseppe — dove non gli serve,
+              perche' le ore che arrivano le ha appena mandate lui
+              firmandole. A lui dice cio' che ha gia' fatto, che e'
+              esattamente la bacheca che la home non deve essere.
+              Segnalato dall'utente il 2026-09-22 guardando la sua home.
+
+              Si esprime con l'assenza, come li': elabora le ore chi
+              tiene le paghe e NON valida. Regge su tutti i ruoli —
+              owner e admin validano e restano fuori, amministrazione ha
+              `paghe.read` senza `rapportini.validate` ed entra. */}
+          {can('paghe.read') && !puoValidare && <OreArrivate />}
 
           <IlSuoLavoro />
         </div>

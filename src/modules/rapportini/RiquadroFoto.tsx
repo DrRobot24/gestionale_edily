@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Avviso, Card, cn } from '../../ui'
+import { Avviso, Card, Visore, cn, type Scatto } from '../../ui'
 import { useFoto, caricaFoto, eliminaFoto } from './useFoto'
 
 /* ══════════════════════════════════════════════════════════════════
@@ -36,6 +36,7 @@ export function RiquadroFoto({ scheda, inAttesa, onCambia, modificabile = true }
   const idCampo = useId()
   const qc = useQueryClient()
   const [erroreLocale, setErroreLocale] = useState<string | null>(null)
+  const [aperta, setAperta] = useState<number | null>(null)
 
   const { data: salvate, isPending, error } = useFoto(scheda?.rapportinoId)
 
@@ -99,6 +100,39 @@ export function RiquadroFoto({ scheda, inAttesa, onCambia, modificabile = true }
 
   const totale = (salvate?.length ?? 0) + inAttesa.length
 
+  /* Nel visore si sfogliano insieme le salvate e quelle ancora da
+     spedire, nello stesso ordine in cui stanno nella griglia: mentre si
+     compila sono tutte "le foto di oggi", e la differenza fra chi e'
+     gia' partita e chi no non e' quello che si sta controllando.
+
+     Le anteprime in attesa sono blob locali, quelle salvate indirizzi
+     firmati: al visore non importa, gli serve solo qualcosa da mettere
+     in un <img>. Restano fuori le righe senza indirizzo, che darebbero
+     una finestra nera. */
+  const scatti: Scatto[] = [
+    ...(salvate ?? [])
+      .filter((f) => f.url)
+      .map((f) => ({
+        url: f.url!,
+        titolo: f.didascalia,
+        sottotitolo: 'Già caricata',
+      })),
+    ...anteprime.filter(Boolean).map((url, i) => ({
+      url,
+      titolo: inAttesa[i]?.name ?? null,
+      sottotitolo: 'Non ancora caricata',
+    })),
+  ]
+
+  /** Apre il visore sullo scatto che si e' cliccato. Si cerca per
+   *  indirizzo e non per posizione perche' la griglia salta le foto
+   *  senza anteprima, e i due indici non coinciderebbero. */
+  const apri = (url: string | null) => {
+    if (!url) return
+    const i = scatti.findIndex((sc) => sc.url === url)
+    if (i >= 0) setAperta(i)
+  }
+
   return (
     <Card className="grid gap-3 p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -130,6 +164,7 @@ export function RiquadroFoto({ scheda, inAttesa, onCambia, modificabile = true }
             <Riquadrino
               key={f.id}
               url={f.url}
+              onApri={() => apri(f.url)}
               onTogli={modificabile ? () => elimina.mutate(f) : undefined}
               inCorso={elimina.isPending && elimina.variables?.id === f.id}
             />
@@ -140,6 +175,7 @@ export function RiquadroFoto({ scheda, inAttesa, onCambia, modificabile = true }
               key={`${file.name}-${file.lastModified}-${i}`}
               url={anteprime[i]}
               inAttesa
+              onApri={() => apri(anteprime[i])}
               onTogli={() => onCambia(inAttesa.filter((_, j) => j !== i))}
             />
           ))}
@@ -186,17 +222,29 @@ export function RiquadroFoto({ scheda, inAttesa, onCambia, modificabile = true }
           </p>
         </div>
       )}
+
+      <Visore
+        scatti={scatti}
+        indice={aperta}
+        onChiudi={() => setAperta(null)}
+        onVai={setAperta}
+      />
     </Card>
   )
 }
 
 function Riquadrino({
   url,
+  onApri,
   onTogli,
   inAttesa = false,
   inCorso = false,
 }: {
   url: string | null
+  /** Apre il visore. C'e' sempre: anche chi sta ancora compilando deve
+   *  poter controllare cosa ha scattato, e su un telefono in cantiere la
+   *  miniatura da sola non dice se la crepa si vede o no. */
+  onApri?: () => void
   onTogli?: () => void
   inAttesa?: boolean
   inCorso?: boolean
@@ -210,12 +258,19 @@ function Riquadrino({
         )}
       >
         {url ? (
-          <img
-            src={url}
-            alt={inAttesa ? 'Foto da caricare' : 'Foto del cantiere'}
-            loading="lazy"
-            className="h-full w-full object-cover"
-          />
+          <button
+            type="button"
+            onClick={onApri}
+            title="Apri per guardarla da vicino"
+            className="block h-full w-full cursor-zoom-in"
+          >
+            <img
+              src={url}
+              alt={inAttesa ? 'Foto da caricare' : 'Foto del cantiere'}
+              loading="lazy"
+              className="h-full w-full object-cover"
+            />
+          </button>
         ) : (
           <div className="flex h-full items-center justify-center px-2 text-center text-[11px] font-bold text-gray-500">
             Anteprima non disponibile

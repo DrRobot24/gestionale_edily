@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router'
-import { Avviso, Badge, Button, Card, Percorso, Vuoto, cn } from '../../ui'
+import { Avviso, Badge, Button, Card, Percorso, Visore, Vuoto, cn, type Scatto } from '../../ui'
 import { data as fmtData, dataEstesa, euro } from '../../lib/formato'
 import { usePermission } from '../auth/usePermission'
 import { useSession } from '../auth/SessionProvider'
@@ -531,7 +531,10 @@ function Dato({ etichetta, valore }: { etichetta: string; valore: string }) {
 const FOTO_MOSTRATE = 12
 
 function FotoDelCantiere({ cantiereId }: { cantiereId: string }) {
+  // Due cose diverse, e si somigliano nel nome: `aperto` e' il pannello
+  // dispiegato, `aperta` e' quale foto si sta guardando nel visore.
   const [aperto, setAperto] = useState(false)
+  const [aperta, setAperta] = useState<number | null>(null)
   const { data: foto, isPending, error } = useFotoCantiere(cantiereId)
 
   if (error) {
@@ -545,6 +548,16 @@ function FotoDelCantiere({ cantiereId }: { cantiereId: string }) {
 
   const quante = foto?.length ?? 0
   const mostrate = (foto ?? []).slice(0, FOTO_MOSTRATE)
+
+  /* Solo quelle con un indirizzo valido: una firma scaduta darebbe una
+     finestra nera, e gli indici del visore devono contarsi su cio' che
+     si puo' sfogliare davvero, non sulle righe. */
+  const visibili = mostrate.filter((f) => f.url)
+  const scatti: Scatto[] = visibili.map((f) => ({
+    url: f.url!,
+    titolo: f.didascalia,
+    sottotitolo: f.giorno ? `Scattata il ${fmtData(f.giorno)}` : null,
+  }))
 
   return (
     <Card className="overflow-hidden">
@@ -590,12 +603,11 @@ function FotoDelCantiere({ cantiereId }: { cantiereId: string }) {
             {mostrate.map((f) => (
               <li key={f.id}>
                 {f.url ? (
-                  <a
-                    href={f.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    title={f.giorno ? `Scattata il ${fmtData(f.giorno)}` : undefined}
-                    className="neo-press block aspect-square overflow-hidden rounded-xl border-2 border-black bg-gray-100"
+                  <button
+                    type="button"
+                    onClick={() => setAperta(visibili.findIndex((v) => v.id === f.id))}
+                    title={f.giorno ? `Scattata il ${fmtData(f.giorno)}` : 'Apri la foto'}
+                    className="neo-press block aspect-square w-full cursor-zoom-in overflow-hidden rounded-xl border-2 border-black bg-gray-100"
                   >
                     <img
                       src={f.url}
@@ -603,7 +615,7 @@ function FotoDelCantiere({ cantiereId }: { cantiereId: string }) {
                       loading="lazy"
                       className="h-full w-full object-cover"
                     />
-                  </a>
+                  </button>
                 ) : (
                   <div className="flex aspect-square items-center justify-center rounded-xl border-2 border-black bg-gray-100 px-1 text-center text-[10px] font-bold text-gray-500">
                     non visibile
@@ -619,6 +631,17 @@ function FotoDelCantiere({ cantiereId }: { cantiereId: string }) {
               rapportino della giornata in cui sono state scattate.
             </p>
           )}
+
+          {/* Si sfogliano solo le dodici mostrate, non tutte quelle del
+              cantiere: il visore sfoglia cio' che si sta guardando, e
+              caricare centinaia di indirizzi firmati per una finestra
+              che se ne usa tre sarebbe una promessa cara da mantenere. */}
+          <Visore
+            scatti={scatti}
+            indice={aperta}
+            onChiudi={() => setAperta(null)}
+            onVai={setAperta}
+          />
         </div>
       )}
     </Card>

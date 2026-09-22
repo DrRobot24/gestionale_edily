@@ -6,3 +6,4 @@ export { Campo, CampoSelect, CampoArea, Input, Select, AreaTesto } from './Campo
 export { Avviso } from './Avviso'
 export { Percorso, type Tappa } from './Percorso'
 export { Table, Cifra, RigaTotale, Vuoto } from './Table'
+export { Visore, type Scatto } from './Visore'

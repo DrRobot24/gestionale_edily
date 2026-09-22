@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { data as fmtData, numero as fmtNumero, ora } from '../../lib/formato'
-import { Avviso, Button, Card, Cifra, Percorso, Table, Vuoto } from '../../ui'
+import { Avviso, Button, Card, Cifra, Percorso, Table, Visore, Vuoto, type Scatto } from '../../ui'
 import { foglio, risali, strada, type Appartenenza } from './percorso'
 import { useNoteContabili } from '../cantieri/noteContabili'
 import { useSession } from '../auth/SessionProvider'
@@ -473,17 +473,6 @@ function Spiegazione({
 }
 
 /**
- * Le foto in sola lettura.
- *
- * Il riquadro non compare se non ce ne sono: su una scheda senza foto
- * una cornice vuota direbbe che manca qualcosa, mentre quasi sempre non
- * mancava niente.
- *
- * Le immagini si aprono a tutta pagina in una scheda nuova. Non e' una
- * finezza: il titolare valida guardando una crepa o un getto, e la
- * miniatura serve a trovarla, non a giudicarla.
- */
-/**
  * I lavori extra di questa giornata, in sola lettura.
  *
  * Si aggiungono dal modulo, non da qui: una scheda inviata e' un
@@ -530,11 +519,39 @@ function Economia({ cantiereId, giorno }: { cantiereId: string | null; giorno: s
   )
 }
 
+/**
+ * Le foto in sola lettura.
+ *
+ * Il riquadro non compare se non ce ne sono: su una scheda senza foto
+ * una cornice vuota direbbe che manca qualcosa, mentre quasi sempre non
+ * mancava niente.
+ *
+ * Le miniature servono a TROVARE lo scatto, non a giudicarlo: quadrate
+ * e ritagliate, si leggono in fila. Per giudicarlo si apre il visore,
+ * dove ci si puo' avvicinare a un pezzo e spostarsi dentro l'immagine.
+ *
+ * Prima si aprivano con target="_blank", cioe' si consegnavano al
+ * browser: su una foto da dodici megapixel la rimpiccioliva per farla
+ * stare nella finestra e non lasciava quasi scorrere. Si vedeva tutta e
+ * non si vedeva niente. Segnalato dall'utente il 2026-09-22.
+ */
 function GalleriaFoto({ rapportinoId }: { rapportinoId: string }) {
   const { data: foto, isPending, error } = useFoto(rapportinoId)
+  const [aperta, setAperta] = useState<number | null>(null)
 
   if (isPending || error) return null
   if (!foto || foto.length === 0) return null
+
+  /* Nel visore entrano solo quelle che hanno davvero un indirizzo: una
+     firma scaduta o un file sparito darebbe una finestra nera, e gli
+     indici devono contarsi su cio' che si puo' sfogliare per davvero,
+     non sulle righe. */
+  const visibili = foto.filter((f) => f.url)
+  const scatti: Scatto[] = visibili.map((f) => ({
+    url: f.url!,
+    titolo: f.didascalia,
+    sottotitolo: f.scattata_at ? `Scattata il ${fmtData(f.scattata_at)}` : null,
+  }))
 
   return (
     <Card className="grid gap-3 p-5">
@@ -549,19 +566,19 @@ function GalleriaFoto({ rapportinoId }: { rapportinoId: string }) {
         {foto.map((f) => (
           <li key={f.id}>
             {f.url ? (
-              <a
-                href={f.url}
-                target="_blank"
-                rel="noreferrer"
-                className="neo-press block aspect-square overflow-hidden rounded-xl border-2 border-black bg-gray-100"
+              <button
+                type="button"
+                onClick={() => setAperta(visibili.findIndex((v) => v.id === f.id))}
+                title="Apri per guardarla da vicino"
+                className="neo-press block aspect-square w-full cursor-zoom-in overflow-hidden rounded-xl border-2 border-black bg-gray-100"
               >
                 <img
                   src={f.url}
-                  alt="Foto del cantiere"
+                  alt={f.didascalia ?? 'Foto del cantiere'}
                   loading="lazy"
                   className="h-full w-full object-cover"
                 />
-              </a>
+              </button>
             ) : (
               <div className="flex aspect-square items-center justify-center rounded-xl border-2 border-black bg-gray-100 px-2 text-center text-[11px] font-bold text-gray-500">
                 Anteprima non disponibile
@@ -570,6 +587,13 @@ function GalleriaFoto({ rapportinoId }: { rapportinoId: string }) {
           </li>
         ))}
       </ul>
+
+      <Visore
+        scatti={scatti}
+        indice={aperta}
+        onChiudi={() => setAperta(null)}
+        onVai={setAperta}
+      />
     </Card>
   )
 }
