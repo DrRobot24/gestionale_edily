@@ -1,14 +1,12 @@
-import { useState, type ReactNode } from 'react'
-import { useNavigate } from 'react-router'
-import { Avviso, Badge, Button, Card, cn } from '../../ui'
+import { useState } from 'react'
+import { Avviso } from '../../ui'
 import { useSession } from '../auth/SessionProvider'
-import { useRapportini, type Rapportino } from '../rapportini/useRapportini'
-import { StatoRapportino } from '../rapportini/stato'
-import { data as formattaData } from '../../lib/formato'
+import { useRapportini } from '../rapportini/useRapportini'
 import { Benvenuto } from './Benvenuto'
 import { CalendarioGiornate } from './CalendarioGiornate'
 import { CantieriDelGiorno } from './CantieriDelGiorno'
 import { ConsegneDalCampo } from './ConsegneDalCampo'
+import { RimastoIndietro } from './RimastoIndietro'
 import { ControlloOre } from './ControlloOre'
 import { MieOre } from './MieOre'
 import { GiornateDaValidare } from './GiornateDaValidare'
@@ -37,8 +35,14 @@ import { oggi } from '../rapportini/campiRapportino'
    ══════════════════════════════════════════════════════════════════ */
 
 export function Dashboard() {
-  const { app, can } = useSession()
-  const { data: rapportini, isPending, error } = useRapportini()
+  const { can } = useSession()
+  /* La query resta anche se le sue righe non si leggono piu' qui: da
+     quando «Da correggere» e' confluito in `RimastoIndietro`, di
+     `useRapportini` servono solo `isPending` ed `error`, che reggono il
+     caricamento e l'errore di tutta la pagina. Non e' uno spreco — la
+     cache e' condivisa con le card dei cantieri e col calendario, che
+     la chiamano comunque. */
+  const { isPending, error } = useRapportini()
 
   /* Il giorno guardato vive QUI e non dentro le card, perche' e' uno
      solo per tutta la pagina: le frecce, le schede dei cantieri, il
@@ -69,11 +73,6 @@ export function Dashboard() {
   const puoValidare = can('rapportini.validate')
   const puoCompilare = can('rapportini.create')
 
-  const tutti = rapportini ?? []
-  const miei = tutti.filter((r) => r.compilato_da === app?.userId)
-
-  const daCorreggere = miei.filter((r) => r.stato === 'respinto')
-
   return (
     <div className="mx-auto grid max-w-5xl gap-6">
       {/* Le frecce stanno nella fascia, ai lati della data: la data
@@ -81,6 +80,27 @@ export function Dashboard() {
           quello dove la si legge. Chi non compila la riceve senza
           frecce — sfogliare le giornate del tecnico non gli serve. */}
       {puoCompilare ? <Benvenuto giorno={giorno} onCambia={setGiorno} /> : <Benvenuto />}
+
+      {/* COSA HAI LASCIATO INDIETRO, subito sotto il saluto e sopra
+          ogni altra cosa.
+
+          Tutto il resto di questa home parla del GIORNO che si sta
+          guardando — le card, le ore, il calendario. Questo parla di
+          cio' che e' rimasto fermo nei giorni passati, ed e' l'unica
+          cosa che non si scopre altrimenti: una bozza di martedi'
+          scorso non compare in nessuna scheda, e il calendario la
+          colora di rosso insieme ai giorni in cui non si e' fatto
+          niente.
+
+          Il 2026-09-22 e' emerso quanto costa: Zito aveva quattro
+          giornate ferme in due punti diversi — due mai inviate, due in
+          attesa da cinque giorni — e per saperlo si e' dovuto
+          interrogare il database. «Consapevolezza al massimo», ha detto
+          l'utente.
+
+          Sparisce del tutto quando non c'e' niente: nessun riquadro
+          verde «sei in pari». */}
+      {puoCompilare && <RimastoIndietro />}
 
       {error && (
         <Avviso tono="errore">Non riesco a leggere i rapportini: {error.message}</Avviso>
@@ -147,30 +167,19 @@ export function Dashboard() {
                 <MieOre giorno={giorno} />
               </div>
 
-              {/* `vuoto` vuota di proposito: senza righe il riquadro
-                  sparisce del tutto. Un pannello verde permanente che
-                  dice "nessun rapportino respinto" occupa mezza
-                  schermata per annunciare che non e' successo niente, e
-                  insegna a saltare con l'occhio proprio la zona dove un
-                  giorno comparira' la cosa urgente. L'assenza del rosso
-                  e' gia' il messaggio. */}
-              <Riquadro
-                titolo="Da correggere"
-                conteggio={daCorreggere.length}
-                tono="errore"
-                vuoto=""
-              >
-                {daCorreggere.map((r) => (
-                  <Riga
-                    key={r.id}
-                    rapportino={r}
-                    // Il motivo e' il punto di tutta la sezione: senza,
-                    // "respinto" e' una porta chiusa senza spiegazione.
-                    dettaglio={r.motivo_rifiuto ?? 'respinto senza motivo indicato'}
-                    evidenzia
-                  />
-                ))}
-              </Riquadro>
+              {/* QUI STAVA «Da correggere», tolto il 2026-09-22.
+
+                  Elencava i rapportini respinti col motivo, ed era
+                  giusto — ma da quando c'e' «Hai lasciato indietro» in
+                  cima alla pagina, quelle stesse righe comparivano due
+                  volte nella stessa schermata. E il doppione era anche
+                  peggio di un doppione: in fondo alla home diceva la
+                  meta' della storia, perche' guardava solo i rapportini
+                  e ignorava le ore proprie respinte e le bozze mai
+                  inviate.
+
+                  Il riquadro nuovo le tiene insieme tutte, in cima, con
+                  i respinti per primi. Vedi `RimastoIndietro`. */}
 
             </>
           )}
@@ -218,117 +227,5 @@ export function Dashboard() {
         </div>
       )}
     </div>
-  )
-}
-
-/* ── pezzi ─────────────────────────────────────────────────────── */
-
-type Tono = 'attesa' | 'errore' | 'successo' | 'info' | 'neutro'
-
-const BORDI: Record<Tono, string> = {
-  attesa: 'bg-yellow-300',
-  errore: 'bg-rose-300',
-  successo: 'bg-lime-300',
-  info: 'bg-sky-300',
-  neutro: 'bg-white',
-}
-
-function Riquadro({
-  titolo,
-  conteggio,
-  tono,
-  vuoto,
-  azione,
-  children,
-}: {
-  titolo: string
-  conteggio: number | null
-  tono: Tono
-  vuoto: string
-  azione?: { etichetta: string; a: string }
-  children: ReactNode
-}) {
-  const navigate = useNavigate()
-  const righe = Array.isArray(children) ? children.flat() : [children]
-  const pieno = righe.filter(Boolean).length > 0
-
-  if (!pieno && !vuoto) return null
-
-  return (
-    <Card className="overflow-hidden">
-      <div
-        className={cn(
-          'flex flex-wrap items-center justify-between gap-3 border-b-2 border-black px-5 py-3',
-          BORDI[tono],
-        )}
-      >
-        <div className="flex items-center gap-3">
-          <h2 className="text-sm font-extrabold uppercase tracking-wide text-black">{titolo}</h2>
-          {conteggio !== null && (
-            <span className="rounded-full border-2 border-black bg-white px-2.5 py-0.5 text-xs font-extrabold">
-              {conteggio}
-            </span>
-          )}
-        </div>
-        {azione && (
-          <Button dimensione="sm" onClick={() => navigate(azione.a)}>
-            {azione.etichetta}
-          </Button>
-        )}
-      </div>
-
-      {pieno ? (
-        <ul className="divide-y-2 divide-black">{children}</ul>
-      ) : (
-        <p className="px-5 py-4 text-sm font-semibold text-gray-600">{vuoto}</p>
-      )}
-    </Card>
-  )
-}
-
-function Riga({
-  rapportino: r,
-  dettaglio,
-  evidenzia = false,
-}: {
-  rapportino: Rapportino
-  dettaglio: string
-  evidenzia?: boolean
-}) {
-  const navigate = useNavigate()
-  const cantiere = Array.isArray(r.cantieri) ? r.cantieri[0] : r.cantieri
-
-  return (
-    <li>
-      <button
-        type="button"
-        onClick={() => navigate(`/rapportini/${r.id}`)}
-        className="neo-press flex w-full cursor-pointer flex-wrap items-center justify-between gap-3 px-5 py-3 text-left hover:bg-amber-50"
-      >
-        <div className="min-w-0">
-          <p className="truncate text-sm font-bold text-black">
-            {cantiere?.codice ? `${cantiere.codice} — ` : ''}
-            {cantiere?.denominazione ?? 'Cantiere non indicato'}
-          </p>
-          <p
-            className={cn(
-              'truncate text-xs font-semibold',
-              evidenzia ? 'text-rose-700' : 'text-gray-600',
-            )}
-          >
-            {formattaData(r.data)} · {dettaglio}
-          </p>
-        </div>
-
-        <div className="flex shrink-0 items-center gap-2">
-          {r.numero && (
-            <Badge className="px-2 py-0.5 text-[10px]">
-              n. {r.numero}/{r.anno}
-            </Badge>
-          )}
-          <StatoRapportino stato={r.stato} />
-        </div>
-      </button>
-    </li>
   )
 }

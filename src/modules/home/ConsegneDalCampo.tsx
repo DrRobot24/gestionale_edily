@@ -375,6 +375,7 @@ function DettaglioGiorno({
           )
           const sueOre =
             ore.find((o) => o.data === giorno && o.dipendente_id === t.dipendenteId) ?? null
+          const bozze = suoi.filter((r) => r.stato === 'bozza').length
 
           return (
             <li key={t.dipendenteId} className="px-5 py-3">
@@ -384,11 +385,16 @@ function DettaglioGiorno({
                   <Badge
                     className={cn(
                       'px-2 py-0.5 text-[10px]',
-                      suoi.length >= cantieriAttivi ? 'bg-lime-300' : 'bg-rose-300',
+                      suoi.length - bozze >= cantieriAttivi ? 'bg-lime-300' : 'bg-rose-300',
                     )}
                   >
-                    {suoi.length} di {cantieriAttivi}{' '}
+                    {suoi.length - bozze} di {cantieriAttivi}{' '}
                     {cantieriAttivi === 1 ? 'rapportino' : 'rapportini'}
+                    {/* Le bozze NON si contano come arrivate: sono
+                        scritte, ma il titolare non le ha ricevute. Un
+                        conteggio che le include direbbe «7 di 8»
+                        quando in mano ne ha cinque. */}
+                    {bozze > 0 && ` · ${bozze} in bozza`}
                   </Badge>
 
                   {/* Le sue ore sono una riga a se': sono il pezzo che
@@ -440,6 +446,30 @@ function DettaglioGiorno({
                     </li>
                   ))}
                 </ul>
+              )}
+
+              {/* DUE SOLLECITI DIVERSI, e il titolare deve sapere quale
+                  fare. Una scheda in bozza e' scritta e ferma — «mandala»
+                  — mentre una che non esiste e' «compilala»: chiedere la
+                  cosa sbagliata fa perdere credibilita' al sollecito.
+
+                  Dal 2026-09-22, quando si e' scoperto che Zito aveva due
+                  giornate in bozza da giorni e niente lo diceva. Le bozze
+                  le vede solo chi le ha scritte, quindi qui si conta
+                  quello che c'e': la RLS mostra al titolare i rapportini
+                  dei cantieri, bozze comprese. */}
+              {bozze > 0 && (
+                <p className="mt-1 text-xs font-bold text-amber-800">
+                  {bozze === 1
+                    ? '1 scheda è scritta ma non inviata: deve mandarla.'
+                    : `${bozze} schede sono scritte ma non inviate: deve mandarle.`}
+                </p>
+              )}
+
+              {sueOre?.stato === 'bozza' && (
+                <p className="mt-1 text-xs font-bold text-amber-800">
+                  Ha scritto le sue ore ma non le ha inviate.
+                </p>
               )}
 
               {suoi.length === 0 && !sueOre && (
