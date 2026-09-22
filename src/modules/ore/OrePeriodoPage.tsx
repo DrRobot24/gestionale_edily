@@ -352,7 +352,7 @@ function Griglia({
               <div className="text-[13px] font-black">{numeroGiorno(g)}</div>
             </th>
           ))}
-          <th className="border-l-2 border-black text-right">Totale</th>
+          <th className="border-l-2 border-black text-center">Totale</th>
         </tr>
       </thead>
 
@@ -413,7 +413,10 @@ function Griglia({
           {/* Il totale del periodo si scrive piu' grande di tutti gli
               altri numeri della pagina: e' l'unico che finisce davvero
               in busta paga, e tutta la griglia esiste per farlo tornare. */}
-          <td className="numerico border-l-2 border-black px-3 py-2 text-right text-base font-black">
+          {/* `!align-top` come le celle-giorno di questa stessa riga:
+              quelle hanno due righe (ore e persone) e stanno in alto, e
+              un totale centrato verticalmente cadrebbe fra le due. */}
+          <td className="numerico border-l-2 border-black px-3 !align-top text-center text-base font-black">
             {ore(conOre.reduce((s, r) => s + r.ordinarie + r.straordinarie, 0))}
           </td>
         </tr>
@@ -570,8 +573,16 @@ function RigaPersona({
           />
         ))}
 
-        <td className="border-l-2 border-black px-3 py-2 text-right">
-          <span className="numerico text-sm font-black">
+        {/* CENTRATO come le colonne dei giorni, non allineato a destra.
+            Su una griglia il totale e' l'ultima casella della riga, non
+            una colonna di importi in un elenco: allinearlo a destra lo
+            staccava dal passo delle altre celle e le cifre cadevano
+            fuori asse. Segnalato dall'utente il 2026-09-22. */}
+        <td className="border-l-2 border-black p-1 text-center">
+          {/* `py-1.5` come il bottone dentro le celle-giorno: senza, i
+              due padding verticali sono diversi e la cifra del totale
+              cade su una linea sua invece che su quella delle ore. */}
+          <span className="numerico block py-1.5 text-sm font-black">
             {ore(riga.ordinarie + riga.straordinarie)}
           </span>
           {riga.straordinarie > 0 && (
