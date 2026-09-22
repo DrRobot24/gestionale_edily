@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router'
 import { Avviso, Badge, Card, cn } from '../../ui'
 import { eFineSettimana } from '../../lib/giorni'
 import { dataEstesa, griglieDelMese, giornoPiu, meseEAnno, numero } from '../../lib/formato'
@@ -194,7 +193,7 @@ export function ConsegneDalCampo() {
                   ore={data!.ore}
                   onChiudi={() => setGiornoAperto(null)}
                 />
-                <LaGiornataDi giorno={giornoAperto} onChiudi={() => setGiornoAperto(null)} />
+                <LaGiornataDi giorno={giornoAperto} />
               </div>
             ) : (
               /* L'invito compare SOLO da schermo largo (`hidden lg:`):
@@ -372,8 +371,6 @@ function DettaglioGiorno({
   ore: ConsegnaOre[]
   onChiudi: () => void
 }) {
-  const navigate = useNavigate()
-
   return (
     <Card className="overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b-2 border-black bg-sky-300 px-5 py-3">
@@ -435,48 +432,26 @@ function DettaglioGiorno({
                 </div>
               </div>
 
-              {/* IL CANTIERE, non «Scheda». Sette righe che dicevano
-                  tutte «Scheda · validato» erano indistinguibili, e la
-                  domanda del titolare e' proprio quale cantiere manca:
-                  una lista che non nomina le cose non risponde.
+              {/* QUI STAVA L'ELENCO DELLE SCHEDE, tolto il 2026-09-22:
+                  «non lo stai ripetendo due volte l'elenco dei
+                  rapportini validati e non?» (utente). Lo ripeteva
+                  eccome — gli stessi sette cantieri, uno sotto
+                  l'altro, in due riquadri attaccati.
 
-                  Lo stato va a destra e in fondo, perche' si legge
-                  DOPO: prima si cerca il cantiere, poi si guarda com'e'
-                  messo. */}
-              {suoi.length > 0 && (
-                <ul className="mt-2 grid gap-1">
-                  {suoi.map((r) => (
-                    <li key={r.id}>
-                      <button
-                        type="button"
-                        onClick={() => navigate(`/rapportini/${r.id}`)}
-                        className="neo-press flex w-full cursor-pointer items-center justify-between gap-3 rounded-lg border-2 border-black/20 px-3 py-1.5 text-left text-xs font-semibold hover:border-black hover:bg-amber-50"
-                      >
-                        <span className="min-w-0 truncate">
-                          {r.cantieri?.codice && (
-                            <span className="font-bold">{r.cantieri.codice} — </span>
-                          )}
-                          {r.cantieri?.denominazione ?? 'Cantiere non indicato'}
-                        </span>
-                        <span className="shrink-0 font-bold uppercase text-gray-600">
-                          {r.stato}
-                        </span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
+                  Il doppione e' nato aggiungendo «La giornata di…»
+                  senza guardare cosa mostrava gia' questo. Adesso i due
+                  riquadri si dividono il lavoro invece di sovrapporsi:
 
-              {/* DUE SOLLECITI DIVERSI, e il titolare deve sapere quale
-                  fare. Una scheda in bozza e' scritta e ferma — «mandala»
-                  — mentre una che non esiste e' «compilala»: chiedere la
-                  cosa sbagliata fa perdere credibilita' al sollecito.
+                    QUI      il riepilogo PER TECNICO: quante schede ha
+                             consegnato sulle attese, come stanno le sue
+                             ore, cosa e' rimasto in bozza. Una riga per
+                             persona.
+                    SOTTO    l'elenco dei cantieri, con le ore di
+                             ciascuno e chi c'era. Una riga per scheda.
 
-                  Dal 2026-09-22, quando si e' scoperto che Zito aveva due
-                  giornate in bozza da giorni e niente lo diceva. Le bozze
-                  le vede solo chi le ha scritte, quindi qui si conta
-                  quello che c'e': la RLS mostra al titolare i rapportini
-                  dei cantieri, bozze comprese. */}
+                  La differenza non e' di quantita' ma di soggetto: qui
+                  si guarda una persona, sotto una giornata. */}
+
               {bozze > 0 && (
                 <p className="mt-1 text-xs font-bold text-amber-800">
                   {bozze === 1

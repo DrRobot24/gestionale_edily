@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router'
 import { Avviso, Badge, Card, cn } from '../../ui'
-import { dataEstesa, numero } from '../../lib/formato'
+import { numero } from '../../lib/formato'
 import { useOreGriglia, lavorate, type OreGiorno } from '../ore/useOrePeriodo'
 import { useRapportini } from '../rapportini/useRapportini'
 import { StatoRapportino } from '../rapportini/stato'
@@ -54,7 +54,7 @@ import { StatoRapportino } from '../rapportini/stato'
    giorno e' un periodo di uno.
    ══════════════════════════════════════════════════════════════════ */
 
-export function LaGiornataDi({ giorno, onChiudi }: { giorno: string; onChiudi: () => void }) {
+export function LaGiornataDi({ giorno }: { giorno: string }) {
   const navigate = useNavigate()
   const { data: rapportini } = useRapportini()
   /* `ore_griglia` chiede `paghe.read`. Ce l'hanno owner, admin e
@@ -79,24 +79,25 @@ export function LaGiornataDi({ giorno, onChiudi }: { giorno: string; onChiudi: (
 
   return (
     <Card className="overflow-hidden">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b-2 border-black bg-sky-300 px-5 py-3">
-        <div>
-          <h3 className="text-base font-extrabold capitalize leading-tight text-black">
-            {dataEstesa(giorno)}
-          </h3>
-          <p className="text-xs font-bold text-black/70">
-            {schede.length} {schede.length === 1 ? 'scheda' : 'schede'} ·{' '}
-            <span className="numerico">{numero(oreTotali)}</span> ore · {persone.size}{' '}
-            {persone.size === 1 ? 'persona' : 'persone'}
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={onChiudi}
-          className="neo-press cursor-pointer rounded-lg border-2 border-black bg-white px-2.5 py-1 text-xs font-extrabold"
-        >
-          Chiudi
-        </button>
+      {/* LA DATA NON SI RIPETE: la dice gia' il riquadro qui sopra, e
+          due intestazioni azzurre attaccate con lo stesso «Giovedi' 17
+          Settembre» erano la stessa ripetizione che l'utente ha notato
+          sulle schede. Qui basta dire COSA si sta guardando — la
+          giornata intera — e i numeri che la riassumono.
+
+          Niente pulsante «Chiudi» per lo stesso motivo: quello sopra
+          chiude tutti e due, perche' si aprono e si chiudono insieme.
+          Due pulsanti identici a mezzo schermo di distanza fanno
+          chiedere se facciano cose diverse. */}
+      <div className="border-b-2 border-black bg-white px-5 py-3">
+        <p className="text-[11px] font-extrabold uppercase tracking-wide text-gray-600">
+          Cos&rsquo;è successo
+        </p>
+        <p className="text-sm font-bold text-black">
+          {schede.length} {schede.length === 1 ? 'scheda' : 'schede'} ·{' '}
+          <span className="numerico">{numero(oreTotali)}</span> ore · {persone.size}{' '}
+          {persone.size === 1 ? 'persona' : 'persone'}
+        </p>
       </div>
 
       {erroreOre && (
