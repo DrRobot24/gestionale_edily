@@ -52,13 +52,34 @@ import { statoScadenza, giorniA } from './documentiPersonali'
    stessa regola della home: si mostra solo cio' che chiede un'azione.
    ══════════════════════════════════════════════════════════════════ */
 
-/** Come si chiama un tipo, in una parola. La tendina della scheda dice
- *  «Operaio — va in cantiere»: qui la spiegazione non serve, perche' in
- *  una tabella la colonna e' gia' il contesto. */
-const TIPI: Record<TipoRisorsa, { etichetta: string; colore: 'primario' | 'info' | 'accento' }> = {
-  operaio: { etichetta: 'Operaio', colore: 'primario' },
-  tecnico: { etichetta: 'Tecnico', colore: 'info' },
-  impiegato: { etichetta: 'Impiegato', colore: 'accento' },
+/**
+ * Come si chiama un tipo, in una parola, e il segno che lo distingue.
+ *
+ * L'EMOJI DICE DOVE STA LA PERSONA, non che mestiere fa: chiesta
+ * dall'utente il 2026-09-22 — «per distinguere operaio dal tecnico,
+ * insomma da chi sta in campo e chi invece in ufficio».
+ *
+ *   🦺  in cantiere, col gilet ad alta visibilita'
+ *   🚙  il tecnico, che i cantieri li GIRA: «e' come un uccello che
+ *       vola sui cantieri» (2026-09-18), quindi ne' del tutto in campo
+ *       ne' del tutto in ufficio — sta in mezzo, e si muove
+ *   💼  in ufficio
+ *
+ * NON SOSTITUISCE LA PAROLA, le sta accanto. Un'icona da sola si
+ * interpreta, e due persone possono leggerla diverso; accanto al nome
+ * del tipo diventa un appiglio per l'occhio, che e' cio' che serve
+ * quando si scorre una griglia di nove card.
+ *
+ * L'emoji resta FUORI dal Badge colorato e sta prima: dentro, su un
+ * fondo ambra o azzurro, si confonde col colore invece di staccarsene.
+ */
+const TIPI: Record<
+  TipoRisorsa,
+  { etichetta: string; colore: 'primario' | 'info' | 'accento'; segno: string; dove: string }
+> = {
+  operaio: { etichetta: 'Operaio', colore: 'primario', segno: '🦺', dove: 'in cantiere' },
+  tecnico: { etichetta: 'Tecnico', colore: 'info', segno: '🚙', dove: 'gira i cantieri' },
+  impiegato: { etichetta: 'Impiegato', colore: 'accento', segno: '💼', dove: 'in ufficio' },
 }
 
 export function DipendentiPage() {
@@ -173,9 +194,23 @@ export function DipendentiPage() {
                     <p className="line-clamp-2 text-base font-extrabold leading-tight text-black">
                       {d.cognome} {d.nome}
                     </p>
-                    <Badge colore={tipo.colore} className="shrink-0 px-2 py-0.5 text-[10px]">
-                      {tipo.etichetta}
-                    </Badge>
+                    {/* `title` e `aria-label` portano la spiegazione a
+                        chi passa col mouse e a chi legge con la voce:
+                        un'emoji senza testo alternativo, per un lettore
+                        di schermo, e' rumore o silenzio. */}
+                    <span className="flex shrink-0 items-center gap-1.5">
+                      <span
+                        aria-label={`${tipo.etichetta}, ${tipo.dove}`}
+                        title={`${tipo.etichetta} — ${tipo.dove}`}
+                        className="text-base leading-none"
+                        role="img"
+                      >
+                        {tipo.segno}
+                      </span>
+                      <Badge colore={tipo.colore} className="px-2 py-0.5 text-[10px]">
+                        {tipo.etichetta}
+                      </Badge>
+                    </span>
                   </div>
 
                   {!d.attivo && (
