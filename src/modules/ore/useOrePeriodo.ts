@@ -66,6 +66,60 @@ export type OreCantiere = {
   giorni_attivita: GiornoAttivita[]
 }
 
+/**
+ * Una casella della griglia: quanto ha fatto UNA persona in UN giorno.
+ *
+ * Arriva una riga solo per i giorni in cui c'e' qualcosa. I buchi —
+ * ferie, riposo, un giorno non ancora validato — non viaggiano come
+ * zeri: li disegna la pagina, che sa gia' quali giorni contiene il
+ * periodo. Su una settimana di ferie sarebbero state tutte righe di
+ * zeri.
+ */
+export type OreGiorno = {
+  dipendente_id: string
+  nominativo: string
+  matricola: string | null
+  tipo: string
+  data: string
+  ore_ordinarie: number
+  ore_straordinarie: number
+  ore_trasferta: number
+  ore_assenza: number
+  tipo_assenza: string | null
+  /** Dove ha lavorato quel giorno, con le ore su ciascun cantiere. Non
+   *  entra nella cella — che resta un numero solo — ma e' la prima cosa
+   *  che si vede aprendola. Vuoto per chi tiene il foglio personale,
+   *  che su nessun cantiere ci sta. */
+  cantieri: CantiereDelGiorno[]
+  /** Perche' quel giorno non fa otto ore, se il tecnico l'ha scritto.
+   *  Viene da `giustificazioni_ore`, che ha gia' la forma della
+   *  domanda: una riga per persona e giorno. */
+  giustificazione: Giustificazione | null
+}
+
+/** Un cantiere dentro una giornata, con le ore che ci sono state fatte. */
+export type CantiereDelGiorno = {
+  cantiere_id: string
+  codice: string | null
+  denominazione: string | null
+  ore: number
+}
+
+/**
+ * Il motivo di una giornata che non torna.
+ *
+ * `tipo` dice da che parte non torna — `mancanza` sotto le otto ore,
+ * `eccedenza` sopra — e `motivo` e' l'enum scelto dal tecnico. La
+ * descrizione c'e' sempre quando il motivo e' `altro`, e puo' esserci
+ * negli altri casi: e' il vincolo che mette il database.
+ */
+export type Giustificazione = {
+  tipo: 'mancanza' | 'eccedenza'
+  motivo: string
+  descrizione: string | null
+  ore: number
+}
+
 export type GiornateInSospeso = {
   stato: string
   giornate: number
@@ -221,6 +275,33 @@ export function useOrePeriodoCantieri(p: Periodo) {
 }
 
 /**
+ * Le ore di tutti, giorno per giorno: la materia della griglia.
+ *
+ * Si prende tutto il periodo in un colpo solo, come il dettaglio per
+ * cantiere: le righe sono al massimo una per persona e giorno — su una
+ * settimana di venti operai, centoventi — e chiederne una per cella
+ * farebbe una tempesta di chiamate per disegnare una tabella.
+ */
+export function useOreGriglia(p: Periodo) {
+  const { org } = useSession()
+
+  return useQuery({
+    queryKey: ['ore-periodo', 'griglia', org?.id, p.dal, p.al],
+    enabled: Boolean(org?.id),
+    retry: false,
+    queryFn: async (): Promise<OreGiorno[]> => {
+      const { data, error } = await supabase.rpc('ore_griglia', {
+        p_org: org!.id,
+        p_dal: p.dal,
+        p_al: p.al,
+      })
+      if (error) throw error
+      return (data ?? []) as unknown as OreGiorno[]
+    },
+  })
+}
+
+/**
  * Quante giornate del periodo non sono ancora passate da Giuseppe.
  *
  * E' il numero piu' importante della pagina e non si vede nei totali:
@@ -317,6 +398,117 @@ export function ore(n: number | string): string {
   const v = Number(n)
   if (!Number.isFinite(v)) return '0'
   return v.toLocaleString('it-IT', { maximumFractionDigits: 2 })
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   LA GRIGLIA: da righe piatte a persone x giorni.
+   ───────────────────────────────────────────────────────────────── */
+
+/**
+ * I giorni del periodo, uno per uno: l'asse orizzontale della griglia.
+ *
+ * Si ricava dal PERIODO e non dai dati. Una colonna deve esserci anche
+ * quando nessuno ha lavorato quel giorno, altrimenti la settimana
+ * cambierebbe forma a seconda di chi era in ferie, e due settimane di
+ * fila non si potrebbero confrontare.
+ *
+ * `soloFeriali` toglie sabato e domenica, ed e' cio' che vuole la
+ * griglia: «ovviamente da lun a ven perche' i non feriali non si
+ * lavora» (utente, 2026-09-22). Cinque colonne invece di sette lasciano
+ * respirare i numeri, e un sabato lavorato — che capita — non sparisce:
+ * le sue ore restano nel totale della riga, e la pagina lo dice.
+ */
+export function giorniDi(p: Periodo, soloFeriali = false): string[] {
+  const giorni: string[] = []
+  const fine = daIso(p.al)
+  for (const d = daIso(p.dal); d <= fine; d.setDate(d.getDate() + 1)) {
+    const g = iso(d)
+    if (soloFeriali && (d.getDay() === 0 || d.getDay() === 6)) continue
+    giorni.push(g)
+  }
+  return giorni
+}
+
+/**
+ * Le ore che una persona ha fatto FUORI dalle colonne mostrate.
+ *
+ * Nascono dal sabato lavorato: la griglia mostra lunedi'-venerdi', ma
+ * il totale della riga comprende tutto il periodo — deve, perche' e'
+ * quello che finisce in busta paga. Senza questo numero la riga non
+ * tornerebbe con le sue celle e sembrerebbe un errore di somma.
+ */
+export function fuoriGriglia(riga: RigaGriglia, giorni: string[]): number {
+  const mostrati = new Set(giorni)
+  let fuori = 0
+  for (const [data, c] of riga.giorni) {
+    if (!mostrati.has(data)) fuori += lavorate(c)
+  }
+  return fuori
+}
+
+/** Una riga della griglia: la persona, e cosa ha fatto ogni giorno. */
+export type RigaGriglia = {
+  dipendente_id: string
+  nominativo: string
+  matricola: string | null
+  tipo: string
+  /** Le caselle, per data. Manca la chiave dove non c'e' niente. */
+  giorni: Map<string, OreGiorno>
+  ordinarie: number
+  straordinarie: number
+  assenza: number
+}
+
+/** Le ore lavorate di una casella: ordinarie piu' straordinarie. E'
+ *  il numero che si scrive nella cella, e non comprende le assenze —
+ *  quelle sono tempo non lavorato e si dicono con una sigla. */
+export function lavorate(c: OreGiorno): number {
+  return Number(c.ore_ordinarie) + Number(c.ore_straordinarie)
+}
+
+/**
+ * Impagina le righe piatte in una riga per persona.
+ *
+ * L'ordine e' quello che arriva dal database — cognome, nome — e non si
+ * ricalcola qui: e' lo stesso di `ore_periodo`, e due pagine che
+ * elencano le stesse persone in ordine diverso si leggono come due
+ * elenchi diversi.
+ */
+export function inGriglia(righe: OreGiorno[]): RigaGriglia[] {
+  const per = new Map<string, RigaGriglia>()
+
+  for (const r of righe) {
+    let riga = per.get(r.dipendente_id)
+    if (!riga) {
+      riga = {
+        dipendente_id: r.dipendente_id,
+        nominativo: r.nominativo,
+        matricola: r.matricola,
+        tipo: r.tipo,
+        giorni: new Map(),
+        ordinarie: 0,
+        straordinarie: 0,
+        assenza: 0,
+      }
+      per.set(r.dipendente_id, riga)
+    }
+    riga.giorni.set(r.data, r)
+    riga.ordinarie += Number(r.ore_ordinarie)
+    riga.straordinarie += Number(r.ore_straordinarie)
+    riga.assenza += Number(r.ore_assenza)
+  }
+
+  return [...per.values()]
+}
+
+/** Il totale di una colonna: quante ore ha lavorato la squadra quel
+ *  giorno. E' la lettura verticale della griglia, quella che dice «il
+ *  venerdi' siamo sempre a mezzo servizio». */
+export function totaleGiorno(righe: RigaGriglia[], giorno: string): number {
+  return righe.reduce((s, r) => {
+    const c = r.giorni.get(giorno)
+    return c ? s + lavorate(c) : s
+  }, 0)
 }
 
 /** «lun 15» — la data breve di una giornata di attivita'. */

@@ -2655,6 +2655,23 @@ export type Database = {
           ore_visibili: number
         }[]
       }
+      ore_griglia: {
+        Args: { p_al: string; p_dal: string; p_org: string }
+        Returns: {
+          cantieri: Json
+          data: string
+          dipendente_id: string
+          giustificazione: Json
+          matricola: string
+          nominativo: string
+          ore_assenza: number
+          ore_ordinarie: number
+          ore_straordinarie: number
+          ore_trasferta: number
+          tipo: string
+          tipo_assenza: string
+        }[]
+      }
       ore_in_lettere: { Args: { p_ore: number }; Returns: string }
       ore_periodo: {
         Args: { p_al: string; p_dal: string; p_org: string }
