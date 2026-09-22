@@ -198,6 +198,7 @@ di sola lettura e dice riga per riga cosa è FATTO e cosa è DA FARE.
 | [`foglio-ore-personale.sql`](supabase/schema/foglio-ore-personale.sql) | ✅ eseguito il 2026-09-17 (verificato il 18: `ore_personali` e `dipendenti.tipo` rispondono) |
 | [`invio-due-posti.sql`](supabase/schema/invio-due-posti.sql) | ✅ eseguito il 2026-09-17 |
 | [`invio-controllo-ore.sql`](supabase/schema/invio-controllo-ore.sql) | ✅ eseguito l'11 settembre 2026, verificato: `invia_foglio_giornata` c'è ed è `security invoker`, `ore_in_lettere()` pure. Provato prima su un Postgres 17 usa e getta, nove casi (vedi sotto) |
+| [`cliente-tipo.sql`](supabase/schema/cliente-tipo.sql) | ✅ eseguito il 2026-09-22, verificato: 5 aziende e 5 privati, nessuna riga senza tipo. La colonna `clienti.tipo` è nullable con un check — non un enum, perché il database è condiviso |
 
 **Si possono rilanciare tutti senza danno**, ed è una proprietà voluta: questi
 file si eseguono a mano e fra una sessione e l'altra nessuno ricorda cosa aveva
