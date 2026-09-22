@@ -64,16 +64,47 @@ order by d.cognome;
 -- ③ CONTROPROVA: cosa vede davvero la griglia in questa settimana.
 --    Se Zito non compare qui ma la ① dice `validato`, allora il
 --    problema e' nel periodo guardato, non nei dati.
+--
+--    La funzione sta in `public`, non in `app`: le funzioni chiamate
+--    dal frontend vivono li' perche' PostgREST espone solo `public`.
+--    In `app` ci sono gli helper interni (`has_perm`,
+--    `puo_vedere_cantiere`), che nessuno chiama da fuori.
+--
+--    ⚠️ Gira come TE, non come il servizio: `ore_griglia` e'
+--    `security definer` ma controlla `paghe.read`. Se l'utenza con cui
+--    sei entrato nel SQL Editor non ce l'ha, risponde 42501 — e non e'
+--    un difetto, e' il cancello che funziona.
 select
   g.nominativo,
   g.tipo,
   g.data,
   g.ore_ordinarie,
   g.ore_straordinarie
-from app.ore_griglia(
-  (select id from public.organizations limit 1),
+from public.ore_griglia(
+  -- L'organizzazione presa dal tecnico stesso, non `limit 1`: con piu'
+  -- di un'impresa a registro quella riga pescava a caso, e una
+  -- controprova che guarda l'azienda sbagliata risponde «non c'e'»
+  -- dicendo il falso.
+  (select d.org_id from public.dipendenti d where d.tipo = 'tecnico' limit 1),
   date_trunc('week', current_date)::date,
   (date_trunc('week', current_date) + interval '6 days')::date
 ) g
 where g.tipo <> 'operaio'
 order by g.nominativo, g.data;
+
+
+-- ④ SE LA ③ NON GIRA per mancanza di permessi, questa e' la stessa
+--    domanda fatta direttamente alla tabella: le ore del tecnico che
+--    la griglia MOSTREREBBE, cioe' quelle gia' firmate.
+--    Vuota + la ① piena di `bozza` = non le ha mai inviate.
+select
+  d.cognome || ' ' || d.nome  as chi,
+  p.data,
+  p.stato,
+  p.ore_ordinarie + p.ore_straordinarie  as ore_lavorate
+from public.ore_personali p
+join public.dipendenti d on d.id = p.dipendente_id
+where d.tipo in ('tecnico', 'impiegato')
+  and p.stato in ('validato', 'contabilizzato')
+  and p.data >= current_date - interval '30 days'
+order by p.data desc;
