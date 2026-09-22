@@ -15,7 +15,14 @@
 -- e' fermata prima: o non l'ha mai scritta, o non l'ha inviata, o
 -- Giuseppe non l'ha ancora firmata.
 --
--- Queste tre query dicono QUALE dei tre.
+-- Queste query dicono QUALE dei tre.
+--
+-- ⚠️ LE PRIME TRE LEGGONO LE TABELLE e girano sempre. L'ultima chiama
+-- `ore_griglia`, che controlla `paghe.read`: nel SQL Editor si gira con
+-- un ruolo Postgres e non con la propria utenza Supabase, quindi quel
+-- permesso NON risulta e la funzione risponde 42501. Non e' un difetto,
+-- e' il cancello che fa il suo mestiere — per questo sta in fondo,
+-- staccata: cosi' il suo errore non interrompe le altre.
 -- =====================================================================
 
 
@@ -61,42 +68,14 @@ where d.tipo in ('tecnico', 'impiegato')
 order by d.cognome;
 
 
--- ③ CONTROPROVA: cosa vede davvero la griglia in questa settimana.
---    Se Zito non compare qui ma la ① dice `validato`, allora il
---    problema e' nel periodo guardato, non nei dati.
+-- ③ COSA MOSTREREBBE LA GRIGLIA: le ore gia' firmate.
+--    Stessa domanda della funzione, fatta pero' alla tabella, quindi
+--    senza cancelli di mezzo. E' la vera controprova.
 --
---    La funzione sta in `public`, non in `app`: le funzioni chiamate
---    dal frontend vivono li' perche' PostgREST espone solo `public`.
---    In `app` ci sono gli helper interni (`has_perm`,
---    `puo_vedere_cantiere`), che nessuno chiama da fuori.
---
---    ⚠️ Gira come TE, non come il servizio: `ore_griglia` e'
---    `security definer` ma controlla `paghe.read`. Se l'utenza con cui
---    sei entrato nel SQL Editor non ce l'ha, risponde 42501 — e non e'
---    un difetto, e' il cancello che funziona.
-select
-  g.nominativo,
-  g.tipo,
-  g.data,
-  g.ore_ordinarie,
-  g.ore_straordinarie
-from public.ore_griglia(
-  -- L'organizzazione presa dal tecnico stesso, non `limit 1`: con piu'
-  -- di un'impresa a registro quella riga pescava a caso, e una
-  -- controprova che guarda l'azienda sbagliata risponde «non c'e'»
-  -- dicendo il falso.
-  (select d.org_id from public.dipendenti d where d.tipo = 'tecnico' limit 1),
-  date_trunc('week', current_date)::date,
-  (date_trunc('week', current_date) + interval '6 days')::date
-) g
-where g.tipo <> 'operaio'
-order by g.nominativo, g.data;
-
-
--- ④ SE LA ③ NON GIRA per mancanza di permessi, questa e' la stessa
---    domanda fatta direttamente alla tabella: le ore del tecnico che
---    la griglia MOSTREREBBE, cioe' quelle gia' firmate.
---    Vuota + la ① piena di `bozza` = non le ha mai inviate.
+--    VUOTA + la ① piena di `bozza`  → non le ha mai inviate
+--    VUOTA + la ① piena di `inviato`→ aspettano la firma di Giuseppe
+--    PIENA                          → allora il problema e' altrove,
+--                                     e va cercato nel periodo guardato
 select
   d.cognome || ' ' || d.nome  as chi,
   p.data,
@@ -108,3 +87,29 @@ where d.tipo in ('tecnico', 'impiegato')
   and p.stato in ('validato', 'contabilizzato')
   and p.data >= current_date - interval '30 days'
 order by p.data desc;
+
+
+-- =====================================================================
+-- ④ FACOLTATIVA — da lanciare SOLO da sola, selezionandola.
+--
+-- Chiama la funzione vera, quella che usa la pagina. Dice se il difetto
+-- sta nei dati o nella funzione, ma richiede `paghe.read`: dal SQL
+-- Editor risponde quasi sempre
+--   «42501: Non hai i requisiti per leggere le ore di questo periodo»
+-- e non c'e' niente da riparare — nel browser, entrando come Stefania o
+-- come il titolare, la stessa chiamata passa.
+--
+-- La funzione sta in `public` e non in `app`: PostgREST espone solo
+-- `public`, e in `app` ci sono gli helper interni (`has_perm`,
+-- `puo_vedere_cantiere`) che da fuori non chiama nessuno.
+-- =====================================================================
+
+-- select
+--   g.nominativo, g.tipo, g.data, g.ore_ordinarie, g.ore_straordinarie
+-- from public.ore_griglia(
+--   (select d.org_id from public.dipendenti d where d.tipo = 'tecnico' limit 1),
+--   date_trunc('week', current_date)::date,
+--   (date_trunc('week', current_date) + interval '6 days')::date
+-- ) g
+-- where g.tipo <> 'operaio'
+-- order by g.nominativo, g.data;
