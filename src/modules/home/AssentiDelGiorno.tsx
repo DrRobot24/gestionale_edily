@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Avviso, Button, CampoSelect, Campo, Card } from '../../ui'
-import { useDipendenti } from '../anagrafiche/dipendenti'
+import { useDipendenti, useMioDipendente } from '../anagrafiche/dipendenti'
 import { ALTRO_MOTIVO, ASSENZE } from '../rapportini/campiRapportino'
 import { useAssenze, useSegnaAssenza, useTogliAssenza } from '../rapportini/useAssenze'
 import { tabellaMancante, useOreSuRapportini } from '../rapportini/useGiustificazioni'
@@ -38,6 +38,7 @@ export function AssentiDelGiorno({
 }) {
   const { data: assenze, error, isPending } = useAssenze(giorno)
   const { data: persone } = useDipendenti({ soloAttivi: true })
+  const { data: mio } = useMioDipendente()
   const { data: suRapportini } = useOreSuRapportini(giorno)
   const segna = useSegnaAssenza(giorno)
   const togli = useTogliAssenza(giorno)
@@ -59,8 +60,15 @@ export function AssentiDelGiorno({
 
   /* In forza QUEL giorno, non oggi: chi e' stato assunto dopo o cessato
      prima non puo' essere assente, perche' non c'era proprio. */
+  /* SOLO GLI OPERAI, E SE STESSO (2026-09-23). «Ogni impiegato si
+     segna le proprie ore e mai viceversa»: il tecnico non segna
+     l'assenza di Stefania, ne' di un altro tecnico. Chi ha un foglio
+     personale le sue assenze le dichiara li'. Resta il tecnico stesso,
+     per il giorno in cui e' lui a mancare e qualcuno compila con la sua
+     utenza. Il database applica la stessa regola (`assenze_insert`). */
   const inForza = (persone ?? []).filter(
     (p) =>
+      (p.tipo === 'operaio' || p.id === mio?.id) &&
       (!p.data_assunzione || p.data_assunzione <= giorno) &&
       (!p.data_cessazione || p.data_cessazione >= giorno),
   )

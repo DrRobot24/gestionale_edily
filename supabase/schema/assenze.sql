@@ -595,3 +595,63 @@ comment on function public.invia_foglio_giornata(uuid, date) is
 -- =====================================================================
 -- 7. ADESSO: riesegui `ore-griglia.sql` per intero.
 -- =====================================================================
+
+
+-- =====================================================================
+-- 8. IL TECNICO SEGNA SOLO GLI OPERAI, E SE STESSO  (2026-09-23)
+--
+-- «Togli al tecnico di segnare l'eventuale assenza di Stefania, che non
+-- e' una cosa giusta assolutamente! Ogni impiegato si segna le proprie
+-- ore e mai viceversa» (utente).
+--
+-- Chi ha un foglio personale — impiegati, altri tecnici — le sue
+-- assenze le dichiara li'. Il tecnico puo' segnare:
+--   · gli OPERAI, di cui fa i rapportini;
+--   · SE STESSO, per il giorno in cui e' lui a mancare e qualcuno
+--     compila con la sua utenza.
+--
+-- Si riscrive la sola policy di insert, e quella di update, perche' un
+-- update potrebbe spostare la riga su un'altra persona. Rieseguibile.
+-- =====================================================================
+create or replace function app.assenza_segnabile(p_dipendente uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $fn$
+  select exists (
+    select 1
+    from public.dipendenti d
+    where d.id = p_dipendente
+      and (d.tipo = 'operaio' or d.user_id = auth.uid())
+  );
+$fn$;
+
+drop policy if exists assenze_insert on public.assenze;
+create policy assenze_insert on public.assenze
+  for insert with check (
+    app.has_perm(org_id, 'rapportini.create')
+    and scritta_da = auth.uid()
+    and not app.giornata_validata(org_id, data)
+    and app.assenza_segnabile(dipendente_id)
+  );
+
+drop policy if exists assenze_update on public.assenze;
+create policy assenze_update on public.assenze
+  for update using (
+    app.has_perm(org_id, 'rapportini.create')
+    and not app.giornata_validata(org_id, data)
+  )
+  with check (
+    app.has_perm(org_id, 'rapportini.create')
+    and not app.giornata_validata(org_id, data)
+    and app.assenza_segnabile(dipendente_id)
+  );
+
+-- Controllo: assenze gia' scritte su persone che non sono operai. Se
+-- torna qualcosa, dimmelo: vanno spostate nel foglio personale di chi.
+select a.data, d.cognome || ' ' || d.nome as persona, d.tipo, a.motivo
+from public.assenze a
+join public.dipendenti d on d.id = a.dipendente_id
+where d.tipo <> 'operaio';
