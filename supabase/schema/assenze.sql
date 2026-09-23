@@ -392,10 +392,17 @@ declare
   quanti_fuori   integer;
 begin
   -- 1. OGNI CANTIERE ATTIVO HA LA SUA SCHEDA
+  --
+  -- ...se quel giorno era gia' aperto (2026-09-23): stessa regola delle
+  -- card in home (`cantiereDovuto`). Prima si pretendeva la scheda anche
+  -- di un cantiere che apriva giorni dopo, e l'invio diceva «manca una
+  -- scheda» senza che nessuna card la mostrasse.
   select count(*) into mancanti
   from public.cantieri c
   where c.org_id = p_org
     and c.stato = 'attivo'
+    and (c.data_inizio is null or c.data_inizio <= p_giorno)
+    and (c.data_fine_effettiva is null or c.data_fine_effettiva >= p_giorno)
     and not exists (
       select 1
       from public.rapportini r

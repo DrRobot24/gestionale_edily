@@ -310,11 +310,23 @@ export function useTecniciScollegati() {
  * giornata verde per un buco in anagrafica e' peggio di una rossa, che
  * almeno si vede. Comanda allora l'assegnazione, che c'e' sempre.
  */
+/*
+ * ⚠️ DAL 2026-09-23 `dal` CONTA SOLO SE IL CANTIERE NON HA DATA DI INIZIO.
+ *
+ * I dati veri l'hanno smentito: Mazzotta risulta assegnato a Zito dal
+ * 21, ma il suo rapportino del 17 esiste ed e' validato. `dal` registra
+ * quando l'incarico e' stato INSERITO nel gestionale, non quando il
+ * lavoro e' cominciato — e usato come soglia faceva aspettare meno
+ * schede di quelle vere. La data che dice quando si lavora e'
+ * `data_inizio` del cantiere: e' quella che comanda, e anche le card
+ * della home la usano (vedi `cantiereDovuto`), cosi' le due cose non
+ * possono piu' dire due numeri diversi sullo stesso giorno.
+ */
 export function cantieriAttesi(attese: AttesaCantiere[], userId: string, giorno: string): number {
   return attese.filter(
     (a) =>
       a.userId === userId &&
-      a.dal <= giorno &&
+      (a.dataInizio !== null || a.dal <= giorno) &&
       (a.al === null || a.al >= giorno) &&
       (a.dataInizio === null || a.dataInizio <= giorno) &&
       (a.dataFine === null || a.dataFine >= giorno),
@@ -351,4 +363,25 @@ export function oreDelTecnico(ore: ConsegnaOre[], tecnico: TecnicoInCampo): Map<
     perGiorno.set(o.data, o)
   }
   return perGiorno
+}
+
+/**
+ * Il cantiere chiede la scheda di quel giorno? La regola delle CARD in
+ * home, gemella di `cantieriAttesi` (2026-09-23): attivo, gia' aperto
+ * secondo la sua data di inizio, non ancora chiuso.
+ *
+ * Prima le card mostravano i cantieri attivi di OGGI su qualunque
+ * giorno sfogliato: il 14 settembre chiedevano cinque schede di cantieri
+ * che aprivano il 17, mentre il calendario — giustamente — lasciava il
+ * 14 bianco. Due regole nella stessa pagina che si contraddicevano.
+ */
+export function cantiereDovuto(
+  c: { stato: string; data_inizio: string | null; data_fine_effettiva?: string | null },
+  giorno: string,
+): boolean {
+  return (
+    c.stato === 'attivo' &&
+    (c.data_inizio === null || c.data_inizio <= giorno) &&
+    (c.data_fine_effettiva == null || c.data_fine_effettiva >= giorno)
+  )
 }

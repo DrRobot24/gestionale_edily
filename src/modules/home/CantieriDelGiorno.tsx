@@ -11,6 +11,7 @@ import { oggi } from '../rapportini/campiRapportino'
 import { useMioDipendente } from '../anagrafiche/dipendenti'
 import { useGiornataPersonale, totaleOre } from '../oreproprie/orePersonali'
 import { AssentiDelGiorno } from './AssentiDelGiorno'
+import { cantiereDovuto } from './useConsegneDelMese'
 
 /* ══════════════════════════════════════════════════════════════════
    La giornata del tecnico, un cantiere per card.
@@ -192,12 +193,19 @@ export function CantieriDelGiorno({
     )
   }
 
-  const attivi = (cantieri ?? []).filter((c) => c.stato === 'attivo')
+  /* I cantieri che quel giorno chiedevano la scheda: attivi E gia'
+     aperti secondo la loro data di inizio. Stessa regola del calendario
+     (`cantiereDovuto`, 2026-09-23): prima qui c'erano gli attivi di
+     oggi, e sfogliando all'indietro si vedevano card da compilare per
+     giorni in cui quei cantieri non esistevano ancora. */
+  const attivi = (cantieri ?? []).filter((c) => cantiereDovuto(c, giorno))
 
   if (attivi.length === 0) {
     return (
       <Avviso tono="info">
-        Nessun cantiere attivo assegnato a te: oggi non c&rsquo;è niente da compilare.
+        {giorno === oggi()
+          ? 'Nessun cantiere attivo assegnato a te: oggi non c’è niente da compilare.'
+          : `Il ${dataEstesa(giorno)} nessuno dei tuoi cantieri era ancora aperto: non c’è niente da compilare.`}
       </Avviso>
     )
   }
