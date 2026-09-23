@@ -10,6 +10,7 @@ import {
   type CampiRapportino,
 } from './campiRapportino'
 import { RiquadroFoto } from './RiquadroFoto'
+import { useAssenze } from './useAssenze'
 import { RiquadroEconomia, type DatiEconomia } from './RiquadroEconomia'
 
 type Props = {
@@ -191,7 +192,16 @@ export function FormRapportino({
   const bloccato = primoErrore !== null
 
   const inSquadra = conIndice.filter((r) => r.scelto)
-  const disponibili = conIndice.filter((r) => !r.scelto)
+  /* CHI QUEL GIORNO E' SEGNATO ASSENTE NON SI PUO' AGGIUNGERE, dal
+     2026-09-23: chi e' in ferie non sta su nessun cantiere. Il database
+     lo rifiuterebbe comunque (`trg_ore_senza_assenza`); qui lo si dice
+     prima, elencandoli sotto la tendina invece di farli sparire senza
+     spiegazione. */
+  const { data: assenti } = useAssenze(giornoScelto || undefined)
+  const assenteOggi = (r: (typeof conIndice)[number]) =>
+    assenti?.has(r.campo.dipendente_id) ?? false
+  const disponibili = conIndice.filter((r) => !r.scelto && !assenteOggi(r))
+  const assentiNonScelti = conIndice.filter((r) => !r.scelto && assenteOggi(r))
 
   function aggiungi(i: number) {
     setValue(`ore.${i}.presente`, true)
@@ -486,10 +496,12 @@ export function FormRapportino({
                             {campo.nominativo}
                           </span>
 
-                          {/* Una tendina al posto della spunta: dice in che
-                              veste la persona sta su questa scheda, e
-                              "assente per ferie" e "assente e basta" non
-                              sono la stessa cosa per chi fa le paghe. */}
+                          {/* La tendina del PERMESSO DI POCHE ORE: «in
+                              cantiere» e basta, oppure in cantiere con una
+                              parte della giornata coperta da un motivo.
+                              L'assenza a giornata intera non passa piu'
+                              di qui (2026-09-23): sta fra gli «Assenti»
+                              della giornata. */}
                           <select
                             className="h-8 cursor-pointer rounded-lg border-2 border-black bg-white px-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-amber-400"
                             {...register(`ore.${i}.tipo_assenza`, {
@@ -503,41 +515,28 @@ export function FormRapportino({
                                   return
                                 }
 
-                                /* Il motivo copre quello che MANCA alle
-                                   otto, e quanto manca dipende da cosa c'e'
-                                   scritto nelle ore.
+                                /* SOLO IL PERMESSO DI POCHE ORE, dal
+                                   2026-09-23. Il motivo copre cio' che
+                                   manca alle otto accanto a delle ore
+                                   lavorate: sei in cantiere e due di
+                                   permesso.
 
-                                   Su una riga a giornata piena — otto ore,
-                                   che e' anche il valore con cui la persona
-                                   entra in squadra — scegliere un motivo
-                                   vuol dire che non c'era proprio: le ore
-                                   si azzerano e il motivo copre tutto il
-                                   giorno. Lasciargliele mentre e' in ferie
-                                   gliele pagherebbe due volte.
-
-                                   Se invece le ore sono state abbassate a
-                                   mano, quella e' una scelta: sei ore
-                                   scritte piu' "Permesso" vogliono dire un
-                                   permesso di due ore, non un giorno. E'
-                                   la distinzione che prima non si poteva
-                                   nemmeno esprimere. */
+                                   Prima, su una riga a giornata piena,
+                                   scegliere un motivo azzerava le ore e
+                                   faceva della riga un'assenza intera.
+                                   Non si fa piu': chi manca tutto il
+                                   giorno non sta su nessun rapportino e
+                                   si segna fra gli «Assenti» della
+                                   giornata, in home. Qui il motivo
+                                   copre solo la differenza; se le ore
+                                   sono ancora otto, la copertura e' zero
+                                   e lo schema chiede di abbassarle. */
                                 const lavorate = Number(righe?.[i]?.ore_ordinarie) || 0
-
-                                if (lavorate >= ORE_STANDARD) {
-                                  setValue(`ore.${i}.ore_ordinarie`, 0)
-                                  setValue(`ore.${i}.ore_straordinarie`, 0)
-                                  setValue(`ore.${i}.ore_trasferta`, 0)
-                                  setValue(`ore.${i}.ore_assenza`, ORE_STANDARD)
-                                  setValue(`ore.${i}.presente`, false)
-                                  return
-                                }
-
-                                setValue(`ore.${i}.ore_assenza`, ORE_STANDARD - lavorate)
-                                setValue(`ore.${i}.presente`, lavorate > 0)
-                                if (lavorate === 0) {
-                                  setValue(`ore.${i}.ore_straordinarie`, 0)
-                                  setValue(`ore.${i}.ore_trasferta`, 0)
-                                }
+                                setValue(
+                                  `ore.${i}.ore_assenza`,
+                                  Math.max(0, ORE_STANDARD - lavorate),
+                                )
+                                setValue(`ore.${i}.confermata`, false)
                               },
                             })}
                           >
@@ -743,6 +742,18 @@ export function FormRapportino({
                     </button>
                   )}
                 </div>
+                {assentiNonScelti.length > 0 && (
+                  <p className="text-xs font-semibold text-gray-600">
+                    Assenti in questa giornata, quindi su nessun cantiere:{' '}
+                    {assentiNonScelti
+                      .map(
+                        (r) =>
+                          `${r.campo.nominativo} (${assenti?.get(r.campo.dipendente_id)?.motivo.toLowerCase()})`,
+                      )
+                      .join(', ')}
+                    .
+                  </p>
+                )}
               </>
             )}
           </Card>

@@ -97,6 +97,21 @@ const rigaOre = z.object({
     message: 'Scegli il motivo dell’assenza',
     path: ['tipo_assenza'],
   })
+  // Il motivo sulla riga e' solo il PERMESSO DI POCHE ORE, dal
+  // 2026-09-23: accanto a delle ore lavorate, e con le sue ore di
+  // assenza. Chi manca tutto il giorno non va sul rapportino ma fra gli
+  // «Assenti» della giornata — il database rifiuta la riga con motivo e
+  // zero ore (`rapportino_ore_niente_assenze_intere`).
+  .refine(
+    (r) =>
+      r.tipo_assenza === '' ||
+      (r.ore_ordinarie + r.ore_straordinarie > 0 && r.ore_assenza > 0),
+    {
+      message:
+        'Il motivo qui vale per un permesso di poche ore: scrivi le ore lavorate e quelle di permesso. Chi manca tutto il giorno va fra gli Assenti della giornata, in home.',
+      path: ['tipo_assenza'],
+    },
+  )
   // «Altro» senza spiegazione non dice niente piu' di una riga vuota:
   // sposterebbe il problema invece di risolverlo. E' la stessa regola
   // che il database impone su `giustificazioni_ore`, dove il vincolo

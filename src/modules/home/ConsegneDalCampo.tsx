@@ -5,6 +5,8 @@ import { dataEstesa, griglieDelMese, giornoPiu, meseEAnno, numero } from '../../
 import { oggi } from '../rapportini/campiRapportino'
 import {
   cantieriAttesi,
+  oreDelTecnico,
+  raggruppaPerGiorno,
   useConsegneDelMese,
   useTecniciScollegati,
   type AttesaCantiere,
@@ -179,6 +181,7 @@ export function ConsegneDalCampo() {
                 attese={data!.attese}
                 rapportini={data!.rapportini}
                 ore={data!.ore}
+                assenti={data!.assenti}
                 giornoAperto={giornoAperto}
                 onApriGiorno={(g) => setGiornoAperto(giornoAperto === g ? null : g)}
               />
@@ -242,6 +245,7 @@ function CalendarioTecnico({
   attese,
   rapportini,
   ore,
+  assenti,
   giornoAperto,
   onApriGiorno,
 }: {
@@ -250,6 +254,7 @@ function CalendarioTecnico({
   attese: AttesaCantiere[]
   rapportini: ConsegnaRapportino[]
   ore: ConsegnaOre[]
+  assenti: Set<string>
   giornoAperto: string | null
   onApriGiorno: (g: string) => void
 }) {
@@ -270,12 +275,14 @@ function CalendarioTecnico({
        una scheda ferma in bozza — che e' fermo per davvero e va
        sollecitato, lavorativo o no. */
     return (
-      statoGiornataTecnico(
-        suoi.get(c) ?? [],
-        cantieriAttesi(attese, tecnico.userId, c),
-        sueOre.get(c) ?? null,
-        eFineSettimana(c),
-      ) === 'rosso'
+      statoGiornataTecnico({
+        rapportini: suoi.get(c) ?? [],
+        cantieriAttesi: cantieriAttesi(attese, tecnico.userId, c),
+        ore: sueOre.get(c) ?? null,
+        nonFeriale: eFineSettimana(c),
+        passata: c < adesso,
+        assente: assenti.has(`${tecnico.dipendenteId}|${c}`),
+      }) === 'rosso'
     )
   }).length
 
@@ -328,12 +335,14 @@ function CalendarioTecnico({
 
           const futuro = cella > adesso
           const nonFeriale = eFineSettimana(cella)
-          const stato = statoGiornataTecnico(
-            suoi.get(cella) ?? [],
-            cantieriAttesi(attese, tecnico.userId, cella),
-            sueOre.get(cella) ?? null,
+          const stato = statoGiornataTecnico({
+            rapportini: suoi.get(cella) ?? [],
+            cantieriAttesi: cantieriAttesi(attese, tecnico.userId, cella),
+            ore: sueOre.get(cella) ?? null,
             nonFeriale,
-          )
+            passata: cella < adesso,
+            assente: assenti.has(`${tecnico.dipendenteId}|${cella}`),
+          })
           const scelto = cella === giornoAperto
 
           return (
@@ -610,38 +619,6 @@ function descrizione(stato: StatoGiornata): string {
   if (stato === 'azzurro')
     return 'Archiviata: passata anche dal riepilogo di Stefania, non torna più indietro'
   return 'Non è arrivato niente'
-}
-
-/** Le schede di quel tecnico, indicizzate per giorno.
- *
- *  Si filtra su `compilato_da`, che e' l'utente che ha scritto la
- *  scheda: e' l'unico legame fra una persona e cio' che ha consegnato.
- *  Una scheda scritta da qualcun altro sullo stesso cantiere non e' una
- *  sua consegna e non gli va accreditata. */
-function raggruppaPerGiorno(
-  rapportini: ConsegnaRapportino[],
-  tecnico: TecnicoInCampo,
-): Map<string, ConsegnaRapportino[]> {
-  const perGiorno = new Map<string, ConsegnaRapportino[]>()
-  for (const r of rapportini) {
-    if (r.compilato_da !== tecnico.userId) continue
-    const gruppo = perGiorno.get(r.data)
-    if (gruppo) gruppo.push(r)
-    else perGiorno.set(r.data, [r])
-  }
-  return perGiorno
-}
-
-/** Le sue giornate di ore proprie, per data. Qui il legame e' il
- *  DIPENDENTE e non l'utente: `ore_personali` e' una riga di anagrafica
- *  del personale, non un documento scritto da un utente. */
-function oreDelTecnico(ore: ConsegnaOre[], tecnico: TecnicoInCampo): Map<string, ConsegnaOre> {
-  const perGiorno = new Map<string, ConsegnaOre>()
-  for (const o of ore) {
-    if (o.dipendente_id !== tecnico.dipendenteId) continue
-    perGiorno.set(o.data, o)
-  }
-  return perGiorno
 }
 
 /* Il salto di mese passa per il primo del mese: da «31 marzo indietro di

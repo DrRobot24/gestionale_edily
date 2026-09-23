@@ -5,6 +5,9 @@
 -- non e' versionato (vedi STATO_LAVORI.md, "Prossimi passi" punto 1).
 -- Va eseguito a mano nel SQL Editor, un blocco alla volta.
 --
+-- SEGUE `ore-periodo.sql` e, dal 2026-09-23, `assenze.sql`: la tabella
+-- `assenze` deve esistere prima di rieseguire questo file.
+--
 -- SEGUE `ore-periodo.sql`, che va eseguito prima. Quel file resta com'e':
 -- questa e' una funzione in piu', non una riscrittura. Su un database
 -- condiviso con wbs-office e senza backup, aggiungere e' sicuro e
@@ -205,6 +208,44 @@ begin
     where p.org_id = p_org
       and p.data between p_dal and p_al
       and p.stato in ('validato', 'contabilizzato')
+
+    union all
+
+    -- LE ASSENZE A GIORNATA INTERA, da `assenze.sql` (2026-09-23). Chi
+    -- era assente non sta piu' su nessun rapportino: sta qui, con zero
+    -- ore lavorate e otto coperte dal motivo. Nella griglia la cella
+    -- dice 0 con la sigla del motivo sotto.
+    --
+    -- L'assenza non ha uno stato suo: viaggia con la giornata. Esce
+    -- quando la giornata e' VALIDATA — almeno una scheda firmata e
+    -- nessuna ancora in bozza, in attesa o respinta — che e' la stessa
+    -- regola delle ore: la griglia mostra solo cio' che il titolare ha
+    -- firmato.
+    select
+      a.dipendente_id,
+      a.data,
+      0::numeric,
+      0::numeric,
+      0::numeric,
+      8::numeric,
+      a.motivo,
+      a.nota,
+      null::uuid,
+      null::text,
+      null::text
+    from public.assenze a
+    where a.org_id = p_org
+      and a.data between p_dal and p_al
+      and exists (
+        select 1 from public.rapportini r
+        where r.org_id = p_org and r.data = a.data
+          and r.stato in ('validato', 'contabilizzato')
+      )
+      and not exists (
+        select 1 from public.rapportini r
+        where r.org_id = p_org and r.data = a.data
+          and r.stato in ('bozza', 'inviato', 'respinto')
+      )
   ),
 
   -- Le ore raggruppate per persona, giorno E cantiere: e' il livello a

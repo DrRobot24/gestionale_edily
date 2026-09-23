@@ -1,10 +1,16 @@
 import { Card, cn } from '../../ui'
 import { eFineSettimana } from '../../lib/giorni'
 import { griglieDelMese, giornoPiu, meseEAnno } from '../../lib/formato'
-import { useCantieri } from '../cantieri/useCantieri'
-import { useRapportini, type Rapportino } from '../rapportini/useRapportini'
+import { useSession } from '../auth/SessionProvider'
+import { useMioDipendente } from '../anagrafiche/dipendenti'
 import { oggi } from '../rapportini/campiRapportino'
-import { ASPETTO_GIORNATA, statoGiornata, type StatoGiornata } from './statoGiornata'
+import { ASPETTO_GIORNATA, statoGiornataTecnico, type StatoGiornata } from './statoGiornata'
+import {
+  cantieriAttesi,
+  oreDelTecnico,
+  raggruppaPerGiorno,
+  useConsegneDelMese,
+} from './useConsegneDelMese'
 
 /* ══════════════════════════════════════════════════════════════════
    Il calendario da scrivania delle giornate.
@@ -29,18 +35,14 @@ import { ASPETTO_GIORNATA, statoGiornata, type StatoGiornata } from './statoGior
      verde   tutte le schede di quel giorno sono validate (o
              contabilizzate). Chiuso.
 
-   Un giorno senza nessuna scheda resta BIANCO e non rosso, ed e' una
-   scelta: domenica, i festivi e i giorni in cui l'impresa non ha aperto
-   non sono giornate da recuperare. Il rosso si accende quando qualcosa
-   e' cominciato e non e' finito — che e' il caso vero da segnalare.
+   Un giorno senza nessuna scheda e' ROSSO se era dovuto — feriale,
+   passato, con cantieri assegnati quel giorno — e bianco altrimenti
+   (dal 2026-09-23, vedi `statoGiornataTecnico`). Prima restava sempre
+   bianco, e la dimenticanza totale era l'unica a non vedersi.
 
-   ATTENZIONE al perimetro. Qui si guardano i rapportini che la RLS ha
-   gia' filtrato: il tecnico vede quelli dei cantieri suoi. Il conteggio
-   dei cantieri attivi e' quello di OGGI, non di quel giorno, quindi su
-   un mese vecchio in cui i cantieri erano altri il conto e'
-   approssimato. E' un'indicazione visiva, e il conto vero lo fa il
-   database quando si prova a mandare la giornata — la stessa avvertenza
-   che aveva «Giornate rimaste aperte».
+   I CANTIERI ATTESI sono quelli assegnati al tecnico QUEL giorno, dalle
+   date di `cantiere_assegnazioni` incrociate con quelle del cantiere:
+   un cantiere aperto oggi non rende rosse le giornate passate.
    ══════════════════════════════════════════════════════════════════ */
 
 /* LA REGOLA DEL COLORE NON STA PIU' QUI. Era privata del file, con
@@ -59,17 +61,27 @@ export function CalendarioGiornate({
   giorno: string
   onScegli: (g: string) => void
 }) {
-  const { data: cantieri } = useCantieri()
-  const { data: rapportini } = useRapportini()
+  /* GLI STESSI DATI E LA STESSA REGOLA DEL TITOLARE, dal 2026-09-23.
 
-  const attivi = (cantieri ?? []).filter((c) => c.stato === 'attivo').length
+     Prima questo calendario contava i cantieri attivi DI OGGI e li
+     applicava a tutto il mese, e lasciava bianco il giorno senza
+     nessuna scheda. Il titolare invece ragionava sugli incarichi giorno
+     per giorno. Due calendari sullo stesso tecnico potevano dire cose
+     diverse, e il 14, 15 e 16 settembre — cantieri assegnati, niente
+     compilato — restavano bianchi per tutti e due.
 
-  const perGiorno = new Map<string, Rapportino[]>()
-  for (const r of rapportini ?? []) {
-    const gruppo = perGiorno.get(r.data)
-    if (gruppo) gruppo.push(r)
-    else perGiorno.set(r.data, [r])
-  }
+     Adesso il tecnico legge `useConsegneDelMese` e
+     `statoGiornataTecnico` come il titolare: cio' che vede lui e' cio'
+     che vede chi lo aspetta, casella per casella. */
+  const { app } = useSession()
+  const { data: mio } = useMioDipendente()
+  const { data: consegne } = useConsegneDelMese(giorno)
+
+  const io = { userId: app?.userId ?? '', dipendenteId: mio?.id ?? '', nominativo: '' }
+  const perGiorno = raggruppaPerGiorno(consegne?.rapportini ?? [], io)
+  const mieOre = oreDelTecnico(consegne?.ore ?? [], io)
+  const attese = consegne?.attese ?? []
+  const assenti = consegne?.assenti ?? new Set<string>()
 
   const celle = griglieDelMese(giorno)
   const adesso = oggi()
@@ -121,7 +133,16 @@ export function CalendarioGiornate({
         {celle.map((cella, k) => {
           if (!cella) return <span key={`vuota-${k}`} />
 
-          const stato = statoGiornata(perGiorno.get(cella) ?? [], attivi)
+          const stato: StatoGiornata = consegne
+            ? statoGiornataTecnico({
+                rapportini: perGiorno.get(cella) ?? [],
+                cantieriAttesi: cantieriAttesi(attese, io.userId, cella),
+                ore: mieOre.get(cella) ?? null,
+                nonFeriale: eFineSettimana(cella),
+                passata: cella < adesso,
+                assente: assenti.has(`${io.dipendenteId}|${cella}`),
+              })
+            : 'vuota'
           const scelto = cella === giorno
           const futuro = cella > adesso
           /* Sabato e domenica non sono giornate da compilare: si

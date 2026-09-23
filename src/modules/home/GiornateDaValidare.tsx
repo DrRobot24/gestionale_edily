@@ -14,6 +14,7 @@ import {
   type SchedaDaValidare,
 } from '../rapportini/useDaValidare'
 import { dataEstesa, numero as formattaNumero } from '../../lib/formato'
+import { useAssenze } from '../rapportini/useAssenze'
 
 /* ══════════════════════════════════════════════════════════════════
    La coda del titolare, a volo d'uccello.
@@ -143,6 +144,8 @@ export function GiornateDaValidare() {
               {proprie.map((o) => (
                 <RigaOreProprie key={o.id} riga={o} />
               ))}
+
+              <RigaAssenti giorno={giorno} />
             </ul>
           </Card>
         )
@@ -308,3 +311,40 @@ function RigaOreProprie({ riga }: { riga: OrePersonaliDaValidare }) {
     </li>
   )
 }
+
+/**
+ * Chi quel giorno era assente, col motivo: la giornata che il titolare
+ * firma comprende anche loro (2026-09-23). Stanno in fondo, dopo i
+ * cantieri e le ore proprie, e spariscono se non c'e' nessuno.
+ */
+function RigaAssenti({ giorno }: { giorno: string }) {
+  const { data: assenze } = useAssenze(giorno)
+  const elenco = [...(assenze?.values() ?? [])]
+  if (elenco.length === 0) return null
+
+  return (
+    <li className="bg-gray-50 px-5 py-3">
+      <p className="mb-2 text-[10px] font-extrabold uppercase tracking-wide text-gray-600">
+        Assenti
+      </p>
+      <div className="flex flex-wrap gap-1.5">
+        {elenco
+          .map((a) => ({
+            a,
+            chi: a.dipendenti ? `${a.dipendenti.cognome} ${a.dipendenti.nome}` : '—',
+          }))
+          .sort((x, y) => x.chi.localeCompare(y.chi, 'it'))
+          .map(({ a, chi }) => (
+            <span
+              key={a.id}
+              title={a.nota ?? undefined}
+              className="rounded-full border-2 border-black bg-gray-200 px-2.5 py-0.5 text-[11px] font-bold text-gray-700"
+            >
+              {chi} · <span className="uppercase">{a.nota ?? a.motivo}</span>
+            </span>
+          ))}
+      </div>
+    </li>
+  )
+}
+

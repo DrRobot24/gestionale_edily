@@ -14,6 +14,59 @@ export type Database = {
   }
   public: {
     Tables: {
+      /* Scritta a mano, non generata: arriva con `assenze.sql` (2026-09-23).
+         Rigenerando i tipi dal database esce identica. */
+      assenze: {
+        Row: {
+          created_at: string
+          data: string
+          dipendente_id: string
+          id: string
+          motivo: string
+          nota: string | null
+          org_id: string
+          scritta_da: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          data: string
+          dipendente_id: string
+          id?: string
+          motivo: string
+          nota?: string | null
+          org_id: string
+          scritta_da?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          data?: string
+          dipendente_id?: string
+          id?: string
+          motivo?: string
+          nota?: string | null
+          org_id?: string
+          scritta_da?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assenze_dipendente_id_fkey"
+            columns: ["dipendente_id"]
+            isOneToOne: false
+            referencedRelation: "dipendenti"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assenze_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       activity_log: {
         Row: {
           action: string

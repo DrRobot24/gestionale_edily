@@ -1,4 +1,8 @@
 -- =====================================================================
+-- ⚠️ SUPERATO DA `assenze.sql` (2026-09-23), che riscrive di nuovo
+-- `invia_foglio_giornata` aggiungendo le assenze. NON rieseguire questo
+-- file dopo quello: toglierebbe le assenze dall'invio.
+-- =====================================================================
 -- NESSUNO RESTA FUORI DALLA GIORNATA
 --
 -- NON e' una migration della CLI Supabase: lo schema di questo progetto

@@ -130,6 +130,9 @@ export type ConsegneDelMese = {
   rapportini: ConsegnaRapportino[]
   ore: ConsegnaOre[]
   attese: AttesaCantiere[]
+  /** Chi e' segnato assente, per giorno (`assenze.sql`): «dipendente|data».
+   *  Serve a non pretendere le ore proprie di un tecnico in ferie. */
+  assenti: Set<string>
 }
 
 /** Il primo e l'ultimo giorno del mese che contiene `giorno`.
@@ -161,10 +164,13 @@ export function useConsegneDelMese(giorno: string) {
   return useQuery({
     // Il mese nella chiave, non il giorno: sfogliare da lunedi' a
     // martedi' non deve rifare le query, e' lo stesso mese di dati.
-    queryKey: ['consegne-mese', org?.id, dal],
+    // Sotto ['rapportini'] dal 2026-09-23: da quando ci legge anche il
+    // calendario del tecnico, salvare o inviare una scheda deve
+    // ricolorarlo subito, e ogni scrittura invalida gia' quel prefisso.
+    queryKey: ['rapportini', 'consegne-mese', org?.id, dal],
     enabled: Boolean(org?.id),
     queryFn: async (): Promise<ConsegneDelMese> => {
-      const [persone, schede, oreProprie, assegnazioni] = await Promise.all([
+      const [persone, schede, oreProprie, assegnazioni, assenze] = await Promise.all([
         supabase
           .from('dipendenti')
           .select('id, nome, cognome, user_id')
@@ -196,6 +202,12 @@ export function useConsegneDelMese(giorno: string) {
           .from('cantiere_assegnazioni')
           .select('cantiere_id, user_id, dal, al, cantieri ( data_inizio, data_fine_effettiva )')
           .eq('org_id', org!.id),
+        supabase
+          .from('assenze')
+          .select('dipendente_id, data')
+          .eq('org_id', org!.id)
+          .gte('data', dal)
+          .lte('data', al),
       ])
 
       if (persone.error) throw persone.error
@@ -229,7 +241,15 @@ export function useConsegneDelMese(giorno: string) {
         }
       })
 
+      /* Le assenze NON fanno fallire il calendario: se `assenze.sql` non
+         e' ancora stato eseguito la tabella non c'e', e il resto dei
+         colori vale lo stesso. */
+      const assenti = new Set(
+        (assenze.error ? [] : (assenze.data ?? [])).map((x) => `${x.dipendente_id}|${x.data}`),
+      )
+
       return {
+        assenti,
         tecnici,
         rapportini: (schede.data ?? []) as unknown as ConsegnaRapportino[],
         ore: (oreProprie.data ?? []) as ConsegnaOre[],
@@ -299,4 +319,36 @@ export function cantieriAttesi(attese: AttesaCantiere[], userId: string, giorno:
       (a.dataInizio === null || a.dataInizio <= giorno) &&
       (a.dataFine === null || a.dataFine >= giorno),
   ).length
+}
+
+/** Le schede di quel tecnico, indicizzate per giorno.
+ *
+ *  Si filtra su `compilato_da`, che e' l'utente che ha scritto la
+ *  scheda: e' l'unico legame fra una persona e cio' che ha consegnato.
+ *  Una scheda scritta da qualcun altro sullo stesso cantiere non e' una
+ *  sua consegna e non gli va accreditata. */
+export function raggruppaPerGiorno(
+  rapportini: ConsegnaRapportino[],
+  tecnico: TecnicoInCampo,
+): Map<string, ConsegnaRapportino[]> {
+  const perGiorno = new Map<string, ConsegnaRapportino[]>()
+  for (const r of rapportini) {
+    if (r.compilato_da !== tecnico.userId) continue
+    const gruppo = perGiorno.get(r.data)
+    if (gruppo) gruppo.push(r)
+    else perGiorno.set(r.data, [r])
+  }
+  return perGiorno
+}
+
+/** Le sue giornate di ore proprie, per data. Qui il legame e' il
+ *  DIPENDENTE e non l'utente: `ore_personali` e' una riga di anagrafica
+ *  del personale, non un documento scritto da un utente. */
+export function oreDelTecnico(ore: ConsegnaOre[], tecnico: TecnicoInCampo): Map<string, ConsegnaOre> {
+  const perGiorno = new Map<string, ConsegnaOre>()
+  for (const o of ore) {
+    if (o.dipendente_id !== tecnico.dipendenteId) continue
+    perGiorno.set(o.data, o)
+  }
+  return perGiorno
 }

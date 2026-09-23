@@ -738,7 +738,18 @@ function Cella({
         )}
       >
         {assente ? (
-          /* Il `title` porta il motivo per esteso: «ALT» in tre lettere
+          /* ZERO, E IL MOTIVO SOTTO, dal 2026-09-23: «voglio vedere il
+             numero 0 nel foglio presenze all'incrocio tra la riga e la
+             colonna di quella persona in quel giorno». Prima la cella
+             mostrava solo la sigla, e la colonna delle cifre si
+             interrompeva proprio dove serviva leggerla.
+
+             Lo zero e' grigio e non nero: e' una giornata non lavorata,
+             non un numero da sommare con gli altri a colpo d'occhio. La
+             sigla sta sotto, piccola e con `-mb-1` come i pallini dei
+             cantieri, cosi' la riga non si alza.
+
+             Il `title` porta il motivo per esteso: «ALT» in tre lettere
              non dice niente, e chi passa sopra la cella vuole sapere
              cos'era senza doverla aprire. */
           <span
@@ -747,9 +758,12 @@ function Cella({
                 ? `${casella.tipo_assenza}: ${casella.nota_assenza}`
                 : (casella.tipo_assenza ?? undefined)
             }
-            className="inline-block rounded-md border-2 border-gray-400 bg-white px-1 text-[10px] font-extrabold uppercase text-gray-600"
+            className="flex flex-col items-center"
           >
-            {siglaAssenza(casella.tipo_assenza)}
+            <span className="numerico text-sm font-black text-gray-500">0</span>
+            <span className="-mb-1 text-[9px] font-extrabold uppercase leading-none tracking-wide text-gray-600">
+              {siglaAssenza(casella.tipo_assenza)}
+            </span>
           </span>
         ) : (
           <span
@@ -1159,10 +1173,9 @@ function Legenda() {
         <span className="font-black text-rose-700">8</span> comprende straordinario
       </span>
       <span>
-        <span className="rounded-md border-2 border-gray-400 bg-white px-1 text-[10px] font-extrabold uppercase text-gray-600">
-          FER
-        </span>{' '}
-        giorno di assenza
+        <span className="numerico font-black text-gray-500">0</span>
+        <span className="ml-0.5 text-[9px] font-extrabold text-gray-600">FER</span> assente
+        tutto il giorno, col motivo
       </span>
       <span className="inline-flex items-center gap-1">
         <span className="inline-block h-1.5 w-1.5 rounded-full bg-sky-600" /> c’è una

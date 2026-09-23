@@ -138,19 +138,51 @@ export function statoGiornata(schede: Scheda[], attesi: number): StatoGiornata {
  *
  * @param ore  `null` quando il tecnico non ha ancora compilato niente.
  */
-export function statoGiornataTecnico(
-  rapportini: Scheda[],
-  cantieriAttesi: number,
-  ore: Scheda | null,
-  /** Sabato o domenica: vedi sotto, cambia cosa si ha diritto di
-   *  aspettarsi. Ha un valore di riserva perche' il calendario del
-   *  tecnico non gliel'ha ancora passato, e li' il difetto non si vede
-   *  — ma quando lo passera', la regola e' gia' qui. */
+export function statoGiornataTecnico({
+  rapportini,
+  cantieriAttesi,
+  ore,
   nonFeriale = false,
-): StatoGiornata {
-  // Niente di niente: la giornata non e' cominciata. Bianca, non rossa
-  // — festivi, ferie e giorni di chiusura non sono giornate perse.
-  if (rapportini.length === 0 && !ore) return 'vuota'
+  passata = false,
+  assente = false,
+}: {
+  rapportini: Scheda[]
+  cantieriAttesi: number
+  /** `null` quando il tecnico non ha ancora compilato niente. */
+  ore: Scheda | null
+  /** Sabato o domenica: vedi sotto, cambia cosa si ha diritto di
+   *  aspettarsi. */
+  nonFeriale?: boolean
+  /** Il giorno e' prima di oggi. Serve al rosso del giorno VUOTO: oggi
+   *  e' il giorno che si sta compilando, e colorarlo di rosso mentre ci
+   *  si lavora sarebbe un rimprovero prima del tempo. */
+  passata?: boolean
+  /** Il tecnico quel giorno e' segnato assente (`assenze.sql`): le sue
+   *  ore non si aspettano, la sua assenza ha gia' risposto. */
+  assente?: boolean
+}): StatoGiornata {
+  /* ── IL GIORNO VUOTO E' ROSSO SE ERA DOVUTO ────────────────────────
+
+     Fino al 2026-09-23 un giorno senza nessuna scheda restava BIANCO,
+     sempre: si pensava a festivi e chiusure. L'utente l'ha visto dal
+     lato giusto — «perche' non risultano rossi il 14, 15 e 16 settembre
+     in cui il tecnico ha dei cantieri assegnati e non ha compilato alcun
+     rapportino? E' fondamentale per il tecnico vedere il suo calendario
+     con i colori semaforici».
+
+     Aveva ragione: il bianco premiava proprio la dimenticanza totale,
+     che e' la piu' grave. Un giorno con una scheda in bozza era rosso,
+     un giorno senza niente era pulito.
+
+     Il rosso scatta pero' solo quando c'era davvero qualcosa da fare:
+     giorno feriale, gia' passato, e con almeno un cantiere assegnato
+     QUEL giorno (dalle date di `cantiere_assegnazioni`, non da oggi).
+     Prima che l'incarico cominciasse, o prima che il gestionale fosse
+     in uso, il calendario resta bianco — non deve accusare di non aver
+     compilato giornate in cui non c'era niente da compilare. */
+  if (rapportini.length === 0 && !ore) {
+    return passata && !nonFeriale && cantieriAttesi > 0 ? 'rosso' : 'vuota'
+  }
 
   const pezzi: Scheda[] = ore ? [...rapportini, tradotte(ore)] : rapportini
 
@@ -161,28 +193,18 @@ export function statoGiornataTecnico(
      mandare? Solo se si lavora verranno fatti e lo si sa di volta in
      volta».
 
-     Il principio e' quello: nel fine settimana non si lavora finche'
-     non risulta il contrario, e il contrario si scopre perche' arriva
-     una scheda — non perche' il programma lo pretende in anticipo.
-
      Quindi l'attesa scende a ZERO, e il ramo «ne mancano all'appello»
-     non puo' scattare. Restano vivi gli altri due motivi di rosso, e
-     devono restarlo: una scheda di sabato scritta e non inviata, o
-     respinta, e' ferma esattamente come in un giorno feriale.
-
-     Un sabato lavorato e consegnato e' percio' giallo, poi azzurro,
-     poi verde come tutti gli altri giorni — e' un giorno di lavoro
-     vero, solo non dovuto.
+     non puo' scattare. Restano vivi gli altri due motivi di rosso: una
+     scheda di sabato scritta e non inviata, o respinta, e' ferma
+     esattamente come in un giorno feriale.
 
      ⚠️ PERCHE' QUI E NON IN PAGINA: il conteggio «quante giornate da
-     ricevere» saltava gia' il fine settimana per conto suo, mentre il
-     colore no. La stessa card diceva «4 da ricevere» con sei caselle
-     rosse sotto, ed e' proprio il genere di incoerenza che toglie
-     fiducia a tutto il riquadro. Ora la regola e' una e sta in un
-     posto solo: le due letture non possono piu' divergere. */
-  const attesi = nonFeriale ? 0 : cantieriAttesi + 1
-
+     ricevere» e il colore devono leggere la stessa regola, o la stessa
+     card dice «4 da ricevere» con sei caselle rosse sotto. */
   // +1 per le sue ore: fanno parte della consegna quanto i rapportini.
+  // Tranne quando e' lui l'assente: allora le sue ore non esistono.
+  const attesi = nonFeriale ? 0 : cantieriAttesi + (assente ? 0 : 1)
+
   return statoGiornata(pezzi, attesi)
 }
 

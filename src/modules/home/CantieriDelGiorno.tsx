@@ -10,6 +10,7 @@ import { useRapportini, type Rapportino } from '../rapportini/useRapportini'
 import { oggi } from '../rapportini/campiRapportino'
 import { useMioDipendente } from '../anagrafiche/dipendenti'
 import { useGiornataPersonale, totaleOre } from '../oreproprie/orePersonali'
+import { AssentiDelGiorno } from './AssentiDelGiorno'
 
 /* ══════════════════════════════════════════════════════════════════
    La giornata del tecnico, un cantiere per card.
@@ -288,6 +289,16 @@ export function CantieriDelGiorno({
           anche quando le ore quadrano, quindi e' diventato un riquadro
           fisso e non un avviso: infilarlo qui spezzerebbe la sequenza
           «guarda le schede, poi mandale». */}
+
+      {/* Chi non c'era: dopo le card, prima dell'invio. Si blocca
+          appena il titolare ha firmato una scheda del giorno, come nel
+          database (`app.giornata_validata`). */}
+      <AssentiDelGiorno
+        giorno={giorno}
+        bloccata={schede.some(
+          (s) => s.rapportino?.stato === 'validato' || s.rapportino?.stato === 'contabilizzato',
+        )}
+      />
 
       {/* `whitespace-pre-line` non e' un dettaglio estetico: il rifiuto
           per le ore che non tornano elenca una persona per riga, e in
