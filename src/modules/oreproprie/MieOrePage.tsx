@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { Avviso, Badge, Button, Campo, CampoArea, CampoSelect, Card, Percorso, Table, Vuoto, cn } from '../../ui'
 import { useMioDipendente } from '../anagrafiche/dipendenti'
-import { ASSENZE, oggi } from '../rapportini/campiRapportino'
+import { ASSENZE, oggi, versoHome } from '../rapportini/campiRapportino'
 import { data as fmtData, giornoPiu } from '../../lib/formato'
 import { eFineSettimana, nomeNonFeriale } from '../../lib/giorni'
 import {
@@ -71,7 +71,7 @@ export function MieOrePage() {
   if (!mio) {
     return (
       <div className="mx-auto grid max-w-3xl gap-4">
-        <Percorso indietro={{ etichetta: 'Home', a: '/' }} qui={[{ etichetta: 'Le mie ore' }]} />
+        <Percorso indietro={{ etichetta: 'Home', a: versoHome(giorno) }} qui={[{ etichetta: 'Le mie ore' }]} />
         <Avviso tono="info">
           La tua scheda personale non è collegata a questa utenza, quindi non c&rsquo;è nessun
           posto dove scrivere le tue ore. Chiedi all&rsquo;amministrazione di collegarla:
@@ -83,7 +83,7 @@ export function MieOrePage() {
 
   return (
     <div className="mx-auto grid max-w-4xl gap-4">
-      <Percorso indietro={{ etichetta: 'Home', a: '/' }} qui={[{ etichetta: 'Le mie ore' }]} />
+      <Percorso indietro={{ etichetta: 'Home', a: versoHome(giorno) }} qui={[{ etichetta: 'Le mie ore' }]} />
 
       <div>
         <h1 className="text-2xl font-extrabold text-black">Le mie ore</h1>

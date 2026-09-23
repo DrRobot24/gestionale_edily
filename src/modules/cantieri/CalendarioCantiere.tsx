@@ -22,16 +22,19 @@ import type { RapportinoCantiere } from '../rapportini/useRapportini'
 
      giallo   scritta e non ancora partita, o rimandata indietro dal
               titolare: chiede ancora qualcosa a qualcuno
-     azzurro  validata dal titolare, ma non ancora archiviata: aspetta
-              il Riepilogo Economico di fine mese e la seconda firma
-     verde    contabilizzata: la scheda ha finito il suo giro
+     verde    validata dal titolare: la sua firma e' il traguardo
+              che il colore «buono» deve dire subito
+     azzurro  archiviata, dopo il Riepilogo Economico di fine mese e
+              la seconda firma
      grigio   nessuna attivita' dichiarata — il cantiere era fermo, ed e'
               un'informazione, non un buco
 
-   L'azzurro e' arrivato il 2026-09-22 insieme al processo completo:
-   la firma del titolare non chiude niente, apre il secondo tempo. Prima
-   `validato` e `contabilizzato` erano lo stesso verde, che dichiarava
-   chiusa una scheda a meta' strada.
+   STESSI COLORI DELLA HOME, dal 2026-09-23. Qui era rimasto il giro
+   vecchio — azzurro alla firma, verde all'archivio — mentre la home era
+   gia' passata a verde = firma (vedi `statoGiornata.ts`). Il tecnico
+   vedeva azzurro il 17 che il titolare vedeva verde: «voglio che siano
+   verdi anche per lui». Lo stesso giorno deve avere lo stesso colore
+   da qualunque parte lo si guardi.
 
    Un giorno senza scheda resta BIANCO: su un cantiere non si lavora
    tutti i giorni, e colorare di rosso ogni domenica e ogni giorno in cui
@@ -58,8 +61,8 @@ const INIZIALI = ['L', 'M', 'M', 'G', 'V', 'S', 'D']
 function statoDi(r: RapportinoCantiere | undefined): Stato {
   if (!r) return 'vuoto'
   if (r.nessuna_attivita) return 'fermo'
-  if (r.stato === 'contabilizzato') return 'verde'
-  if (r.stato === 'validato') return 'azzurro'
+  if (r.stato === 'contabilizzato') return 'azzurro'
+  if (r.stato === 'validato') return 'verde'
   return 'giallo'
 }
 
@@ -219,8 +222,8 @@ export function CalendarioCantiere({
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t-2 border-black bg-gray-50 px-4 py-2">
         <Voce colore="bg-yellow-300" testo="da chiudere" />
-        <Voce colore="bg-sky-300" testo="validata" />
-        <Voce colore="bg-lime-300" testo="archiviata" />
+        <Voce colore="bg-lime-300" testo="validata" />
+        <Voce colore="bg-sky-300" testo="archiviata" />
         <Voce colore="bg-gray-300" testo="cantiere fermo" />
       </div>
     </Card>
@@ -239,6 +242,7 @@ function Voce({ colore, testo }: { colore: string; testo: string }) {
 function titolo(stato: Stato): string {
   if (stato === 'giallo') return 'Scheda da chiudere'
   if (stato === 'verde') return 'Validata dal titolare'
+  if (stato === 'azzurro') return 'Archiviata'
   if (stato === 'fermo') return 'Nessuna attività: cantiere fermo'
   return 'Nessuna scheda — clicca per compilarla'
 }

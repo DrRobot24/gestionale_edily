@@ -1,5 +1,3 @@
-import { useState } from 'react'
-import { useSearchParams } from 'react-router'
 import { Avviso } from '../../ui'
 import { useSession } from '../auth/SessionProvider'
 import { useRapportini } from '../rapportini/useRapportini'
@@ -14,6 +12,7 @@ import { GiornateDaValidare } from './GiornateDaValidare'
 import { IlSuoLavoro } from './IlSuoLavoro'
 import { OreArrivate } from './OreArrivate'
 import { oggi } from '../rapportini/campiRapportino'
+import { useDataInIndirizzo } from './useDataInIndirizzo'
 
 /* ══════════════════════════════════════════════════════════════════
    La home mostra cosa aspetta TE, non cosa sai fare.
@@ -78,19 +77,14 @@ export function Dashboard() {
      futuro viene ignorato invece che creduto, perche' l'indirizzo lo
      puo' scrivere chiunque.
 
-     Vale solo all'apertura: da li' in poi comanda `scelta`, cosi' le
-     frecce continuano a funzionare senza che l'indirizzo le contraddica
-     a ogni render. */
-  const [params] = useSearchParams()
-  const daIndirizzo = params.get('data')
-  const iniziale =
-    daIndirizzo && /^\d{4}-\d{2}-\d{2}$/.test(daIndirizzo) && daIndirizzo <= oggi()
-      ? daIndirizzo
-      : null
-
-  const [scelta, setScelta] = useState<string | null>(iniziale)
+     DAL 2026-09-23 L'INDIRIZZO COMANDA SEMPRE, non solo all'apertura:
+     anche le frecce e il calendario ci scrivono, cosi' il tasto
+     indietro da un rapportino riporta al giorno che si stava guardando
+     invece che a oggi. Vedi `useDataInIndirizzo`. */
+  const [scelta, setScelta] = useDataInIndirizzo('data')
   const giorno = scelta ?? oggi()
-  const setGiorno = setScelta
+  /* Oggi non si scrive nell'indirizzo: la home pulita e' gia' oggi. */
+  const setGiorno = (g: string) => setScelta(g === oggi() ? null : g)
 
   const puoValidare = can('rapportini.validate')
   const puoCompilare = can('rapportini.create')

@@ -4,7 +4,7 @@ import { Avviso, Badge, Button, Card, Percorso, Visore, Vuoto, cn, type Scatto }
 import { data as fmtData, dataEstesa, euro } from '../../lib/formato'
 import { usePermission } from '../auth/usePermission'
 import { useSession } from '../auth/SessionProvider'
-import { oggi } from '../rapportini/campiRapportino'
+import { oggi, versoHome } from '../rapportini/campiRapportino'
 import { StatoRapportino } from '../rapportini/stato'
 import { useFotoCantiere } from '../rapportini/useFoto'
 import {
@@ -86,7 +86,7 @@ export function CantiereScheda() {
           il permesso lo dà chi tiene l&rsquo;anagrafica.
         </Avviso>
         <div>
-          <Button onClick={() => navigate('/')}>Torna alla home</Button>
+          <Button onClick={() => navigate(versoHome(giorno))}>Torna alla home</Button>
         </div>
       </div>
     )
@@ -111,7 +111,7 @@ export function CantiereScheda() {
               passo indietro in un posto dove non era. */}
           <Percorso
             indietro={
-              vedeElenco ? { etichetta: 'Cantieri', a: '/cantieri' } : { etichetta: 'Home', a: '/' }
+              vedeElenco ? { etichetta: 'Cantieri', a: '/cantieri' } : { etichetta: 'Home', a: versoHome(giorno) }
             }
             qui={[
               { etichetta: 'Cantieri', a: vedeElenco ? '/cantieri' : undefined },

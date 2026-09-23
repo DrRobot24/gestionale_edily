@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useDataInIndirizzo } from './useDataInIndirizzo'
 import { Avviso, Badge, Card, cn } from '../../ui'
 import { eFineSettimana } from '../../lib/giorni'
 import { dataEstesa, griglieDelMese, giornoPiu, meseEAnno, numero } from '../../lib/formato'
@@ -81,8 +81,13 @@ export function ConsegneDalCampo() {
      affiancati, due mesi diversi sulla stessa riga sarebbero un
      confronto fra cose diverse presentato come un confronto. Si sfoglia
      una volta e si muovono insieme. */
-  const [mese, setMese] = useState(oggi())
-  const [giornoAperto, setGiornoAperto] = useState<string | null>(null)
+  /* Mese e giorno aperto stanno NELL'INDIRIZZO (2026-09-23): chi apre
+     il 17, entra in un rapportino e torna indietro deve ritrovare il 17
+     aperto, non la home di oggi. Il mese, se manca, segue il giorno
+     aperto. */
+  const [giornoAperto, setGiornoAperto] = useDataInIndirizzo('aperto')
+  const [meseScelto, setMese] = useDataInIndirizzo('mese')
+  const mese = meseScelto ?? giornoAperto ?? oggi()
 
   const { data, isPending, error } = useConsegneDelMese(mese)
   const { data: scollegati } = useTecniciScollegati()
@@ -175,7 +180,7 @@ export function ConsegneDalCampo() {
                 rapportini={data!.rapportini}
                 ore={data!.ore}
                 giornoAperto={giornoAperto}
-                onApriGiorno={(g) => setGiornoAperto((prec) => (prec === g ? null : g))}
+                onApriGiorno={(g) => setGiornoAperto(giornoAperto === g ? null : g)}
               />
             ))}
           </div>

@@ -70,6 +70,8 @@ export function RapportinoPage() {
     (s, o) => s + Number(o.ore_ordinarie) + Number(o.ore_straordinarie),
     0,
   )
+  const totaleOrdinarie = ore.reduce((s, o) => s + Number(o.ore_ordinarie), 0)
+  const totaleStraordinarie = ore.reduce((s, o) => s + Number(o.ore_straordinarie), 0)
   const totaleTrasferta = ore.reduce((s, o) => s + Number(o.ore_trasferta), 0)
   // La colonna trasferta compare solo se qualcuno e' andato in trasferta
   // davvero: alla Edily e' l'eccezione, e una colonna di zeri toglie
@@ -78,6 +80,8 @@ export function RapportinoPage() {
   // La colonna delle ore di assenza compare solo se qualcuno ne ha:
   // su una giornata normale sarebbe una colonna di zeri.
   const conAssenza = ore.some((o) => Number(o.ore_assenza) > 0)
+  // Idem per il motivo: una colonna di trattini su ogni riga non dice niente.
+  const conMotivo = ore.some((o) => o.tipo_assenza)
 
   const adesso = () => new Date().toISOString()
 
@@ -166,7 +170,17 @@ export function RapportinoPage() {
       <div className="grid gap-4 lg:grid-cols-3 lg:items-start">
         <div className="grid gap-4 lg:col-span-2">
           <Card className="grid gap-3 p-5">
-            <h2 className="text-lg font-extrabold text-black">Ore</h2>
+            {/* Il totale della giornata, ordinarie piu' straordinarie,
+                sta accanto al titolo: nella riga in fondo ogni colonna
+                ha il suo, e questo non appartiene a nessuna delle due. */}
+            <h2 className="text-lg font-extrabold text-black">
+              Ore
+              {ore.length > 0 && (
+                <span className="numerico ml-2 text-sm font-bold text-gray-600">
+                  · {fmtNumero(totale)} in tutto
+                </span>
+              )}
+            </h2>
             {ore.length === 0 ? (
               <Vuoto>Nessuna riga di ore su questo rapportino.</Vuoto>
             ) : (
@@ -175,11 +189,17 @@ export function RapportinoPage() {
                   <tr>
                     <th>Matr.</th>
                     <th>Dipendente</th>
-                    <th className="text-right">Ordinarie</th>
-                    <th className="text-right">Straord.</th>
-                    {conTrasferta && <th className="text-right">Trasferta</th>}
-                    {conAssenza && <th className="text-right">Ore ass.</th>}
-                    <th>Assenza</th>
+                    {/* `!text-right` e non `text-right`: la primitiva
+                        `Table` allinea a sinistra con `[&_th]:text-left`,
+                        che per specificita' batte una classe sulla cella.
+                        Senza il `!` le intestazioni restavano a sinistra
+                        e i numeri a destra, in due colonne diverse a
+                        occhio (segnalato il 2026-09-23). */}
+                    <th className="!text-right">Ordinarie</th>
+                    <th className="!text-right">Straord.</th>
+                    {conTrasferta && <th className="!text-right">Trasferta</th>}
+                    {conAssenza && <th className="!text-right">Ore ass.</th>}
+                    {conMotivo && <th>Assenza</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -204,17 +224,21 @@ export function RapportinoPage() {
                       {conAssenza && (
                         <Cifra className="text-gray-600">{fmtNumero(o.ore_assenza)}</Cifra>
                       )}
-                      <td>{o.tipo_assenza ?? '—'}</td>
+                      {conMotivo && <td>{o.tipo_assenza ?? '—'}</td>}
                     </tr>
                   ))}
                   <tr className="border-t-2 border-black bg-gray-50 font-bold">
                     <td colSpan={2}>Totale</td>
-                    <Cifra colSpan={2}>{fmtNumero(totale)}</Cifra>
+                    {/* Un totale per colonna, sotto la sua colonna: prima
+                        era uno solo a cavallo di due, e finiva sotto le
+                        straordinarie sembrando il loro totale. */}
+                    <Cifra>{fmtNumero(totaleOrdinarie)}</Cifra>
+                    <Cifra>{fmtNumero(totaleStraordinarie)}</Cifra>
                     {conTrasferta && <Cifra>{fmtNumero(totaleTrasferta)}</Cifra>}
                     {conAssenza && (
                       <Cifra>{fmtNumero(ore.reduce((s, o) => s + Number(o.ore_assenza), 0))}</Cifra>
                     )}
-                    <td />
+                    {conMotivo && <td />}
                   </tr>
                 </tbody>
               </Table>

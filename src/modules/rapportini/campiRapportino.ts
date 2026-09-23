@@ -172,3 +172,7 @@ export type CampiRapportino = z.infer<typeof schemaRapportino>
 export type RigaOre = CampiRapportino['ore'][number]
 
 export const oggi = () => new Date().toLocaleDateString('sv-SE') // sv-SE = YYYY-MM-DD locale
+
+/** La home aperta su quel giorno. Chi torna in home da una scheda del
+ *  17 deve ritrovarsi sul 17, non su oggi (2026-09-23). */
+export const versoHome = (giorno: string) => (giorno === oggi() ? '/' : `/?data=${giorno}`)
