@@ -1,5 +1,4 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useLocation, useNavigate, useSearchParams } from 'react-router'
 import { data as fmtData } from '../../lib/formato'
 import { Avviso, Button, Table, Vuoto, cn } from '../../ui'
 import { useSession } from '../auth/SessionProvider'
@@ -8,6 +7,7 @@ import { chiedeAncora } from './regole'
 import { StatoRapportino } from './stato'
 import { useRapportini } from './useRapportini'
 import { useMembri } from '../cantieri/assegnazioni'
+import { apriDa } from './percorso'
 
 /* ══════════════════════════════════════════════════════════════════
    L'ELENCO DEI RAPPORTINI, e cosa ci si viene a fare.
@@ -36,7 +36,14 @@ import { useMembri } from '../cantieri/assegnazioni'
 type Vista = 'aperti' | 'tutti'
 
 export function RapportiniPage() {
-  const [vista, setVista] = useState<Vista>('aperti')
+  /* La scheda scelta sta NELL'INDIRIZZO (2026-09-23): chi apre un
+     rapportino dalla vista «tutti» e torna indietro deve ritrovare
+     «tutti», non ripartire da «aperti». */
+  const [params, setParams] = useSearchParams()
+  const vista: Vista = params.get('vista') === 'tutti' ? 'tutti' : 'aperti'
+  const setVista = (v: Vista) =>
+    setParams(v === 'aperti' ? {} : { vista: v }, { replace: true })
+  const location = useLocation()
   const { app } = useSession()
   const { data: rapportini, isPending, error } = useRapportini()
 
@@ -225,7 +232,7 @@ export function RapportiniPage() {
                   )}
                 </td>
                 <td className="text-right">
-                  <Button dimensione="sm" onClick={() => navigate(`/rapportini/${r.id}`)}>
+                  <Button dimensione="sm" onClick={() => navigate(`/rapportini/${r.id}`, apriDa(location, 'Rapportini'))}>
                     Apri
                   </Button>
                 </td>

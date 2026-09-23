@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useLocation, useNavigate } from 'react-router'
+import { apriDa } from '../rapportini/percorso'
 import { Avviso, Badge, Button, Card, cn } from '../../ui'
 import {
   oreLavorate,
@@ -47,6 +48,7 @@ import { useAssenze } from '../rapportini/useAssenze'
 
 export function GiornateDaValidare() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { data: schede, isPending, error } = useDaValidare()
   const { data: oreProprie } = useOrePersonaliDaValidare()
 
@@ -134,7 +136,7 @@ export function GiornateDaValidare() {
                 <RigaScheda
                   key={s.id}
                   scheda={s}
-                  onApri={() => navigate(`/rapportini/${s.id}`)}
+                  onApri={() => navigate(`/rapportini/${s.id}`, apriDa(location, 'Home'))}
                 />
               ))}
 

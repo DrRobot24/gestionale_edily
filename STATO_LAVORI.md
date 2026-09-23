@@ -539,6 +539,49 @@ Da fare **prima** di toccare le policy.
 
 ## Prossimi passi
 
+### ⭐ PROSSIMO: la pagina «Economia» della risorsa
+
+> Quando l'utente dice **«continua con la pagina economia»**, si riparte da qui.
+> Richiesta del 2026-09-23: nella scheda della risorsa, mese per mese, quanto ha
+> percepito al netto, giorni lavorati, ferie, malattia, permessi, ferie maturate,
+> permessi residui. Decisioni prese con l'utente: **il netto lo scrive Stefania**
+> dal cedolino (il gestionale non fa buste paga), **monte annuo per persona** di
+> ferie e permessi con saldo di partenza, **sottopagina** e non sezione.
+>
+> *Stato: COSTRUITA MA SPENTA.* Il 23 è stata scritta e pubblicata (commit
+> `64c72dc`) prima che l'utente chiedesse di rimandarla. Senza SQL mostra solo un
+> avviso, quindi non fa danni. File:
+> [`EconomiaRisorsaPage.tsx`](src/modules/anagrafiche/EconomiaRisorsaPage.tsx),
+> [`economiaRisorsa.ts`](src/modules/anagrafiche/economiaRisorsa.ts),
+> [`economia-risorse.sql`](supabase/schema/economia-risorse.sql) (**non eseguito**).
+> Rotta `/anagrafiche/operai/:id/economia`, pulsante «Economia →» nella scheda,
+> cancello `paghe.read`.
+>
+> *Il piano, in ordine:*
+>
+> 1. **Attivarla**: eseguire `economia-risorse.sql` (due tabelle nuove,
+>    `buste_paga` e `monte_ferie`, RLS su `paghe.read`; non tocca l'esistente).
+> 2. **Verificarla con Stefania su un operaio vero**, e chiudere tre dubbi:
+>    un giorno di ferie = 8 ore? le ferie maturano a mese finito (1/12 del monte
+>    annuo per mese completato dopo la data del saldo)? il monte annuo e il
+>    residuo di partenza li prende dal cedolino? Per gli operai edili ferie e
+>    gratifica passano dalla **Cassa Edile**: chiederle se il residuo che le
+>    serve è quello del cedolino o quello della Cassa.
+> 3. **Chi la vede.** Oggi `paghe.read`, quindi anche il titolare (ha tutti i
+>    permessi). Per «chi valida non elabora» valutare se il titolare la vede in
+>    sola lettura (netto non modificabile) e Stefania la compila.
+> 4. **Impiegati e tecnico**: le loro assenze stanno in `ore_personali`, già
+>    lette da `ore_griglia`; verificare che ferie/permessi di Stefania e Zito
+>    compaiano giusti.
+> 5. **Dopo, se servono** (chiedere, non anticipare): il lordo accanto al
+>    netto; il riepilogo di tutte le persone in un mese (vista per le paghe);
+>    il legame con `periodi_paga` — un mese chiuso non si modifica più;
+>    l'export per il consulente.
+>
+> *Come sono calcolati i numeri:* giorni e assenze escono da `ore_griglia`,
+> quindi SOLO dalle giornate validate dal titolare, come nel Foglio presenze.
+> `ore_griglia` accetta al massimo 92 giorni: l'anno si legge a pezzi da 90.
+
 > **Chiusi il 2026-09-22.** Giornata sul **punto di vista del titolare**, nata
 > da una richiesta sola — «voglio un calendarietto per capire cosa devo ancora
 > ricevere dal mio tecnico» — e finita a scoprire che il programma accusava di

@@ -1,4 +1,5 @@
-import { useNavigate } from 'react-router'
+import { useLocation, useNavigate } from 'react-router'
+import { apriDa } from '../rapportini/percorso'
 import { Badge, Card, cn } from '../../ui'
 import { dataEstesa, numero } from '../../lib/formato'
 import {
@@ -296,12 +297,13 @@ function RigaScheda({
   mostraMotivo?: boolean
 }) {
   const navigate = useNavigate()
+  const location = useLocation()
 
   return (
     <li>
       <button
         type="button"
-        onClick={() => navigate(`/rapportini/${s.id}`)}
+        onClick={() => navigate(`/rapportini/${s.id}`, apriDa(location, 'Home'))}
         className="neo-press flex w-full cursor-pointer flex-wrap items-center justify-between gap-2 rounded-lg border-2 border-black/20 px-3 py-2 text-left hover:border-black hover:bg-amber-50"
       >
         <div className="min-w-0">

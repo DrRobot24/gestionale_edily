@@ -1,4 +1,5 @@
-import { useNavigate } from 'react-router'
+import { useLocation, useNavigate } from 'react-router'
+import { apriDa } from '../rapportini/percorso'
 import { Avviso, Badge, Card, cn } from '../../ui'
 import { numero } from '../../lib/formato'
 import { useOreGriglia, lavorate, type OreGiorno } from '../ore/useOrePeriodo'
@@ -56,6 +57,7 @@ import { StatoRapportino } from '../rapportini/stato'
 
 export function LaGiornataDi({ giorno }: { giorno: string }) {
   const navigate = useNavigate()
+  const location = useLocation()
   const { data: rapportini } = useRapportini()
   /* `ore_griglia` chiede `paghe.read`. Ce l'hanno owner, admin e
      amministrazione — cioe' tutti quelli che vedono questo riquadro —
@@ -131,7 +133,7 @@ export function LaGiornataDi({ giorno }: { giorno: string }) {
               <li key={r.id}>
                 <button
                   type="button"
-                  onClick={() => navigate(`/rapportini/${r.id}`)}
+                  onClick={() => navigate(`/rapportini/${r.id}`, apriDa(location, 'Home'))}
                   className="neo-press flex w-full cursor-pointer flex-wrap items-center justify-between gap-3 px-5 py-3 text-left hover:bg-amber-50"
                 >
                   <div className="min-w-0">

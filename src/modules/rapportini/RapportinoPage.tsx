@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { useNavigate, useParams } from 'react-router'
+import { useLocation, useNavigate, useParams } from 'react-router'
 import { data as fmtData, numero as fmtNumero, ora } from '../../lib/formato'
 import { Avviso, Button, Card, Cifra, Percorso, Table, Visore, Vuoto, type Scatto } from '../../ui'
-import { foglio, risali, strada, type Appartenenza } from './percorso'
+import { foglio, provenienzaDa, risali, strada, type Appartenenza } from './percorso'
 import { useNoteContabili } from '../cantieri/noteContabili'
 import { useSession } from '../auth/SessionProvider'
 import { usePermission } from '../auth/usePermission'
@@ -14,6 +14,7 @@ import { StatoRapportino } from './stato'
 export function RapportinoPage() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const provenienza = provenienzaDa(useLocation().state)
   const { app } = useSession()
   const { data: r, isPending, error } = useRapportino(id)
   const transizione = useTransizione()
@@ -85,12 +86,17 @@ export function RapportinoPage() {
 
   const adesso = () => new Date().toISOString()
 
+  /* La freccia torna DA DOVE SI E' ENTRATI, se lo si sa: l'elenco dei
+     rapportini, la home. Altrimenti al cantiere, come sempre. Vedi
+     `apriDa` in `percorso.ts`. */
+  const indietro = provenienza ?? risali(dove)
+
   return (
     <div className="mx-auto grid max-w-7xl gap-4">
       {/* Un rapportino e' la giornata di un cantiere: si torna li',
           sul giorno del foglio, da qualunque parte si sia entrati. */}
       <Percorso
-        indietro={risali(dove)}
+        indietro={indietro}
         qui={strada(dove, foglio(r.numero, r.anno))}
       />
 
@@ -313,7 +319,7 @@ export function RapportinoPage() {
                         // pagina di una scheda che non esiste piu'
                         // mostrerebbe "non trovo questo rapportino",
                         // cioe' un errore al posto di un risultato.
-                        onSuccess: () => navigate(risali(dove).a),
+                        onSuccess: () => navigate(indietro.a),
                       })
                     }
                   >

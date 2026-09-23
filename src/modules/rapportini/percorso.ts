@@ -102,3 +102,31 @@ export function strada(
 export function foglio(numero: number | null, anno: number | null): Tappa {
   return { etichetta: numero ? `n. ${numero}/${anno}` : 'Rapportino' }
 }
+
+/* ── DA DOVE SI E' ENTRATI ───────────────────────────────────────────
+
+   Aggiunto il 2026-09-23. La freccia di un rapportino portava SEMPRE
+   alla scheda del cantiere, ed e' giusto per chi ci arriva dal cantiere.
+   Ma il titolare che apre le schede dall'elenco «Rapportini» e preme la
+   freccia deve tornare all'elenco, com'era: «sennò che senso ha?».
+
+   Chi apre un rapportino passa `apriDa(location, etichetta)` come stato
+   della navigazione; il rapportino, se lo trova, torna li'. Senza stato
+   — un link incollato, un preferito — vale la regola di sempre: il
+   cantiere. Lo stato non finisce nell'indirizzo apposta: e' un ricordo
+   del percorso, non un pezzo della pagina. */
+export type Provenienza = { a: string; etichetta: string }
+
+/** Lo stato da passare a `navigate` per ricordare da dove si apre. */
+export function apriDa(
+  location: { pathname: string; search: string },
+  etichetta: string,
+): { state: { provenienza: Provenienza } } {
+  return { state: { provenienza: { a: location.pathname + location.search, etichetta } } }
+}
+
+/** La provenienza, se lo stato della navigazione ne porta una valida. */
+export function provenienzaDa(state: unknown): Provenienza | null {
+  const p = (state as { provenienza?: Provenienza } | null)?.provenienza
+  return p && typeof p.a === 'string' && typeof p.etichetta === 'string' ? p : null
+}
