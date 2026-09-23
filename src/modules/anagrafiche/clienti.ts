@@ -52,52 +52,6 @@ export function useCliente(id: string | undefined) {
   })
 }
 
-/**
- * Quanti cantieri ha ogni cliente, in una query sola.
- *
- * Nasce il 2026-09-22 con la griglia di card: era l'informazione che
- * mancava davvero — dice se un cliente e' vivo o di passaggio — e per
- * averla bisognava aprire la sua scheda.
- *
- * UNA CHIAMATA PER TUTTO L'ELENCO, non una per riga: si leggono i
- * `cliente_id` dei cantieri e si contano qui. Con dieci clienti una
- * query per card sarebbero undici viaggi per un numero, e l'elenco si
- * riempirebbe a scatti.
- *
- * Si contano gli ATTIVI, non tutti: il numero deve rispondere a
- * «quanti lavori ho aperti con lui», non a «quanti ne ho mai fatti».
- * Un cliente storico con dieci cantieri chiusi e' un cliente fermo, e
- * dirgli «10 cantieri» lo farebbe sembrare il piu' impegnativo di
- * tutti.
- *
- * La RLS ha gia' filtrato: chi apre questa pagina ha `anagrafiche.read`
- * e vede i cantieri della sua impresa.
- */
-export function useCantieriPerCliente() {
-  const { org } = useSession()
-
-  return useQuery({
-    queryKey: ['cantieri-per-cliente', org?.id],
-    enabled: Boolean(org?.id),
-    queryFn: async (): Promise<Map<string, number>> => {
-      const { data, error } = await supabase
-        .from('cantieri')
-        .select('cliente_id')
-        .eq('org_id', org!.id)
-        .eq('stato', 'attivo')
-
-      if (error) throw error
-
-      const conto = new Map<string, number>()
-      for (const c of data ?? []) {
-        if (!c.cliente_id) continue
-        conto.set(c.cliente_id, (conto.get(c.cliente_id) ?? 0) + 1)
-      }
-      return conto
-    },
-  })
-}
-
 export type DatiCliente = {
   /** `azienda` | `privato`. Dal 2026-09-22 e' una colonna vera e non
    *  piu' una deduzione dai campi fiscali: vedi `cliente-tipo.sql`. */

@@ -518,35 +518,6 @@ export function giorniLavorati(riga: RigaGriglia): number {
   return [...riga.giorni.values()].filter((c) => lavorate(c) > 0).length
 }
 
-/**
- * Quante persone hanno lavorato quel giorno.
- *
- * E' l'altra meta' della lettura verticale, e senza si legge male:
- * «61 ore» non dice se erano otto persone a sette ore o sette a otto e
- * mezzo. Con le due cifre accanto — «61 h · 8 persone» — il venerdi' a
- * mezzo organico si vede senza contare le celle a mano.
- *
- * Conta chi ha ORE, non chi ha una casella: un giorno di sola assenza
- * e' una persona che non c'era, e includerla gonfierebbe l'organico
- * proprio nel giorno in cui mancava.
- */
-export function presentiGiorno(righe: RigaGriglia[], giorno: string): number {
-  return righe.reduce((n, r) => {
-    const c = r.giorni.get(giorno)
-    return c && lavorate(c) > 0 ? n + 1 : n
-  }, 0)
-}
-
-/** Il totale di una colonna: quante ore ha lavorato la squadra quel
- *  giorno. E' la lettura verticale della griglia, quella che dice «il
- *  venerdi' siamo sempre a mezzo servizio». */
-export function totaleGiorno(righe: RigaGriglia[], giorno: string): number {
-  return righe.reduce((s, r) => {
-    const c = r.giorni.get(giorno)
-    return c ? s + lavorate(c) : s
-  }, 0)
-}
-
 /** La funzione nel database non c'e' ancora: e' un file dello schema
  *  mai eseguito, non un guasto. */
 export function funzioneMancante(errore: Error): boolean {

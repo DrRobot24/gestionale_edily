@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
-import { Avviso, Badge, Button, Vuoto, cn } from '../../ui'
+import { Avviso, Badge, Button, Rubrica, Vuoto } from '../../ui'
 import { usePermission } from '../auth/usePermission'
-import { useCantieriPerCliente, useClienti } from './clienti'
+import { useClienti } from './clienti'
 
 export function ClientiPage() {
   const navigate = useNavigate()
@@ -10,15 +10,6 @@ export function ClientiPage() {
   const puoScrivere = usePermission('anagrafiche.write')
 
   const { data: clienti, isPending, error } = useClienti({ soloAttivi: !conArchiviati })
-
-  /* QUI STAVA `useFigureRiepilogo('cliente')`, che riempiva la colonna
-     Amministratore. Tolta col 2026-09-22 insieme alla colonna: le
-     figure restano nella scheda del cliente e ora anche in quella del
-     cantiere, che e' dove si vanno a cercare davvero.
-
-     Al suo posto il conto dei cantieri aperti, che e' l'informazione
-     che mancava: dice se un cliente e' vivo o di passaggio. */
-  const { data: cantieriPer } = useCantieriPerCliente()
 
   if (isPending) return <p className="text-sm font-bold text-gray-600">Carico i clienti…</p>
   if (error) return <Avviso tono="errore">Non riesco a leggere i clienti: {error.message}</Avviso>
@@ -58,181 +49,47 @@ export function ClientiPage() {
           un cantiere.
         </Vuoto>
       ) : (
-        /* UNA GRIGLIA DI CARD, non una tabella. Dal 2026-09-22:
-           «clienti e' troppo dispersiva e fredda, accorpala insomma fai
-           qualcosa ma rendila piu' carina».
+        /* UN ELENCO A RUBRICA, dal 2026-09-23: il nome e un recapito, e
+           basta. «Per i clienti un elenco con nome e numero di telefono
+           oppure email di contatto e basta». Tipo, cantieri aperti e
+           figure stanno nella scheda del cliente, che si apre premendo
+           la riga.
 
-           Aveva ragione, e il difetto si misurava: tre colonne su uno
-           schermo largo duemila pixel, meta' pagina bianca, e la
-           colonna PARTITA IVA piena di trattini — sette clienti su
-           dieci non ce l'hanno, perche' sono condomini e privati. Una
-           colonna che per il settanta per cento dice «—» occupa spazio
-           per non dire niente.
-
-           La card risolve il contrario del problema di una tabella:
-           invece di chiedere a ogni riga le stesse caselle — e lasciarle
-           vuote quando il dato non c'e' — mostra solo cio' che quel
-           cliente ha davvero. Un condominio senza partita IVA non ha un
-           buco: ha una card piu' corta.
-
-           STESSO LINGUAGGIO DELLE CARD DEI CANTIERI in home, che il
-           tecnico usa ogni giorno: bordo nero, ombra piena, il nome
-           grande e il resto sotto. Due elenchi che si guardano allo
-           stesso modo si imparano una volta sola.
-
-           L'utente ha poi confermato la direzione: «amo le griglie di
-           cards». */
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {clienti.map((c) => {
-            const quanti = cantieriPer?.get(c.id) ?? 0
-            const contatto = c.email ?? c.telefono
-
-            /* IL TIPO ARRIVA DALLA COLONNA, da `cliente-tipo.sql`
-               (eseguito il 2026-09-22). Il ripiego sulla vecchia
-               deduzione serve alle righe scritte da wbs-office, che la
-               colonna non la passa: li' `tipo` resta nullo, e senza
-               ripiego quelle card non avrebbero badge senza che si
-               capisca perche'.
-
-               E' la stessa regola che applica `ClienteForm` riaprendo
-               una scheda: se un domani cambia, cambia in due posti. */
-            const privato =
-              c.tipo === 'privato' ||
-              (!c.tipo && !c.partita_iva && c.codice_fiscale?.trim().length === 16)
-
+           UN RECAPITO SOLO, il telefono prima dell'email: e' quello che
+           si usa per chiamare dal cantiere. L'email compare quando il
+           telefono non c'e'. */
+        <Rubrica
+          voci={clienti}
+          nome={(c) => c.ragione_sociale}
+          chiave={(c) => c.id}
+          spenta={(c) => !c.attivo}
+          onApri={(c) => navigate(`/anagrafiche/clienti/${c.id}`)}
+        >
+          {(c) => {
+            const contatto = c.telefono?.trim() || c.email?.trim()
             return (
-              /* UN `button`, non una `Card` con `onClick`: la primitiva
-                 e' un `div`, quindi si clicca col mouse ma non si
-                 raggiunge col tab e nessun lettore di schermo la
-                 annuncia come premibile. Tutta la card e' il bersaglio
-                 — in una griglia il gesto naturale e' premere il
-                 riquadro, non cercare un pulsante dentro — e allora
-                 dev'essere un bersaglio vero.
-
-                 Le classi della `Card` si ripetono a mano perche' la
-                 primitiva non accetta un `as`: bordo, angoli e ombra
-                 sono gli stessi, e `neo-press` da' l'affondamento che
-                 in questo progetto dice «questo si preme». */
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => navigate(`/anagrafiche/clienti/${c.id}`)}
-                className={cn(
-                  'neo-press flex cursor-pointer flex-col overflow-hidden rounded-xl border-2 border-black bg-white text-left shadow-neo transition-colors hover:bg-amber-50',
-                  !c.attivo && 'bg-gray-50',
-                )}
-              >
-                {/* `min-h-28` sul corpo: l'altezza minima comune che
-                    rende uguali tutte le card della pagina, non solo
-                    quelle della stessa riga.
-
-                    Senza, ogni riga della griglia si alza sulla card
-                    piu' alta che contiene e le righe non si parlano fra
-                    loro: un nome che va a capo, o un contatto presente
-                    dove il vicino non ce l'ha, gonfiava una riga sola e
-                    la pagina risultava a gradini. Stessa misura di
-                    Risorse, perche' le due griglie si leggono insieme.
-
-                    Chi ha meno da dire ha piu' aria dentro, ed e' il
-                    prezzo di una griglia regolare. */}
-                <div className="min-h-28 flex-1 p-4">
-                  {/* IL NOME E IL TIPO SULLA STESSA RIGA, come nelle
-                      Risorse: le due griglie si guardano nella stessa
-                      sessione di lavoro e devono dire le stesse cose
-                      nello stesso posto.
-
-                      `line-clamp-2` e non `truncate`: «Adriana Ciancio
-                      Paratore» su una riga sola si taglierebbe a meta'
-                      cognome, e due righe in una card non spostano
-                      niente.
-
-                      L'emoji sta FUORI dal badge e prima: dentro, su un
-                      fondo colorato, si confonderebbe col colore invece
-                      di staccarsene. Stessa scelta delle Risorse. */}
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="line-clamp-2 text-base font-extrabold leading-tight text-black">
-                      {c.ragione_sociale}
-                    </p>
-
-                    <span className="flex shrink-0 items-center gap-1.5">
-                      <span
-                        role="img"
-                        aria-label={privato ? 'Privato' : 'Azienda o ente'}
-                        title={
-                          privato
-                            ? 'Privato — persona fisica'
-                            : 'Azienda o ente — si fattura con partita IVA'
-                        }
-                        className="text-base leading-none"
-                      >
-                        {privato ? '👤' : '🏢'}
-                      </span>
-                      {/* `successo` e `neutro`, non `info`/`accento`:
-                          quei due nelle Risorse sono gia' presi da
-                          Tecnico e Impiegato, e riusarli qui con un
-                          significato diverso insegnerebbe che l'azzurro
-                          non vuol dire niente di preciso. Le due
-                          griglie si guardano nella stessa mezz'ora di
-                          lavoro.
-
-                          Il verde all'azienda e' il colore che in
-                          questa pagina dice gia' «cantieri aperti»:
-                          resta nella famiglia di cio' che lavora. Il
-                          privato e' bianco, che e' il «nessuno stato
-                          particolare» previsto dalla primitiva. */}
-                      <Badge
-                        colore={privato ? 'neutro' : 'successo'}
-                        className="px-2 py-0.5 text-[10px]"
-                      >
-                        {privato ? 'Privato' : 'Azienda'}
-                      </Badge>
-                    </span>
-                  </div>
-
+              <div className="grid w-full gap-x-6 gap-y-0.5 sm:grid-cols-2">
+                <span className="flex min-w-0 items-center gap-2">
+                  <span className="truncate text-sm font-extrabold text-black">
+                    {c.ragione_sociale}
+                  </span>
                   {!c.attivo && (
-                    <Badge className="mt-2 px-2 py-0.5 text-[10px]">archiviato</Badge>
+                    <Badge className="shrink-0 px-2 py-0.5 text-[10px]">archiviato</Badge>
                   )}
-
-                  {/* Il contatto, se c'e'. Niente trattino quando manca:
-                      in una card lo spazio non deve restare occupato da
-                      un segno che dice «vuoto» — la riga semplicemente
-                      non c'e'. E' la differenza con la tabella, dove il
-                      trattino serviva a tenere la colonna. */}
-                  {contatto && (
-                    <p className="mt-2 truncate text-xs font-semibold text-gray-600">
-                      {contatto}
-                    </p>
-                  )}
-                </div>
-
-                {/* LA FASCIA IN FONDO DICE QUANTI CANTIERI, ed e' il
-                    dato che prima non c'era da nessuna parte: per
-                    saperlo si doveva aprire il cliente.
-
-                    Si contano gli ATTIVI — vedi `useCantieriPerCliente`
-                    — quindi «nessun cantiere aperto» non vuol dire «non
-                    ci ho mai lavorato»: lo si dice cosi', per non far
-                    sembrare nuovo un cliente storico.
-
-                    Verde quando ce n'e' almeno uno: e' l'unico colore
-                    della card, e accende proprio i clienti su cui si sta
-                    lavorando adesso. */}
-                <div
-                  className={cn(
-                    'border-t-2 border-black px-4 py-2',
-                    quanti > 0 ? 'bg-lime-300' : 'bg-white',
-                  )}
+                </span>
+                <span
+                  className={
+                    contatto
+                      ? 'numerico truncate text-sm font-semibold text-gray-700'
+                      : 'text-sm font-semibold text-gray-400'
+                  }
                 >
-                  <p className="text-[11px] font-extrabold uppercase tracking-wide text-black">
-                    {quanti === 0
-                      ? 'Nessun cantiere aperto'
-                      : `${quanti} ${quanti === 1 ? 'cantiere aperto' : 'cantieri aperti'}`}
-                  </p>
-                </div>
-              </button>
+                  {contatto ?? 'nessun recapito'}
+                </span>
+              </div>
             )
-          })}
-        </div>
+          }}
+        </Rubrica>
       )}
     </div>
   )

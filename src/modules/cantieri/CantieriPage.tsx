@@ -98,7 +98,7 @@ export function CantieriPage() {
           {/* DUE BOTTONI E NON UNA TENDINA: le scelte sono due, e una
               tendina da due voci chiede un click in piu' per dire una
               cosa che sta gia' tutta sullo schermo. E' lo stesso
-              interruttore di «Ore per persona», settimana/mese.
+              interruttore del «Foglio presenze», settimana/mese.
 
               Compare solo quando c'e' qualcosa da filtrare: con otto
               cantieri tutti attivi, due bottoni di cui uno non cambia

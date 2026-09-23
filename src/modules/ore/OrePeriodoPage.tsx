@@ -18,9 +18,7 @@ import {
   nelFuturo,
   ore,
   periodoCorrente,
-  presentiGiorno,
   sposta,
-  totaleGiorno,
   useGiornateInSospeso,
   useOreGriglia,
   type OreGiorno,
@@ -246,7 +244,6 @@ export function OrePeriodoPage() {
             conOre={conOre}
             senzaOre={senzaOre}
             giorni={giorni}
-            periodo={periodo.passo}
             aperta={aperta}
             onApri={apriChiudi}
           />
@@ -260,7 +257,7 @@ export function OrePeriodoPage() {
 function Testata() {
   return (
     <div>
-      <h1 className="text-2xl font-black uppercase tracking-tight">Ore per persona</h1>
+      <h1 className="text-2xl font-black uppercase tracking-tight">Foglio presenze</h1>
       <p className="text-xs font-bold text-gray-600">
         Solo le giornate validate dal titolare · clicca un numero per vedere dove ha lavorato
       </p>
@@ -297,14 +294,12 @@ function Griglia({
   conOre,
   senzaOre,
   giorni,
-  periodo,
   aperta,
   onApri,
 }: {
   conOre: RigaGriglia[]
   senzaOre: RigaGriglia[]
   giorni: string[]
-  periodo: 'settimana' | 'mese'
   aperta: Aperta | null
   onApri: (chi: string, giorno: string | null) => void
 }) {
@@ -393,64 +388,11 @@ function Griglia({
           />
         ))}
 
-        {/* ── LA RIGA DEI TOTALI ──────────────────────────────────
-            La lettura verticale, e da sola giustifica la forma a
-            griglia. Sta sotto chi ha lavorato e sopra chi non ha
-            niente, perche' e' il totale di cio' che sta sopra.
-
-            DUE CIFRE PER GIORNO, non una. «61 ore» da solo non dice se
-            erano otto persone a sette ore o sette a otto e mezzo: il
-            numero delle presenze sotto le ore fa vedere il venerdi' a
-            mezzo organico senza contare le celle a mano. E' la lettura
-            che una riga di totali settimanali non puo' dare. */}
-        <tr className="border-t-2 border-black bg-gray-100 font-black">
-          <td />
-          <td className="uppercase">Totale {periodo === 'mese' ? 'mese' : 'settimana'}</td>
-          {giorni.map((g) => {
-            const t = totaleGiorno(conOre, g)
-            const presenti = presentiGiorno(conOre, g)
-            return (
-              <td
-                key={g}
-                /* Allineate in ALTO: le celle con due righe sono piu'
-                   alte, e al centro le ore di un giorno pieno
-                   finirebbero sotto il trattino di un giorno vuoto. In
-                   alto tutte le cifre delle ore stanno sulla stessa
-                   linea, che e' il punto di una riga di totali.
-
-                   `!` obbligatorio: la primitiva `Table` impone
-                   `[&_td]:align-middle`, un selettore discendente che
-                   per specificita' batte una classe sulla cella. Senza,
-                   questa riga verrebbe ignorata in silenzio. */
-                className={cn(
-                  'border-l-2 border-gray-300 !align-top text-center',
-                  // Il fondo grigio continua anche qui: la colonna del
-                  // sabato dev'essere riconoscibile per tutta la sua
-                  // altezza, non solo in testa.
-                  eFineSettimana(g) && 'bg-gray-100',
-                  t === 0 && 'font-semibold text-gray-300',
-                )}
-              >
-                <div className="numerico">{t === 0 ? '—' : ore(t)}</div>
-                {presenti > 0 && (
-                  <div className="numerico text-[10px] font-bold text-gray-500">
-                    {presenti} {presenti === 1 ? 'persona' : 'persone'}
-                  </div>
-                )}
-              </td>
-            )
-          })}
-          {/* Il totale del periodo si scrive piu' grande di tutti gli
-              altri numeri della pagina: e' l'unico che finisce davvero
-              in busta paga, e tutta la griglia esiste per farlo tornare. */}
-          {/* `!align-top` come le celle-giorno di questa stessa riga:
-              quelle hanno due righe (ore e persone) e stanno in alto, e
-              un totale centrato verticalmente cadrebbe fra le due. */}
-          <td className="numerico border-l-2 border-black px-3 !align-top text-center text-base font-black">
-            {ore(conOre.reduce((s, r) => s + r.ordinarie + r.straordinarie, 0))}
-          </td>
-        </tr>
-
+        {/* NIENTE RIGA DEI TOTALI PER GIORNO, dal 2026-09-23: c'era una
+            riga «Totale settimana» con le ore e le presenze di ogni
+            giorno, e l'utente l'ha tolta — «non e' il luogo adatto dove
+            vedere questa cosa». Il foglio presenze si legge per persona;
+            il totale che conta e' quello in fondo a ogni riga. */}
         {/* ── chi non ha ore ─────────────────────────────────────
             Sotto una riga di stacco, non mescolati: la tabella resta
             leggibile anche con venti operai di cui meta' fermi. Ma ci

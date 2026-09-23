@@ -222,7 +222,7 @@ const VOCI: Voce[] = [
      degli altri. */
   {
     to: '/ore',
-    etichetta: 'Ore per persona',
+    etichetta: 'Foglio presenze',
     perm: 'paghe.read',
     elemento: <OrePeriodoPage />,
   },

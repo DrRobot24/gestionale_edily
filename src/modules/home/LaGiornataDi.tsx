@@ -76,6 +76,9 @@ export function LaGiornataDi({ giorno }: { giorno: string }) {
      cantieri ha tre righe e una persona sola. */
   const persone = new Set(righeOre.filter((o) => lavorate(o) > 0).map((o) => o.dipendente_id))
   const oreTotali = righeOre.reduce((t, o) => t + lavorate(o), 0)
+  const particolari = righeOre.filter(
+    (o) => Number(o.ore_assenza) > 0 || o.tipo_assenza || o.giustificazione,
+  )
 
   return (
     <Card className="overflow-hidden">
@@ -168,22 +171,21 @@ export function LaGiornataDi({ giorno }: { giorno: string }) {
             )
           })}
 
-          {/* CHI C'ERA, in fondo e senza cantiere: e' la lettura
-              trasversale che le schede non danno — le stesse ore viste
-              per persona invece che per cantiere. Serve a rispondere a
-              «chi ha lavorato quel giorno», che da sette schede si
-              ricava solo contando a mano. */}
-          {righeOre.length > 0 && (
+          {/* SOLO I CASI PARTICOLARI, dal 2026-09-23. Prima qui c'era
+              «Chi c'era», tutti i presenti con le loro ore: l'utente l'ha
+              tolto perche' ripeteva cio' che si legge nei rapportini e
+              nel Foglio presenze. Restano le persone di cui c'e'
+              qualcosa da sapere: un'assenza (ferie, permesso, malattia)
+              o una giustificazione scritta dal tecnico. */}
+          {particolari.length > 0 && (
             <li className="bg-gray-50 px-5 py-3">
               <p className="mb-2 text-[10px] font-extrabold uppercase tracking-wide text-gray-600">
-                Chi c&rsquo;era
+                Assenze e permessi
               </p>
               <div className="flex flex-wrap gap-1.5">
-                {righeOre
-                  .filter((o) => lavorate(o) > 0 || Number(o.ore_assenza) > 0)
-                  .map((o) => (
-                    <PersonaDelGiorno key={o.dipendente_id} riga={o} />
-                  ))}
+                {particolari.map((o) => (
+                  <CasoParticolare key={o.dipendente_id} riga={o} />
+                ))}
               </div>
             </li>
           )}
@@ -193,26 +195,29 @@ export function LaGiornataDi({ giorno }: { giorno: string }) {
   )
 }
 
-/** Una persona e le sue ore del giorno. L'assenza si dice invece delle
- *  ore: chi non c'era non ha fatto zero ore, e' mancato per un motivo,
- *  e quel motivo e' cio' che si va a cercare. */
-function PersonaDelGiorno({ riga: o }: { riga: OreGiorno }) {
-  const assente = lavorate(o) === 0 && Number(o.ore_assenza) > 0
+/** Una persona e il motivo per cui la sua giornata non e' normale.
+ *  Si dice il motivo, non le ore lavorate: quelle stanno nei rapportini. */
+function CasoParticolare({ riga: o }: { riga: OreGiorno }) {
+  const assenza = Number(o.ore_assenza)
+  const motivo = o.tipo_assenza ?? o.giustificazione?.motivo ?? 'assente'
+  const tutto = lavorate(o) === 0
 
   return (
     <span
       className={cn(
         'rounded-full border-2 border-black px-2.5 py-0.5 text-[11px] font-bold',
-        assente ? 'bg-gray-200 text-gray-600' : 'bg-white text-black',
+        tutto ? 'bg-gray-200 text-gray-700' : 'bg-amber-100 text-black',
       )}
-      title={o.tipo_assenza ?? undefined}
+      title={o.nota_assenza ?? o.giustificazione?.descrizione ?? undefined}
     >
       {o.nominativo}
       {' · '}
-      {assente ? (
-        <span className="uppercase">{o.tipo_assenza ?? 'assente'}</span>
-      ) : (
-        <span className="numerico">{numero(lavorate(o))} h</span>
+      <span className="uppercase">{motivo}</span>
+      {assenza > 0 && !tutto && (
+        <>
+          {' · '}
+          <span className="numerico">{numero(assenza)} h</span>
+        </>
       )}
     </span>
   )

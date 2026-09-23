@@ -17,7 +17,7 @@ import { useSession } from '../auth/SessionProvider'
 
    Le ore del tecnico restavano quindi «inviato» per sempre, e siccome
    la griglia mostra solo `validato` e `contabilizzato` — per coerenza
-   con «Ore per persona» e col riquadro in home — Zito compariva a zero.
+   col «Foglio presenze» e col riquadro in home — Zito compariva a zero.
    Le sue ore c'erano, semplicemente non erano mai diventate buone.
 
    IL DATABASE ERA GIA' PRONTO. La policy `ore_personali_update` di
