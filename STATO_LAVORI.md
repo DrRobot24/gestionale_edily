@@ -26,6 +26,12 @@ con la sigla (FER, MAL…) quando la giornata è validata.
 `nessuno-dimenticato.sql`. Stesso giorno: i calendari del tecnico e del titolare
 leggono la stessa regola (`statoGiornataTecnico`), e un giorno feriale passato
 con cantieri assegnati e **nessuna** scheda è rosso.
+Sempre il 23: **si rapporta solo da quando il titolare assegna** — card, calendari
+e invio contano i cantieri assegnati a chi compila in quella data (`dal`/`al`,
+anche retroattivi) e già aperti. Il tecnico segna assenti **solo gli operai e se
+stesso**. Eseguiti anche i blocchi 6 (rieseguito) e 8 di `assenze.sql`: **niente
+SQL in sospeso**. Le date di inizio dei cantieri e delle assegnazioni di Zito
+(quasi tutte dal 17 o dal 21) le corregge il titolare, se servono.
 
 0. **Il muro "Lavori in corso": spento in locale, ALZATO in produzione.** Il
    `.env` locale ha `VITE_WIP=false` dal 15 settembre 2026, per i test in
