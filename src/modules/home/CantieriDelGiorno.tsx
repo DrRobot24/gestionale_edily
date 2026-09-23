@@ -11,7 +11,7 @@ import { oggi } from '../rapportini/campiRapportino'
 import { useMioDipendente } from '../anagrafiche/dipendenti'
 import { useGiornataPersonale, totaleOre } from '../oreproprie/orePersonali'
 import { AssentiDelGiorno } from './AssentiDelGiorno'
-import { cantiereDovuto } from './useConsegneDelMese'
+import { cantiereAtteso, useConsegneDelMese } from './useConsegneDelMese'
 
 /* ══════════════════════════════════════════════════════════════════
    La giornata del tecnico, un cantiere per card.
@@ -90,7 +90,7 @@ export function CantieriDelGiorno({
   onCambiaGiorno?: (giorno: string) => void
 }) {
   const navigate = useNavigate()
-  const { org } = useSession()
+  const { org, app } = useSession()
   const qc = useQueryClient()
 
   /**
@@ -120,6 +120,7 @@ export function CantieriDelGiorno({
 
   const { data: cantieri, isPending: caricoCantieri, error: erroreCantieri } = useCantieri()
   const { data: rapportini, isPending: caricoRapportini } = useRapportini()
+  const { data: consegne, isPending: caricoConsegne } = useConsegneDelMese(giorno)
 
   /* Le ore di chi compila. Un tecnico che gira i cantieri lavora come
      tutti, e una giornata in cui l'unica persona certa di esserci stata
@@ -148,7 +149,7 @@ export function CantieriDelGiorno({
   const mancanoLeMieOre =
     Boolean(mio) && oreLette && !(miaGiornata && totaleOre(miaGiornata) > 0)
 
-  if (caricoCantieri || caricoRapportini) {
+  if (caricoCantieri || caricoRapportini || caricoConsegne) {
     return <p className="text-sm font-bold text-gray-600">Carico la giornata…</p>
   }
   if (erroreCantieri) {
@@ -193,19 +194,22 @@ export function CantieriDelGiorno({
     )
   }
 
-  /* I cantieri che quel giorno chiedevano la scheda: attivi E gia'
-     aperti secondo la loro data di inizio. Stessa regola del calendario
-     (`cantiereDovuto`, 2026-09-23): prima qui c'erano gli attivi di
-     oggi, e sfogliando all'indietro si vedevano card da compilare per
-     giorni in cui quei cantieri non esistevano ancora. */
-  const attivi = (cantieri ?? []).filter((c) => cantiereDovuto(c, giorno))
+  /* I cantieri che quel giorno chiedevano la scheda A TE: attivi, e
+     assegnati a te in quella data dal titolare — anche con
+     un'assegnazione retroattiva — e gia' aperti. Stessa regola del
+     calendario (`cantiereAtteso`, 2026-09-23). Prima qui c'erano gli
+     attivi di oggi, e sfogliando all'indietro si vedevano card che il
+     calendario non pretendeva. */
+  const attivi = (cantieri ?? []).filter(
+    (c) => c.stato === 'attivo' && cantiereAtteso(consegne?.attese ?? [], app?.userId ?? '', c.id, giorno),
+  )
 
   if (attivi.length === 0) {
     return (
       <Avviso tono="info">
         {giorno === oggi()
           ? 'Nessun cantiere attivo assegnato a te: oggi non c’è niente da compilare.'
-          : `Il ${dataEstesa(giorno)} nessuno dei tuoi cantieri era ancora aperto: non c’è niente da compilare.`}
+          : `Il ${dataEstesa(giorno)} non avevi cantieri assegnati: non c’è niente da compilare.`}
       </Avviso>
     )
   }

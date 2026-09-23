@@ -18,7 +18,14 @@ const RUOLI_CANTIERE = ['capocantiere', 'tecnico', 'direttore lavori', 'assisten
 
 const oggi = () => new Date().toLocaleDateString('sv-SE')
 
-export function Squadra({ cantiereId }: { cantiereId: string }) {
+export function Squadra({
+  cantiereId,
+  dataInizio,
+}: {
+  cantiereId: string
+  /** L'apertura del cantiere: la data «dal» proposta quando si assegna. */
+  dataInizio: string | null
+}) {
   const puoAssegnare = usePermission('cantieri.assign')
   const { data: assegnazioni, isPending } = useAssegnazioni(cantiereId)
   const { data: membri } = useMembri()
@@ -29,7 +36,15 @@ export function Squadra({ cantiereId }: { cantiereId: string }) {
   const [apri, setApri] = useState(false)
   const [chi, setChi] = useState('')
   const [ruolo, setRuolo] = useState('tecnico')
-  const [dal, setDal] = useState(oggi())
+  /* «DAL» PARTE DALL'APERTURA DEL CANTIERE, non da oggi (2026-09-23).
+     Il principio dell'utente: «se oggi 23 settembre gli viene assegnato
+     un cantiere che partiva dal 3 settembre, il tecnico deve riparare le
+     mancanze e rapportare a far data dal 3». Da quella data in poi il
+     suo calendario si accende di rosso sui giorni scoperti. Il titolare
+     la puo' cambiare: e' una proposta, non un vincolo. */
+  const [dal, setDal] = useState(
+    dataInizio && dataInizio < oggi() ? dataInizio : oggi(),
+  )
 
   const nomeDi = (userId: string) =>
     membri?.find((m) => m.userId === userId)?.nome ?? 'Utente non più in azienda'
@@ -98,6 +113,11 @@ export function Squadra({ cantiereId }: { cantiereId: string }) {
             </label>
           </div>
 
+          <p className="text-[11px] font-semibold text-gray-600">
+            <strong>Dal</strong> è il giorno da cui la persona deve i rapportini di questo
+            cantiere, anche se è nel passato: i giorni scoperti da quella data diventano
+            rossi nel suo calendario, da recuperare.
+          </p>
           <p className="text-[11px] font-semibold text-gray-600">
             Il ruolo in cantiere è descrittivo: serve a sapere chi fa cosa sul posto. Non
             cambia i permessi — quelli restano quelli del ruolo aziendale.

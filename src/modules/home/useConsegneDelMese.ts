@@ -311,22 +311,22 @@ export function useTecniciScollegati() {
  * almeno si vede. Comanda allora l'assegnazione, che c'e' sempre.
  */
 /*
- * ⚠️ DAL 2026-09-23 `dal` CONTA SOLO SE IL CANTIERE NON HA DATA DI INIZIO.
+ * IL PRINCIPIO, detto dall'utente il 2026-09-23: «il tecnico deve
+ * rapportare SOLO quando il titolare gli assegna quel cantiere, e nelle
+ * date in cui e' stato assegnato. Se oggi 23 settembre gli viene
+ * assegnato un cantiere che partiva dal 3 settembre, il tecnico deve
+ * riparare le mancanze e rapportare a far data dal 3».
  *
- * I dati veri l'hanno smentito: Mazzotta risulta assegnato a Zito dal
- * 21, ma il suo rapportino del 17 esiste ed e' validato. `dal` registra
- * quando l'incarico e' stato INSERITO nel gestionale, non quando il
- * lavoro e' cominciato — e usato come soglia faceva aspettare meno
- * schede di quelle vere. La data che dice quando si lavora e'
- * `data_inizio` del cantiere: e' quella che comanda, e anche le card
- * della home la usano (vedi `cantiereDovuto`), cosi' le due cose non
- * possono piu' dire due numeri diversi sullo stesso giorno.
+ * Quindi `dal` e' la data che il TITOLARE sceglie, anche nel passato, e
+ * non quella in cui ha premuto il pulsante: un'assegnazione retroattiva
+ * accende di rosso i giorni da recuperare. Le card della home usano la
+ * stessa regola (`cantiereAtteso`).
  */
 export function cantieriAttesi(attese: AttesaCantiere[], userId: string, giorno: string): number {
   return attese.filter(
     (a) =>
       a.userId === userId &&
-      (a.dataInizio !== null || a.dal <= giorno) &&
+      a.dal <= giorno &&
       (a.al === null || a.al >= giorno) &&
       (a.dataInizio === null || a.dataInizio <= giorno) &&
       (a.dataFine === null || a.dataFine >= giorno),
@@ -366,22 +366,23 @@ export function oreDelTecnico(ore: ConsegnaOre[], tecnico: TecnicoInCampo): Map<
 }
 
 /**
- * Il cantiere chiede la scheda di quel giorno? La regola delle CARD in
- * home, gemella di `cantieriAttesi` (2026-09-23): attivo, gia' aperto
- * secondo la sua data di inizio, non ancora chiuso.
+ * Quel cantiere chiede a quella persona la scheda di quel giorno? La
+ * regola delle CARD in home, la stessa di `cantieriAttesi` guardata un
+ * cantiere per volta (2026-09-23).
  *
- * Prima le card mostravano i cantieri attivi di OGGI su qualunque
- * giorno sfogliato: il 14 settembre chiedevano cinque schede di cantieri
- * che aprivano il 17, mentre il calendario — giustamente — lasciava il
- * 14 bianco. Due regole nella stessa pagina che si contraddicevano.
+ * Prima le card mostravano i cantieri attivi di OGGI su qualunque giorno
+ * sfogliato: il 14 settembre chiedevano cinque schede che il calendario
+ * — giustamente — non pretendeva. Due regole nella stessa pagina.
  */
-export function cantiereDovuto(
-  c: { stato: string; data_inizio: string | null; data_fine_effettiva?: string | null },
+export function cantiereAtteso(
+  attese: AttesaCantiere[],
+  userId: string,
+  cantiereId: string,
   giorno: string,
 ): boolean {
-  return (
-    c.stato === 'attivo' &&
-    (c.data_inizio === null || c.data_inizio <= giorno) &&
-    (c.data_fine_effettiva == null || c.data_fine_effettiva >= giorno)
-  )
+  return cantieriAttesi(
+    attese.filter((a) => a.cantiereId === cantiereId),
+    userId,
+    giorno,
+  ) > 0
 }

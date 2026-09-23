@@ -352,7 +352,7 @@ export function CantiereForm() {
         )}
       </form>
 
-      {!nuovo && id && <Squadra cantiereId={id} />}
+      {!nuovo && id && <Squadra cantiereId={id} dataInizio={cantiere?.data_inizio ?? null} />}
     </div>
   )
 }

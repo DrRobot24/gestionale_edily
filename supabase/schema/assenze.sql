@@ -391,18 +391,30 @@ declare
   dimenticati    text;
   quanti_fuori   integer;
 begin
-  -- 1. OGNI CANTIERE ATTIVO HA LA SUA SCHEDA
+  -- 1. OGNI CANTIERE ASSEGNATO QUEL GIORNO HA LA SUA SCHEDA
   --
-  -- ...se quel giorno era gia' aperto (2026-09-23): stessa regola delle
-  -- card in home (`cantiereDovuto`). Prima si pretendeva la scheda anche
-  -- di un cantiere che apriva giorni dopo, e l'invio diceva «manca una
-  -- scheda» senza che nessuna card la mostrasse.
+  -- Il principio (utente, 2026-09-23): «il tecnico deve rapportare SOLO
+  -- quando il titolare gli assegna quel cantiere, e nelle date in cui e'
+  -- stato assegnato». Quindi si contano i cantieri assegnati a CHI
+  -- INVIA in quella data — `dal`/`al` di `cantiere_assegnazioni`, anche
+  -- retroattivi — e gia' aperti. E' la stessa regola delle card e del
+  -- calendario in home (`cantiereAtteso`): prima qui c'erano tutti gli
+  -- attivi visibili oggi, e l'invio poteva chiedere schede che nessuna
+  -- card mostrava.
   select count(*) into mancanti
   from public.cantieri c
   where c.org_id = p_org
     and c.stato = 'attivo'
     and (c.data_inizio is null or c.data_inizio <= p_giorno)
     and (c.data_fine_effettiva is null or c.data_fine_effettiva >= p_giorno)
+    and exists (
+      select 1
+      from public.cantiere_assegnazioni a
+      where a.cantiere_id = c.id
+        and a.user_id = auth.uid()
+        and a.dal <= p_giorno
+        and (a.al is null or a.al >= p_giorno)
+    )
     and not exists (
       select 1
       from public.rapportini r
