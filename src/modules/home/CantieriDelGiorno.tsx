@@ -200,8 +200,16 @@ export function CantieriDelGiorno({
      calendario (`cantiereAtteso`, 2026-09-23). Prima qui c'erano gli
      attivi di oggi, e sfogliando all'indietro si vedevano card che il
      calendario non pretendeva. */
+  /* RETE DI SICUREZZA: se di chi compila non si legge NESSUNA
+     assegnazione — la RLS non gliele mostra, o nessuno gliele ha mai
+     registrate — si torna agli attivi che vede. Una home senza card
+     bloccherebbe il lavoro del giorno, ed e' peggio di una card in
+     piu'. */
+  const mieAttese = (consegne?.attese ?? []).filter((a) => a.userId === app?.userId)
   const attivi = (cantieri ?? []).filter(
-    (c) => c.stato === 'attivo' && cantiereAtteso(consegne?.attese ?? [], app?.userId ?? '', c.id, giorno),
+    (c) =>
+      c.stato === 'attivo' &&
+      (mieAttese.length === 0 || cantiereAtteso(mieAttese, app?.userId ?? '', c.id, giorno)),
   )
 
   if (attivi.length === 0) {
