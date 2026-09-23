@@ -1,6 +1,6 @@
 # Stato lavori — Gestionale Edily
 
-> Aggiornato al **22 settembre 2026**, sera.
+> Aggiornato al **23 settembre 2026**.
 > Questo file raccoglie fatti **verificati contro il database reale**, non dedotti
 > dallo schema. Dove c'è scritto "verificato" vuol dire che è stato provato con
 > una query e ne è stato osservato l'esito.
@@ -11,6 +11,21 @@
 
 Questa è la prima cosa da leggere aprendo il progetto, e vale sia per una chat
 nuova sia per chi ci torna dopo giorni.
+
+**Novità del 23 settembre 2026 — LE ASSENZE (SQL eseguito dall'utente).**
+L'assenza a giornata intera non sta più nei rapportini: è una riga di
+[`assenze`](supabase/schema/assenze.sql) (persona + giorno + motivo), scritta
+**dal tecnico** nel riquadro «Assenti» della sua home prima dell'invio. Se è lui
+a mancare, qualcuno compila con la **sua** utenza. Due trigger impediscono di
+essere assenti e su un rapportino lo stesso giorno; nei rapportini il motivo
+resta solo per il permesso di poche ore (vincolo
+`rapportino_ore_niente_assenze_intere`). Le 3 assenze vecchie (Mancuso 22/09,
+Fraglica e Michalski 23/09) sono state spostate. Il Foglio presenze mostra **0**
+con la sigla (FER, MAL…) quando la giornata è validata.
+`invia_foglio_giornata` ora è definita in `assenze.sql`: **non rieseguire**
+`nessuno-dimenticato.sql`. Stesso giorno: i calendari del tecnico e del titolare
+leggono la stessa regola (`statoGiornataTecnico`), e un giorno feriale passato
+con cantieri assegnati e **nessuna** scheda è rosso.
 
 0. **Il muro "Lavori in corso": spento in locale, ALZATO in produzione.** Il
    `.env` locale ha `VITE_WIP=false` dal 15 settembre 2026, per i test in
