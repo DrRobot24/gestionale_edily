@@ -212,6 +212,7 @@ export function ConsegneDalCampo() {
                   attese={data!.attese}
                   rapportini={data!.rapportini}
                   ore={data!.ore}
+                  assenti={data!.assenti}
                   onChiudi={() => setGiornoAperto(null)}
                 />
                 <LaGiornataDi giorno={giornoAperto} />
@@ -407,6 +408,7 @@ function DettaglioGiorno({
   attese,
   rapportini,
   ore,
+  assenti,
   onChiudi,
 }: {
   giorno: string
@@ -414,6 +416,7 @@ function DettaglioGiorno({
   attese: AttesaCantiere[]
   rapportini: ConsegnaRapportino[]
   ore: ConsegnaOre[]
+  assenti: Set<string>
   onChiudi: () => void
 }) {
   return (
@@ -464,6 +467,28 @@ function DettaglioGiorno({
              frazione impossibile. */
           const completo = arrivati >= attesi
           const suQuanti = Math.max(arrivati, attesi)
+          const assente = assenti.has(`${t.dipendenteId}|${giorno}`)
+
+          /* NIENTE DA RICEVERE, NIENTE DA DIRE (2026-09-23). Quel giorno
+             non aveva cantieri assegnati e non e' arrivato niente: la
+             riga prima diceva «0 di 0 rapportini», «ore non dichiarate»
+             in rosso e «non e' arrivato niente» — tre frasi vere che
+             insieme accusavano il tecnico di una mancanza che non
+             c'era. L'utente: «meglio un'informazione non data che
+             un'info sbagliata». Il calendario quel giorno e' bianco, e
+             il dettaglio dice la stessa cosa. */
+          if (attesi === 0 && suoi.length === 0 && !sueOre) {
+            return (
+              <li key={t.dipendenteId} className="px-5 py-3">
+                <p className="text-sm font-bold text-black">{t.nominativo}</p>
+                <p className="mt-1 text-xs font-semibold text-gray-600">
+                  {assente
+                    ? 'Assente in questa giornata.'
+                    : 'Nessun cantiere assegnato in questa giornata: non c’era niente da ricevere.'}
+                </p>
+              </li>
+            )
+          }
 
           return (
             <li key={t.dipendenteId} className="px-5 py-3">
@@ -493,13 +518,19 @@ function DettaglioGiorno({
                     className={cn(
                       'px-2 py-0.5 text-[10px]',
                       !sueOre
-                        ? 'bg-rose-300'
+                        ? assente
+                          ? 'bg-gray-200'
+                          : 'bg-rose-300'
                         : sueOre.stato === 'validato' || sueOre.stato === 'contabilizzato'
                           ? 'bg-lime-300'
                           : 'bg-yellow-300',
                     )}
                   >
-                    {!sueOre ? 'ore non dichiarate' : `sue ore: ${riassuntoOre(sueOre)}`}
+                    {sueOre
+                      ? `sue ore: ${riassuntoOre(sueOre)}`
+                      : assente
+                        ? 'assente'
+                        : 'ore non dichiarate'}
                   </Badge>
                 </div>
               </div>
