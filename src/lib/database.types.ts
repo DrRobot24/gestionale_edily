@@ -67,6 +67,79 @@ export type Database = {
           },
         ]
       }
+      /* Scritte a mano: arrivano con `economia-risorse.sql` (2026-09-23). */
+      buste_paga: {
+        Row: {
+          anno: number
+          created_at: string
+          dipendente_id: string
+          id: string
+          mese: number
+          netto: number
+          note: string | null
+          org_id: string
+          scritta_da: string | null
+          updated_at: string
+        }
+        Insert: {
+          anno: number
+          created_at?: string
+          dipendente_id: string
+          id?: string
+          mese: number
+          netto: number
+          note?: string | null
+          org_id: string
+          scritta_da?: string | null
+          updated_at?: string
+        }
+        Update: {
+          anno?: number
+          created_at?: string
+          dipendente_id?: string
+          id?: string
+          mese?: number
+          netto?: number
+          note?: string | null
+          org_id?: string
+          scritta_da?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      monte_ferie: {
+        Row: {
+          dipendente_id: string
+          ferie_annue_ore: number
+          org_id: string
+          permessi_annui_ore: number
+          saldi_al: string
+          saldo_ferie_ore: number
+          saldo_permessi_ore: number
+          updated_at: string
+        }
+        Insert: {
+          dipendente_id: string
+          ferie_annue_ore?: number
+          org_id: string
+          permessi_annui_ore?: number
+          saldi_al: string
+          saldo_ferie_ore?: number
+          saldo_permessi_ore?: number
+          updated_at?: string
+        }
+        Update: {
+          dipendente_id?: string
+          ferie_annue_ore?: number
+          org_id?: string
+          permessi_annui_ore?: number
+          saldi_al?: string
+          saldo_ferie_ore?: number
+          saldo_permessi_ore?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       activity_log: {
         Row: {
           action: string

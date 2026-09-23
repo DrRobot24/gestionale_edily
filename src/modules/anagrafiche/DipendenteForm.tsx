@@ -131,6 +131,7 @@ export function DipendenteForm() {
   const navigate = useNavigate()
   const nuovo = !id
   const puoScrivere = usePermission('anagrafiche.write')
+  const puoVederePaghe = usePermission('paghe.read')
 
   const { data: dipendente, isPending, error } = useDipendente(id)
   const { data: membri } = useMembri()
@@ -267,6 +268,13 @@ export function DipendenteForm() {
             <Badge className="mt-1">archiviato — non compare negli elenchi</Badge>
           )}
         </div>
+        {/* L'economia della persona sta in una sottopagina: netto, ferie e
+            permessi mese per mese. Solo per chi fa le paghe. */}
+        {!nuovo && puoVederePaghe && (
+          <Button onClick={() => navigate(`/anagrafiche/operai/${id}/economia`)}>
+            Economia →
+          </Button>
+        )}
       </div>
 
       {salva.isError && <Avviso tono="errore">{(salva.error as Error).message}</Avviso>}

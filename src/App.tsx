@@ -23,6 +23,7 @@ import { MieOrePage } from './modules/oreproprie/MieOrePage'
 import { OrePeriodoPage } from './modules/ore/OrePeriodoPage'
 import { useOreDaLeggere } from './modules/ore/useOreDaLeggere'
 import { DipendenteForm } from './modules/anagrafiche/DipendenteForm'
+import { EconomiaRisorsaPage } from './modules/anagrafiche/EconomiaRisorsaPage'
 import { useMioDipendente } from './modules/anagrafiche/dipendenti'
 import type { Permission } from './modules/auth/session'
 import { env } from './lib/env'
@@ -384,6 +385,12 @@ export default function App() {
             <Route
               path="anagrafiche/operai/:id"
               element={proteggi('anagrafiche.read', <DipendenteForm />)}
+            />
+            {/* L'economia della persona: netto, ferie, permessi. Solo chi fa
+                le paghe (2026-09-23). */}
+            <Route
+              path="anagrafiche/operai/:id/economia"
+              element={proteggi('paghe.read', <EconomiaRisorsaPage />)}
             />
           </Route>
         </Routes>
