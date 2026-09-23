@@ -70,7 +70,9 @@ export function LaGiornataDi({ giorno }: { giorno: string }) {
     al: giorno,
   })
 
-  const schede = (rapportini ?? []).filter((r) => r.data === giorno)
+  /* Le bozze no: il titolare vede cio' che gli e' stato INVIATO. Una
+     scheda non ancora partita non e' pronta (utente, 2026-09-23). */
+  const schede = (rapportini ?? []).filter((r) => r.data === giorno && r.stato !== 'bozza')
   const righeOre = (ore ?? []).filter((o) => o.data === giorno)
 
   /* Le persone che quel giorno hanno fatto qualcosa, e il totale.

@@ -434,17 +434,25 @@ function DettaglioGiorno({
 
       <ul className="divide-y-2 divide-black">
         {tecnici.map((t) => {
+          /* SOLO CIO' CHE E' STATO INVIATO (2026-09-23). Le bozze del
+             tecnico qui non esistono: una scheda non ancora partita non e'
+             pronta, e dire al titolare «ce n'e' una scritta e non
+             inviata» gli darebbe un motivo per sollecitare lavoro che non
+             e' ancora suo da guardare. Per lui una bozza e' una scheda
+             non arrivata, e tanto basta. Stesso trattamento per le ore. */
           const suoi = rapportini.filter(
-            (r) => r.data === giorno && r.compilato_da === t.userId,
+            (r) => r.data === giorno && r.compilato_da === t.userId && r.stato !== 'bozza',
           )
           const sueOre =
-            ore.find((o) => o.data === giorno && o.dipendente_id === t.dipendenteId) ?? null
-          const bozze = suoi.filter((r) => r.stato === 'bozza').length
+            ore.find(
+              (o) =>
+                o.data === giorno && o.dipendente_id === t.dipendenteId && o.stato !== 'bozza',
+            ) ?? null
           /* Quanti ne doveva QUEL giorno, non quanti cantieri esistono
              oggi: e' lo stesso conto che colora la casella, quindi il
              badge e il calendario non possono contraddirsi. */
           const attesi = cantieriAttesi(attese, t.userId, giorno)
-          const arrivati = suoi.length - bozze
+          const arrivati = suoi.length
           /* IL DENOMINATORE SI VEDE SEMPRE — «voglio vedere sempre il
              denominatore, quindi 7 di 7» (utente, 2026-09-22). La
              frazione dice piu' del numero solo: «7 di 7» conferma che
@@ -503,11 +511,6 @@ function DettaglioGiorno({
                   >
                     {arrivati} di {suQuanti}{' '}
                     {suQuanti === 1 ? 'rapportino' : 'rapportini'}
-                    {/* Le bozze NON si contano come arrivate: sono
-                        scritte, ma il titolare non le ha ricevute. Un
-                        conteggio che le include direbbe «7 di 8»
-                        quando in mano ne ha cinque. */}
-                    {bozze > 0 && ` · ${bozze} in bozza`}
                   </Badge>
 
                   {/* Le sue ore sono una riga a se': sono il pezzo che
@@ -554,20 +557,6 @@ function DettaglioGiorno({
 
                   La differenza non e' di quantita' ma di soggetto: qui
                   si guarda una persona, sotto una giornata. */}
-
-              {bozze > 0 && (
-                <p className="mt-1 text-xs font-bold text-amber-800">
-                  {bozze === 1
-                    ? '1 scheda è scritta ma non inviata: deve mandarla.'
-                    : `${bozze} schede sono scritte ma non inviate: deve mandarle.`}
-                </p>
-              )}
-
-              {sueOre?.stato === 'bozza' && (
-                <p className="mt-1 text-xs font-bold text-amber-800">
-                  Ha scritto le sue ore ma non le ha inviate.
-                </p>
-              )}
 
               {suoi.length === 0 && !sueOre && (
                 <p className="mt-1 text-xs font-semibold text-rose-700">

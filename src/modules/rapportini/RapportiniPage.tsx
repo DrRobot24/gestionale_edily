@@ -45,7 +45,7 @@ export function RapportiniPage() {
     setParams(v === 'aperti' ? {} : { vista: v }, { replace: true })
   const location = useLocation()
   const { app } = useSession()
-  const { data: rapportini, isPending, error } = useRapportini()
+  const { data: tutti, isPending, error } = useRapportini()
 
   /* I nomi di chi compila. `useMembri()` e' lo stesso hook che usa la
      squadra del cantiere: `compilato_da` e' un utente, i nomi stanno in
@@ -68,6 +68,13 @@ export function RapportiniPage() {
   if (error) {
     return <Avviso tono="errore">Non riesco a leggere i rapportini: {error.message}</Avviso>
   }
+
+  /* LE BOZZE DEGLI ALTRI NON SI VEDONO (2026-09-23). Una scheda che il
+     tecnico non ha ancora inviato non e' pronta: «quando lo sara' la
+     inviera', sono cazzi suoi» (utente). Mostrarla al titolare vuol dire
+     dargli un motivo per sollecitare lavoro che non e' ancora suo da
+     guardare. Chi l'ha scritta la vede, perche' ci sta lavorando. */
+  const rapportini = tutti.filter((r) => r.stato !== 'bozza' || r.compilato_da === app?.userId)
 
   // Per chi valida, la coda di lavoro e' l'unica cosa che conta davvero:
   // quanti ne ha in attesa sul tavolo.
