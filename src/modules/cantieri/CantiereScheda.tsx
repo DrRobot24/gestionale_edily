@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router'
-import { Avviso, Badge, Button, Card, Percorso, Visore, Vuoto, cn, type Scatto } from '../../ui'
+import { Avviso, Badge, Button, Card, Percorso, Visore, cn, type Scatto } from '../../ui'
 import { data as fmtData, dataEstesa, euro } from '../../lib/formato'
 import { usePermission } from '../auth/usePermission'
 import { useSession } from '../auth/SessionProvider'
@@ -16,6 +16,8 @@ import { RiquadroDocumenti } from '../documenti/RiquadroDocumenti'
 import { RiquadroFigure } from '../anagrafiche/RiquadroFigure'
 import { CalendarioCantiere } from './CalendarioCantiere'
 import { useCantiere } from './cantieri'
+import { RiquadroClienti } from './RiquadroClienti'
+import { useClientiCantiere } from './clientiCantiere'
 import { RiquadroNoteContabili } from './RiquadroNoteContabili'
 import { StatoCantiere } from './stato'
 
@@ -65,6 +67,7 @@ export function CantiereScheda() {
 
   const { data: c, isPending, error } = useCantiere(id)
   const { data: rapportini, isPending: caricoSchede } = useRapportiniCantiere(id)
+  const { data: altriClienti } = useClientiCantiere(id)
 
   const giorno = params.get('data') ?? oggi()
   const cambiaGiorno = (nuovo: string) => {
@@ -93,6 +96,13 @@ export function CantiereScheda() {
   }
 
   const cliente = Array.isArray(c.clienti) ? c.clienti[0] : c.clienti
+  // Nella testa tutti i clienti, il principale per primo: con due
+  // comproprietari, scriverne uno solo farebbe sembrare l'altro un
+  // ospite. Il dettaglio sta nel riquadro «I clienti».
+  const nomiClienti = [
+    cliente?.ragione_sociale,
+    ...(altriClienti ?? []).filter((a) => a.clienteId !== c.cliente_id).map((a) => a.nome),
+  ].filter(Boolean)
   const luogo = [c.indirizzo, c.comune && `${c.comune}${c.provincia ? ` (${c.provincia})` : ''}`]
     .filter(Boolean)
     .join(' — ')
@@ -126,9 +136,34 @@ export function CantiereScheda() {
           </div>
           <p className="text-sm font-semibold text-gray-600">
             {c.codice}
-            {cliente?.ragione_sociale && ` · ${cliente.ragione_sociale}`}
+            {nomiClienti.length > 0 && ` · ${nomiClienti.join(', ')}`}
             {luogo && ` · ${luogo}`}
           </p>
+          {/* «Chi lavora qui» LO VEDE SOLO CHI ASSEGNA, e la storia di
+              questo dato dice una regola del progetto.
+
+              Il 2026-09-15 l'utente ha chiesto di toglierlo: «se vede
+              quel cantiere vuol dire che gli e' stato assegnato, quindi
+              e' una ripetizione». Vero — PER IL TECNICO, che vede solo i
+              cantieri suoi e ci trova scritto il proprio nome. L'ho
+              tolto per tutti, ed era sbagliato: poche ore dopo lo stesso
+              utente ha notato che dal punto di vista del titolare era
+              sparita un'informazione che gli serve. Giuseppe vede TUTTI
+              i cantieri dell'impresa ed e' lui che assegna i tecnici:
+              per lui la squadra non e' una ripetizione, e' il dato su
+              cui decide.
+
+              La regola generale: **ogni profilo ha una schermata
+              diversa**, e «questa informazione e' inutile» va sempre
+              chiesto «a chi». Il cancello e' `cantieri.assign`.
+
+              DAL 2026-09-24 E' UN BADGE IN TESTA, non piu' un riquadro in
+              mezzo alla pagina: «mettilo fuori da qualche parte in
+              maniera piu' graziosa», perche' lo spazio centrale va alle
+              figure del cantiere. E' un'informazione da leggere di
+              passaggio, e sta accanto al nome del cantiere e al cliente,
+              che sono dello stesso genere. */}
+          {puoAssegnare && <SquadraInTesta cantiereId={id!} />}
         </div>
 
         {puoModificare && (
@@ -156,26 +191,28 @@ export function CantiereScheda() {
           lettura sul telefono. */}
       <div className="grid gap-4 lg:grid-cols-3 lg:items-start">
         <div className="grid gap-4 lg:col-span-2">
-          {/* «Chi lavora qui» LO VEDE SOLO CHI ASSEGNA, e la storia di
-              questo riquadro dice una regola del progetto.
+          {/* ══ LE FIGURE DEL CANTIERE ══
+              Direttore Lavori, coordinatori della sicurezza, collaudo:
+              sono NOMINATI PER QUEST'OPERA, non appartengono al
+              cliente. Lo stesso condominio che fa due interventi in
+              anni diversi puo' avere due DL diversi, e il CSE e' per
+              definizione il coordinatore *di questo cantiere*.
 
-              Il 2026-09-15 l'utente ha chiesto di toglierlo: «se vede
-              quel cantiere vuol dire che gli e' stato assegnato, quindi
-              e' una ripetizione». Vero — PER IL TECNICO, che vede solo i
-              cantieri suoi e ci trova scritto il proprio nome. L'ho
-              tolto per tutti, ed era sbagliato: poche ore dopo lo stesso
-              utente ha notato che dal punto di vista del titolare era
-              sparita un'informazione che gli serve. Giuseppe vede TUTTI
-              i cantieri dell'impresa ed e' lui che assegna i tecnici:
-              per lui la squadra non e' una ripetizione, e' il dato su
-              cui decide.
-
-              La regola generale, che vale oltre questo riquadro: **ogni
-              profilo ha una schermata diversa**, e «questa informazione
-              e' inutile» va sempre chiesto «a chi». Il cancello e'
-              `cantieri.assign` perche' chi assegna e' esattamente chi
-              deve sapere chi c'e' gia'. */}
-          {puoAssegnare && <SquadraAssegnata cantiereId={id!} />}
+              Il tecnico le LEGGE, ed e' una scelta piu' larga che sui
+              documenti: il DL e il CSE sono le persone che in cantiere
+              incontra, e un numero di telefono che sta nel gestionale
+              ma non si legge dal posto dove serve finisce su un
+              foglietto. */}
+          {/* NEL CENTRO DELLA PAGINA dal 2026-09-24, al posto della
+              squadra: «lo spazio centrale vorrei dedicarlo alle figure
+              apicali, il Direttore Lavori, l'Amministratore». Sono le
+              persone con cui il cantiere si parla, e prima stavano in
+              fondo alla colonna stretta sotto le foto. */}
+          <RiquadroFigure
+            ambito="cantiere"
+            riferimentoId={id!}
+            puoScrivere={puoScrivereAnagrafiche}
+          />
 
           {/* Sopra il calendario di proposito. Il calendario dice cosa
               e' successo; questa dice dove sta il lavoro adesso, ed e'
@@ -192,6 +229,18 @@ export function CantiereScheda() {
         </div>
 
         <div className="grid gap-4">
+          {/* In cima alla colonna: per chi e' il lavoro e' la prima
+              cosa che si chiede di un cantiere, dopo come si chiama. */}
+          <RiquadroClienti
+            cantiereId={id!}
+            principale={
+              c.cliente_id && cliente
+                ? { id: c.cliente_id, nome: cliente.ragione_sociale, telefono: cliente.telefono }
+                : null
+            }
+            puoScrivere={puoModificare}
+            vedeAnagrafica={puoScrivereAnagrafiche}
+          />
           <Anagrafica cantiere={c} vedeSoldi={vedeSoldi} />
           <FotoDelCantiere cantiereId={id!} />
           {/* I documenti di questo cantiere: computi, disegni,
@@ -204,24 +253,6 @@ export function CantiereScheda() {
               Il tecnico li LEGGE, e la RLS glielo concede solo sui
               cantieri suoi. Carica e cancella chi tiene le anagrafiche:
               alla Edily Stefania e il titolare. */}
-          {/* ══ LE FIGURE DEL CANTIERE ══
-              Direttore Lavori, coordinatori della sicurezza, collaudo:
-              sono NOMINATI PER QUEST'OPERA, non appartengono al
-              cliente. Lo stesso condominio che fa due interventi in
-              anni diversi puo' avere due DL diversi, e il CSE e' per
-              definizione il coordinatore *di questo cantiere*.
-
-              Il tecnico le LEGGE, ed e' una scelta piu' larga che sui
-              documenti: il DL e il CSE sono le persone che in cantiere
-              incontra, e un numero di telefono che sta nel gestionale
-              ma non si legge dal posto dove serve finisce su un
-              foglietto. */}
-          <RiquadroFigure
-            ambito="cantiere"
-            riferimentoId={id!}
-            puoScrivere={puoScrivereAnagrafiche}
-          />
-
           <RiquadroDocumenti
             ambito="cantiere"
             riferimentoId={id!}
@@ -393,77 +424,58 @@ function FasciaGiornata({
 /* ── squadra ───────────────────────────────────────────────────── */
 
 /**
- * Chi e' assegnato oggi, in sola lettura.
+ * Chi e' assegnato al cantiere, come badge sotto il titolo.
  *
- * Lo monta solo chi ha `cantieri.assign` — owner e admin — perche' e'
- * l'unico a cui dice qualcosa: vede tutti i cantieri dell'impresa ed e'
- * lui che decide chi ci va. Al tecnico, che vede solo i cantieri
- * assegnati a lui, ripeterebbe il suo stesso nome.
+ * Solo le assegnazioni in corso: quelle chiuse sono storia, e la storia
+ * si legge nel modulo dell'anagrafica. In una panoramica farebbero
+ * sembrare in squadra chi non c'e' piu'.
  *
- * Non riusa il componente `Squadra`: quello e' una tabella larga con
- * assegna, termina e riapri, e vive giustamente dentro il modulo
- * dell'anagrafica. Qui serve l'altra meta' della domanda — chi ci
- * lavora — senza le leve per cambiarla.
- *
- * Restano solo le assegnazioni in corso. Quelle chiuse sono storia, e la
- * storia si legge nel modulo: in una panoramica farebbero sembrare in
- * squadra chi non c'e' piu'.
+ * Il badge porta al modulo, dove le assegnazioni si cambiano: e' li'
+ * che va chi guarda la squadra per decidere. Il «dal» sta nel tooltip,
+ * perche' si cerca raramente e occuperebbe meta' del badge.
  */
-function SquadraAssegnata({ cantiereId }: { cantiereId: string }) {
+function SquadraInTesta({ cantiereId }: { cantiereId: string }) {
   const navigate = useNavigate()
   const { data: assegnazioni, isPending } = useAssegnazioni(cantiereId)
   const { data: membri, error: erroreMembri } = useMembri()
 
+  if (isPending) return null
   const inCorso = (assegnazioni ?? []).filter((a) => assegnazioneInCorso(a))
+  const gestisci = () => navigate(`/cantieri/${cantiereId}/modifica`)
 
   return (
-    <Card className="grid gap-3 p-5">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h2 className="text-lg font-extrabold text-black">Chi lavora qui</h2>
-          <p className="text-xs font-semibold text-gray-600">
-            Assegnazioni in corso. Chi è in questo elenco vede il cantiere e può compilarci i
-            rapportini.
-          </p>
-        </div>
-        <Button dimensione="sm" onClick={() => navigate(`/cantieri/${cantiereId}/modifica`)}>
-          Gestisci
-        </Button>
-      </div>
-
-      {isPending ? (
-        <p className="text-sm font-bold text-gray-600">Carico la squadra…</p>
-      ) : inCorso.length === 0 ? (
-        <Vuoto>Nessuno è assegnato a questo cantiere in questo momento.</Vuoto>
+    <div className="mt-2 flex flex-wrap items-center gap-2">
+      {inCorso.length === 0 ? (
+        <button
+          type="button"
+          onClick={gestisci}
+          className="cursor-pointer rounded-full border-2 border-dashed border-gray-400 px-3 py-0.5 text-xs font-bold text-gray-600 hover:border-black hover:text-black"
+        >
+          Nessuno assegnato — assegna
+        </button>
       ) : (
-        <ul className="grid gap-2 sm:grid-cols-2">
-          {inCorso.map((a) => {
-            const m = membri?.find((x) => x.userId === a.user_id)
-            return (
-              <li
-                key={a.id}
-                className="flex items-center justify-between gap-3 rounded-xl border-2 border-black bg-amber-50 px-3 py-2"
-              >
-                <div className="min-w-0">
-                  {/* Se l'elenco dei membri non e' arrivato non si scrive
-                      "utente non piu' in azienda": sarebbe una bugia
-                      detta con sicurezza. Si dice che il nome manca. */}
-                  <p className="truncate text-sm font-bold text-black">
-                    {m?.nome ?? (erroreMembri ? 'Nome non disponibile' : '…')}
-                  </p>
-                  <p className="truncate text-[11px] font-semibold uppercase tracking-wide text-gray-600">
-                    {a.ruolo_cantiere}
-                  </p>
-                </div>
-                <span className="shrink-0 text-[11px] font-semibold text-gray-600">
-                  dal {fmtData(a.dal)}
-                </span>
-              </li>
-            )
-          })}
-        </ul>
+        inCorso.map((a) => {
+          const m = membri?.find((x) => x.userId === a.user_id)
+          return (
+            <button
+              key={a.id}
+              type="button"
+              onClick={gestisci}
+              title={`Assegnato dal ${fmtData(a.dal)} — premi per gestire la squadra`}
+              className="neo-press flex cursor-pointer items-center gap-2 rounded-full border-2 border-black bg-amber-100 py-0.5 pr-3 pl-1 text-xs font-bold text-black shadow-neo-xs"
+            >
+              <span className="rounded-full bg-black px-2 py-px text-[10px] font-black uppercase tracking-wide text-amber-300">
+                {a.ruolo_cantiere}
+              </span>
+              {/* Se l'elenco dei membri non e' arrivato non si scrive
+                  "utente non piu' in azienda": sarebbe una bugia detta
+                  con sicurezza. Si dice che il nome manca. */}
+              {m?.nome ?? (erroreMembri ? 'Nome non disponibile' : '…')}
+            </button>
+          )
+        })
       )}
-    </Card>
+    </div>
   )
 }
 

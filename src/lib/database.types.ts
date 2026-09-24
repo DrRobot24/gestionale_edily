@@ -243,6 +243,52 @@ export type Database = {
           },
         ]
       }
+      cantiere_clienti: {
+        Row: {
+          cantiere_id: string
+          cliente_id: string
+          created_at: string
+          id: string
+          org_id: string
+        }
+        Insert: {
+          cantiere_id: string
+          cliente_id: string
+          created_at?: string
+          id?: string
+          org_id: string
+        }
+        Update: {
+          cantiere_id?: string
+          cliente_id?: string
+          created_at?: string
+          id?: string
+          org_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cantiere_clienti_cantiere_id_fkey"
+            columns: ["cantiere_id"]
+            isOneToOne: false
+            referencedRelation: "cantieri"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cantiere_clienti_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clienti"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cantiere_clienti_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cantieri: {
         Row: {
           cap: string | null

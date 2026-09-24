@@ -18,7 +18,7 @@ export function useCantiere(id: string | undefined) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('cantieri')
-        .select(`${CAMPI}, clienti ( ragione_sociale )`)
+        .select(`${CAMPI}, clienti ( ragione_sociale, telefono )`)
         .eq('id', id!)
         .eq('org_id', org!.id)
         .single()
