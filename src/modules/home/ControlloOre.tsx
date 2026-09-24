@@ -102,33 +102,32 @@ export function ControlloOre({ giorno }: { giorno: string }) {
       0,
     )
 
+    /* UNA RIGA, dal 2026-09-24: titolo a sinistra, totale a destra.
+       Nella colonna stretta della home il riquadro con intestazione e
+       spiegazione la allungava oltre la giornata accanto, lasciando un
+       vuoto sotto gli assenti. Il metro delle otto ore sta nel `title`.
+       Quando qualcosa non torna il riquadro pieno qui sotto resta: li'
+       c'e' da fare. */
     return (
-      <Card className="overflow-hidden">
-        <div className="border-b-2 border-black bg-white px-5 py-3">
-          <h2 className="text-sm font-extrabold uppercase tracking-wide text-black">
+      <Card
+        className="flex items-center justify-between gap-3 px-4 py-3"
+        title={`Il conto è sulla persona, su tutti i cantieri. Il metro sono ${ORE_STANDARD} ore.`}
+      >
+        <div className="min-w-0">
+          <h2 className="text-xs font-extrabold uppercase tracking-wide text-black">
             Ore della giornata
           </h2>
-          <p className="text-xs font-semibold text-gray-600">
-            Il conto è sulla persona, su tutti i cantieri. Il metro sono {ORE_STANDARD} ore.
+          <p className="text-[11px] font-semibold text-gray-600">
+            {persone === 0
+              ? 'nessuna ora registrata'
+              : `${persone} ${persone === 1 ? 'persona' : 'persone'} · tornano per tutti`}
           </p>
         </div>
-
-        <div className="grid gap-1 px-5 py-4">
-          {persone === 0 ? (
-            <p className="text-sm font-semibold text-gray-600">
-              Nessuna ora registrata per questa giornata.
-            </p>
-          ) : (
-            <>
-              <p className="text-2xl font-extrabold leading-none text-black">
-                <span className="numerico">{numero(ore)}</span> ore
-              </p>
-              <p className="text-xs font-semibold text-gray-600">
-                {persone} {persone === 1 ? 'persona' : 'persone'} · le ore tornano per tutti
-              </p>
-            </>
-          )}
-        </div>
+        {persone > 0 && (
+          <p className="shrink-0 text-xl font-extrabold leading-none text-black">
+            <span className="numerico">{numero(ore)}</span> ore
+          </p>
+        )}
       </Card>
     )
   }

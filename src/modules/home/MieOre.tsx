@@ -85,63 +85,51 @@ export function MieOre({ giorno }: { giorno: string }) {
   const coperte = ordinarie + assenza
   const mancano = Math.max(0, ORE_STANDARD - coperte)
 
+  /* UNA RIGA, dal 2026-09-24, come «Ore della giornata»: titolo e
+     stato a sinistra, il numero a destra. Il pulsante per compilarle
+     compare sotto solo quando ne mancano, che e' l'unico caso in cui
+     il riquadro chiede qualcosa. */
   return (
-    <Card className="overflow-hidden">
-      <div className="border-b-2 border-black bg-white px-5 py-3">
-        <h2 className="text-sm font-extrabold uppercase tracking-wide text-black">
-          Le tue ore
-        </h2>
-        {/* NON «su tutti i cantieri della giornata»: queste ore non
-            stanno su nessun cantiere, ed e' tutto il punto. */}
-        <p className="text-xs font-semibold text-gray-600">
-          {mio.cognome} {mio.nome} · la tua giornata di lavoro
-        </p>
-      </div>
-
-      <div className="grid gap-3 px-5 py-4">
-        {caricoOre ? (
-          <p className="text-sm font-bold text-gray-600">Carico…</p>
-        ) : (
-          <>
-            <div>
-              <p className="text-2xl font-extrabold leading-none text-black">
-                <span className="numerico">{numero(ordinarie)}</span> ore
-                {straordinarie > 0 && (
-                  <span className="text-base font-bold text-gray-700">
-                    {' '}
-                    + <span className="numerico">{numero(straordinarie)}</span> straord.
-                  </span>
-                )}
-              </p>
-              <p className="mt-1 text-xs font-semibold text-gray-600">
-                {assenza > 0 && <>{numero(assenza)} ore coperte da un motivo · </>}
-                {mancano > 0
-                  ? `ne mancano ${numero(mancano)} alle ${ORE_STANDARD}`
-                  : `la tua giornata è completa`}
-              </p>
-            </div>
-
-            {/* Una strada sola, e porta al foglio personale. Il giorno
-                viaggia nell'indirizzo: chi sta guardando il 16 e clicca
-                qui vuole compilare il 16, non oggi. */}
-            {mancano > 0 && (
-              <div className="grid gap-2 border-t-2 border-dashed border-gray-300 pt-3">
-                <p className="text-[11px] font-bold uppercase tracking-wide text-gray-600">
-                  Quante ore hai lavorato in questa giornata
-                </p>
-                <Button
-                  dimensione="sm"
-                  variante="primario"
-                  className="w-full"
-                  onClick={() => navigate(`/mie-ore?data=${giorno}`)}
-                >
-                  Compila le tue ore
-                </Button>
-              </div>
+    <Card className="grid gap-2 px-4 py-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-xs font-extrabold uppercase tracking-wide text-black">
+            Le tue ore
+          </h2>
+          {/* NON «su tutti i cantieri»: queste ore non stanno su nessun
+              cantiere, ed e' tutto il punto. */}
+          <p className="text-[11px] font-semibold text-gray-600">
+            {caricoOre
+              ? 'Carico…'
+              : `${assenza > 0 ? `${numero(assenza)} h coperte da un motivo · ` : ''}${
+                  mancano > 0 ? `ne mancano ${numero(mancano)} alle ${ORE_STANDARD}` : 'giornata completa'
+                }`}
+          </p>
+        </div>
+        {!caricoOre && (
+          <p className="shrink-0 text-right text-xl font-extrabold leading-none text-black">
+            <span className="numerico">{numero(ordinarie)}</span> ore
+            {straordinarie > 0 && (
+              <span className="block text-[11px] font-bold text-gray-700">
+                + <span className="numerico">{numero(straordinarie)}</span> straord.
+              </span>
             )}
-          </>
+          </p>
         )}
       </div>
+
+      {/* Il giorno viaggia nell'indirizzo: chi guarda il 16 e clicca
+          qui vuole compilare il 16, non oggi. */}
+      {!caricoOre && mancano > 0 && (
+        <Button
+          dimensione="sm"
+          variante="primario"
+          className="w-full"
+          onClick={() => navigate(`/mie-ore?data=${giorno}`)}
+        >
+          Compila le tue ore
+        </Button>
+      )}
     </Card>
   )
 }
