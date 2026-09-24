@@ -84,11 +84,17 @@ const TIPI: Record<
 
 /* Le colonne, uguali per i titoli e per le righe cosi' restano in
    fila. Sotto lg restano cognome (col nome accanto) e costo orario:
-   sette colonne su un telefono non si leggono. */
+   sette colonne su un telefono non si leggono.
+
+   LE COLONNE DI TESTO HANNO UN TETTO (13-14rem), dal 2026-09-24:
+   divise in frazioni dello schermo, su un monitor largo cognome e
+   nome finivano a mezzo metro l'uno dall'altro. Lo spazio che avanza
+   va in UNA colonna sola, quella prima dei soldi, cosi' anagrafica a
+   sinistra e importi a destra restano due blocchi compatti. */
 const COLONNE_CON_STIPENDIO =
-  'grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1.2fr)_6rem_7rem_6.5rem_6.5rem]'
+  'grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 lg:grid-cols-[minmax(0,13rem)_minmax(0,13rem)_minmax(0,14rem)_6.5rem_8rem_minmax(6.5rem,1fr)_6.5rem]'
 const COLONNE_SENZA_STIPENDIO =
-  'grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1.2fr)_6rem_7rem_6.5rem]'
+  'grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 lg:grid-cols-[minmax(0,13rem)_minmax(0,13rem)_minmax(0,14rem)_6.5rem_minmax(8rem,1fr)_6.5rem]'
 
 export function DipendentiPage() {
   const navigate = useNavigate()
