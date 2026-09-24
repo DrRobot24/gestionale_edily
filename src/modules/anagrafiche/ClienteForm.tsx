@@ -48,7 +48,12 @@ type Tipo = 'azienda' | 'privato'
 const schema = z
   .object({
     tipo: z.enum(['azienda', 'privato']),
-    ragione_sociale: z.string().min(1, 'Serve il nome'),
+    // Il nominativo si chiede in due modi: ragione sociale per
+    // l'azienda, cognome e nome separati per il privato. Quale dei due
+    // e' obbligatorio lo decide il tipo, piu' sotto.
+    ragione_sociale: z.string(),
+    cognome: z.string(),
+    nome: z.string(),
     partita_iva: z.string(),
     codice_fiscale: z.string(),
     indirizzo: z.string(),
@@ -75,6 +80,12 @@ const schema = z
     }
 
     if (v.tipo === 'privato') {
+      if (!v.cognome.trim()) {
+        ctx.addIssue({ code: 'custom', path: ['cognome'], message: 'Serve il cognome' })
+      }
+      if (!v.nome.trim()) {
+        ctx.addIssue({ code: 'custom', path: ['nome'], message: 'Serve il nome' })
+      }
       if (cf.length !== 16) {
         ctx.addIssue({
           code: 'custom',
@@ -83,6 +94,13 @@ const schema = z
         })
       }
     } else {
+      if (!v.ragione_sociale.trim()) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['ragione_sociale'],
+          message: 'Serve la ragione sociale',
+        })
+      }
       if (cf && cf.length !== 11 && cf.length !== 16) {
         ctx.addIssue({
           code: 'custom',
@@ -107,6 +125,8 @@ type Campi = z.infer<typeof schema>
 const VUOTO: Campi = {
   tipo: 'azienda',
   ragione_sociale: '',
+  cognome: '',
+  nome: '',
   partita_iva: '',
   codice_fiscale: '',
   indirizzo: '',
@@ -166,6 +186,12 @@ export function ClienteForm() {
     reset({
       tipo: suo,
       ragione_sociale: cliente.ragione_sociale,
+      // Un privato senza le due colonne (scritto da wbs-office, o prima
+      // di `cliente-cognome-nome.sql`) apre coi campi vuoti: meglio
+      // chiederli che indovinare dove finisce un cognome doppio. Il
+      // nominativo di adesso resta leggibile nel titolo della pagina.
+      cognome: cliente.cognome ?? '',
+      nome: cliente.nome ?? '',
       partita_iva: cliente.partita_iva ?? '',
       codice_fiscale: cliente.codice_fiscale ?? '',
       indirizzo: cliente.indirizzo ?? '',
@@ -197,11 +223,18 @@ export function ClienteForm() {
   const privato = tipo === 'privato'
 
   async function onSubmit(c: Campi) {
+    const cognome = c.cognome.trim()
+    const nome = c.nome.trim()
     const salvato = await salva.mutateAsync({
       id,
       dati: {
         tipo: c.tipo,
-        ragione_sociale: c.ragione_sociale.trim(),
+        // Per il privato `ragione_sociale` si compone qui, «Cognome
+        // Nome»: e' la colonna che leggono l'elenco, le tendine dei
+        // cantieri e wbs-office, e cosi' si ordina per cognome.
+        ragione_sociale: c.tipo === 'privato' ? `${cognome} ${nome}` : c.ragione_sociale.trim(),
+        cognome: c.tipo === 'privato' ? cognome : null,
+        nome: c.tipo === 'privato' ? nome : null,
         partita_iva: vuoto(c.partita_iva),
         codice_fiscale: vuoto(c.codice_fiscale)?.toUpperCase() ?? null,
         indirizzo: vuoto(c.indirizzo),
@@ -317,13 +350,35 @@ export function ClienteForm() {
             )}
           </div>
 
-          <Campo
-            etichetta={privato ? 'Nome e cognome' : 'Ragione sociale'}
-            placeholder={privato ? 'Mario Rossi' : 'Costruzioni Rossi S.r.l.'}
-            disabled={!puoScrivere}
-            errore={errors.ragione_sociale?.message}
-            {...register('ragione_sociale')}
-          />
+          {/* Il privato ha cognome e nome in due campi, dal 2026-09-24:
+              con un campo solo l'ordine dipendeva da chi scriveva, e
+              la rubrica dei clienti finiva mezza al rovescio. */}
+          {privato ? (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Campo
+                etichetta="Cognome"
+                placeholder="Rossi"
+                disabled={!puoScrivere}
+                errore={errors.cognome?.message}
+                {...register('cognome')}
+              />
+              <Campo
+                etichetta="Nome"
+                placeholder="Mario"
+                disabled={!puoScrivere}
+                errore={errors.nome?.message}
+                {...register('nome')}
+              />
+            </div>
+          ) : (
+            <Campo
+              etichetta="Ragione sociale"
+              placeholder="Costruzioni Rossi S.r.l."
+              disabled={!puoScrivere}
+              errore={errors.ragione_sociale?.message}
+              {...register('ragione_sociale')}
+            />
+          )}
 
           <div className="grid gap-4 sm:grid-cols-2">
             {!privato && (

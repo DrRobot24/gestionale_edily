@@ -333,11 +333,13 @@ export type Database = {
           cap: string | null
           codice_fiscale: string | null
           codice_sdi: string | null
+          cognome: string | null
           comune: string | null
           created_at: string
           email: string | null
           id: string
           indirizzo: string | null
+          nome: string | null
           note: string | null
           org_id: string
           partita_iva: string | null
@@ -353,11 +355,13 @@ export type Database = {
           cap?: string | null
           codice_fiscale?: string | null
           codice_sdi?: string | null
+          cognome?: string | null
           comune?: string | null
           created_at?: string
           email?: string | null
           id?: string
           indirizzo?: string | null
+          nome?: string | null
           note?: string | null
           org_id: string
           partita_iva?: string | null
@@ -373,11 +377,13 @@ export type Database = {
           cap?: string | null
           codice_fiscale?: string | null
           codice_sdi?: string | null
+          cognome?: string | null
           comune?: string | null
           created_at?: string
           email?: string | null
           id?: string
           indirizzo?: string | null
+          nome?: string | null
           note?: string | null
           org_id?: string
           partita_iva?: string | null

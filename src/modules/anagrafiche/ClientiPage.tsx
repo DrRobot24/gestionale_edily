@@ -49,15 +49,16 @@ export function ClientiPage() {
           un cantiere.
         </Vuoto>
       ) : (
-        /* UN ELENCO A RUBRICA, dal 2026-09-23: il nome e un recapito, e
-           basta. «Per i clienti un elenco con nome e numero di telefono
-           oppure email di contatto e basta». Tipo, cantieri aperti e
-           figure stanno nella scheda del cliente, che si apre premendo
-           la riga.
+        /* UN ELENCO A RUBRICA: nominativo, indirizzo e telefono, e
+           basta. Dal 2026-09-24 «voglio vedere solo: nominativo,
+           indirizzo e numero di telefono» — l'email, che prima faceva
+           da ripiego quando mancava il telefono, esce dall'elenco e
+           resta nella scheda.
 
-           UN RECAPITO SOLO, il telefono prima dell'email: e' quello che
-           si usa per chiamare dal cantiere. L'email compare quando il
-           telefono non c'e'. */
+           IL NOMINATIVO E' COGNOME NOME. Il form del privato chiede i
+           due campi separati e compone `ragione_sociale` in quell'ordine
+           (`cliente-cognome-nome.sql`), e la Rubrica ordina su quel
+           testo. Per le aziende e' la ragione sociale. */
         <Rubrica
           voci={clienti}
           nome={(c) => c.ragione_sociale}
@@ -66,9 +67,10 @@ export function ClientiPage() {
           onApri={(c) => navigate(`/anagrafiche/clienti/${c.id}`)}
         >
           {(c) => {
-            const contatto = c.telefono?.trim() || c.email?.trim()
+            const indirizzo = indirizzoCompleto(c)
+            const telefono = c.telefono?.trim()
             return (
-              <div className="grid w-full gap-x-6 gap-y-0.5 sm:grid-cols-2">
+              <div className="grid w-full gap-x-6 gap-y-0.5 sm:grid-cols-[2fr_3fr_1fr]">
                 <span className="flex min-w-0 items-center gap-2">
                   <span className="truncate text-sm font-extrabold text-black">
                     {c.ragione_sociale}
@@ -79,12 +81,21 @@ export function ClientiPage() {
                 </span>
                 <span
                   className={
-                    contatto
+                    indirizzo
+                      ? 'truncate text-sm font-semibold text-gray-700'
+                      : 'text-sm font-semibold text-gray-400'
+                  }
+                >
+                  {indirizzo || 'nessun indirizzo'}
+                </span>
+                <span
+                  className={
+                    telefono
                       ? 'numerico truncate text-sm font-semibold text-gray-700'
                       : 'text-sm font-semibold text-gray-400'
                   }
                 >
-                  {contatto ?? 'nessun recapito'}
+                  {telefono || 'nessun telefono'}
                 </span>
               </div>
             )
@@ -93,4 +104,17 @@ export function ClientiPage() {
       )}
     </div>
   )
+}
+
+/** «Via Roma 12, Catania (CT)»: i pezzi che ci sono, nell'ordine in cui si leggono. */
+function indirizzoCompleto(c: {
+  indirizzo: string | null
+  comune: string | null
+  provincia: string | null
+}) {
+  const via = c.indirizzo?.trim()
+  const comune = c.comune?.trim()
+  const prov = c.provincia?.trim()
+  const luogo = comune && prov ? `${comune} (${prov})` : comune || prov
+  return [via, luogo].filter(Boolean).join(', ')
 }
