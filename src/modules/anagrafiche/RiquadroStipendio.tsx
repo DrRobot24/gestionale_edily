@@ -9,7 +9,20 @@ import {
 } from './dipendenti'
 
 /* ══════════════════════════════════════════════════════════════════
-   Lo stipendio pattuito di una persona, dal 2026-09-24.
+   Il SALARIO di una persona, dal 2026-09-24.
+
+   COME LO CHIAMA L'UTENTE, e la parola conta: il salario e' «lo
+   stipendio fisso pattuito a voce tra l'azienda e l'operaio», lo
+   inserisce Stefania, e da li' si ricava la TARIFFA ORARIA che si
+   vede nell'elenco. Non e' il NETTO, che e' quanto la persona prende
+   davvero in un mese solare e sta nella pagina Economia.
+
+   Il calcolo automatico della tariffa non c'e' ancora: la regola —
+   per cosa si divide, ogni quanto si ricalcola — si decide in
+   riunione. Fino ad allora la tariffa si scrive a mano.
+
+   Nel database la tabella resta `dipendente_stipendi`: il nome del
+   file e della tabella non lo legge nessuno, l'etichetta si'.
 
    Lo vede solo chi ha `paghe.read` — il chiamante non lo monta
    nemmeno per gli altri, e la RLS non glielo darebbe comunque.
@@ -64,19 +77,20 @@ export function RiquadroStipendio({
     <Card className="grid gap-3 p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="text-lg font-extrabold text-black">Stipendio pattuito</h2>
+          <h2 className="text-lg font-extrabold text-black">Salario</h2>
           <p className="text-xs font-semibold text-gray-600">
-            Mensile. Quando cambia se ne aggiunge uno nuovo con la data da cui vale.
+            Il fisso mensile pattuito con la persona. Quando cambia se ne aggiunge uno nuovo
+            con la data da cui vale.
           </p>
         </div>
         {puoScrivere && !apri && (
           <Button dimensione="sm" onClick={() => setApri(true)}>
-            Nuovo stipendio
+            Nuovo salario
           </Button>
         )}
       </div>
 
-      {error && <Avviso tono="errore">Non riesco a leggere lo stipendio: {error.message}</Avviso>}
+      {error && <Avviso tono="errore">Non riesco a leggere il salario: {error.message}</Avviso>}
       {elimina.isError && <Avviso tono="errore">{(elimina.error as Error).message}</Avviso>}
 
       {apri && (
@@ -108,7 +122,7 @@ export function RiquadroStipendio({
           {aggiungi.isError && <Avviso tono="errore">{(aggiungi.error as Error).message}</Avviso>}
           <div className="flex gap-2">
             <Button variante="primario" dimensione="sm" onClick={salva} disabled={aggiungi.isPending}>
-              {aggiungi.isPending ? 'Salvo…' : 'Aggiungi stipendio'}
+              {aggiungi.isPending ? 'Salvo…' : 'Aggiungi salario'}
             </Button>
             <Button
               dimensione="sm"
@@ -129,7 +143,7 @@ export function RiquadroStipendio({
         <p className="text-sm font-semibold text-gray-600">Carico…</p>
       ) : !stipendi?.length ? (
         !apri && (
-          <p className="text-sm font-semibold text-gray-600">Nessuno stipendio inserito.</p>
+          <p className="text-sm font-semibold text-gray-600">Nessun salario inserito.</p>
         )
       ) : (
         <Table>
@@ -163,7 +177,7 @@ export function RiquadroStipendio({
                       onClick={() => {
                         if (
                           confirm(
-                            `Cancellare lo stipendio di ${euro(s.importo_mensile)} valido dal ${fmtData(s.valido_dal)}?\n\nSi cancella solo se era stato scritto per sbaglio: se lo stipendio è cambiato, aggiungine uno nuovo.`,
+                            `Cancellare il salario di ${euro(s.importo_mensile)} valido dal ${fmtData(s.valido_dal)}?\n\nSi cancella solo se era stato scritto per sbaglio: se il salario è cambiato, aggiungine uno nuovo.`,
                           )
                         ) {
                           elimina.mutate(s.id)

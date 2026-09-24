@@ -804,7 +804,6 @@ function Tariffe({
               <th>Valida dal</th>
               <th className="text-right">Ordinario</th>
               <th className="text-right">Straordinario</th>
-              <th className="text-right">Vendita</th>
               <th>Note</th>
             </tr>
           </thead>
@@ -821,7 +820,6 @@ function Tariffe({
                 </td>
                 <Cifra>{euro(t.costo_orario)}</Cifra>
                 <Cifra className="text-gray-600">{euro(t.costo_orario_straordinario)}</Cifra>
-                <Cifra className="text-gray-600">{euro(t.tariffa_vendita_oraria)}</Cifra>
                 <td className="text-gray-600">{t.note ?? '—'}</td>
               </tr>
             ))}
@@ -836,7 +834,6 @@ const schemaTariffa = z.object({
   valido_dal: z.string().min(1, 'Serve la data di decorrenza'),
   costo_orario: z.coerce.number().positive('Deve essere maggiore di zero'),
   costo_orario_straordinario: z.string(),
-  tariffa_vendita_oraria: z.string(),
   note: z.string(),
 })
 
@@ -869,7 +866,6 @@ function FormTariffa({
       valido_dal: new Date().toLocaleDateString('sv-SE'),
       costo_orario: 0,
       costo_orario_straordinario: '',
-      tariffa_vendita_oraria: '',
       note: '',
     },
   })
@@ -880,10 +876,16 @@ function FormTariffa({
     <div className="grid gap-3 rounded-xl border-2 border-black bg-amber-50 p-4">
       {errore && <Avviso tono="errore">{errore}</Avviso>}
 
-      {/* Due per riga e non quattro: il riquadro sta in mezza pagina
-          accanto ai documenti, e in un quarto di mezza pagina il campo
-          data non ci sta — finiva sotto il costo orario. */}
-      <div className="grid gap-3 sm:grid-cols-2">
+      {/* Tre per riga solo su schermo largo: il riquadro sta in mezza
+          pagina accanto ai documenti, e a quattro colonne il campo data
+          non ci stava — finiva sotto il costo orario.
+
+          IL PREZZO DI VENDITA NON C'E' PIU', dal 2026-09-24: «togli
+          vendita, non serve». La colonna resta nel database (e'
+          condiviso, e le tariffe vecchie la hanno valorizzata), ma qui
+          non si chiede e non si mostra: le tariffe nuove la scrivono
+          vuota. */}
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         <Campo
           etichetta="Valida dal"
           type="date"
@@ -908,16 +910,6 @@ function FormTariffa({
           errore={errors.costo_orario_straordinario?.message}
           {...register('costo_orario_straordinario')}
         />
-        <Campo
-          etichetta="Vendita €"
-          type="number"
-          step="0.01"
-          min="0"
-          className="numerico"
-          suggerimento="Quanto lo fatturi"
-          errore={errors.tariffa_vendita_oraria?.message}
-          {...register('tariffa_vendita_oraria')}
-        />
       </div>
 
       <Campo etichetta="Note" placeholder="Rinnovo CCNL, scatto di anzianità…" {...register('note')} />
@@ -932,7 +924,7 @@ function FormTariffa({
               valido_dal: c.valido_dal,
               costo_orario: c.costo_orario,
               costo_orario_straordinario: numeroOpzionale(c.costo_orario_straordinario),
-              tariffa_vendita_oraria: numeroOpzionale(c.tariffa_vendita_oraria),
+              tariffa_vendita_oraria: null,
               note: c.note.trim() === '' ? null : c.note.trim(),
             }),
           )}

@@ -41,7 +41,8 @@ import { statoScadenza, giorniA } from './documentiPersonali'
    Impiego e assunzione sono due date diverse: si puo' lavorare in
    prova prima del contratto, mai il contrario. Dove l'assunzione manca
    la colonna dice perche' (da inquadrare, in prova) invece di un
-   trattino. Lo stipendio lo vede solo chi ha `paghe.read`.
+   trattino. Il salario (lo stipendio fisso pattuito: dal 2026-09-24 si
+   chiama cosi') lo vede solo chi ha `paghe.read`.
 
    IL COSTO ORARIO RESTA, e resta rosa quando manca: senza tariffa le
    ore di quella persona valgono zero euro nel consuntivo del cantiere,
@@ -162,7 +163,7 @@ export function DipendentiPage() {
               <span>Mansione</span>
               <span>Impiego</span>
               <span>Assunzione</span>
-              {vedePaghe && <span className="text-right">Stipendio</span>}
+              {vedePaghe && <span className="text-right">Salario</span>}
               <span className="text-right">Costo orario</span>
             </div>
           }
@@ -245,7 +246,7 @@ export function DipendentiPage() {
                       'numerico hidden justify-self-end text-sm lg:block',
                       s ? 'font-black text-black' : 'font-semibold text-gray-400',
                     )}
-                    title={s ? `Stipendio pattuito dal ${fmtData(s.valido_dal)}` : undefined}
+                    title={s ? `Salario pattuito dal ${fmtData(s.valido_dal)}` : undefined}
                   >
                     {s ? euro(s.importo_mensile) : '—'}
                   </span>

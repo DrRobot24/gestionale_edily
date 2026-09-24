@@ -296,7 +296,8 @@ export function useMioDipendente() {
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   Lo stipendio pattuito, dal 2026-09-24.
+   Il SALARIO (lo stipendio fisso pattuito), dal 2026-09-24. Non il
+   netto del mese, che sta in `buste_paga`.
 
    In una tabella sua e non in `dipendenti`, perche' `dipendenti` la
    legge anche il tecnico: qui la RLS chiude su `paghe.read`. Storico
@@ -367,7 +368,7 @@ export function useAggiungiStipendio() {
         .insert({ ...s, org_id: org!.id })
       if (error) {
         if (error.code === '23505') {
-          throw new Error('C’è già uno stipendio che parte da quel giorno.')
+          throw new Error('C’è già un salario che parte da quel giorno.')
         }
         throw error
       }
@@ -391,7 +392,7 @@ export function useEliminaStipendio() {
         .eq('org_id', org!.id)
         .select('id')
       if (error) throw error
-      if (!data?.length) throw new Error('Non hai il permesso di cancellare questo stipendio.')
+      if (!data?.length) throw new Error('Non hai il permesso di cancellare questo salario.')
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['stipendi'] }),
   })
