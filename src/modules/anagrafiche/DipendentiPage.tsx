@@ -1,9 +1,15 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
-import { euro } from '../../lib/formato'
+import { data as fmtData, euro } from '../../lib/formato'
 import { Avviso, Badge, Button, Rubrica, Vuoto, cn } from '../../ui'
 import { usePermission } from '../auth/usePermission'
-import { tariffaVigente, useDipendenti, type TipoRisorsa } from './dipendenti'
+import {
+  stipendioVigente,
+  tariffaVigente,
+  useDipendenti,
+  useStipendi,
+  type TipoRisorsa,
+} from './dipendenti'
 import { statoScadenza, giorniA } from './documentiPersonali'
 
 /* ══════════════════════════════════════════════════════════════════
@@ -25,9 +31,17 @@ import { statoScadenza, giorniA } from './documentiPersonali'
    di sette colonne quasi tutte trattini. L'utente: «preferisco un
    elenco con i nomi e cognomi sulla sinistra in ordine alfabetico».
 
-   A sinistra cognome e nome, che e' come si cerca una persona. A
-   destra solo tre cose, sempre nella stessa colonna: il tipo, gli
-   allarmi (da inquadrare, in prova, permesso) e il costo orario.
+   ── UNA TABELLA A RUBRICA, dal 2026-09-24 ───────────────────────
+
+   L'utente ha fissato le colonne: «Cognome, Nome, Mansione, Data di
+   impiego, Data di assunzione, Importo stipendio (se disp.), Costo
+   orario (se disp.)», con i titoli sopra come nei clienti. Sempre in
+   ordine alfabetico per cognome e nome.
+
+   Impiego e assunzione sono due date diverse: si puo' lavorare in
+   prova prima del contratto, mai il contrario. Dove l'assunzione manca
+   la colonna dice perche' (da inquadrare, in prova) invece di un
+   trattino. Lo stipendio lo vede solo chi ha `paghe.read`.
 
    IL COSTO ORARIO RESTA, e resta rosa quando manca: senza tariffa le
    ore di quella persona valgono zero euro nel consuntivo del cantiere,
@@ -68,12 +82,25 @@ const TIPI: Record<
   impiegato: { etichetta: 'Impiegato', colore: 'accento', segno: '💼', dove: 'in ufficio' },
 }
 
+/* Le colonne, uguali per i titoli e per le righe cosi' restano in
+   fila. Sotto lg restano cognome (col nome accanto) e costo orario:
+   sette colonne su un telefono non si leggono. */
+const COLONNE_CON_STIPENDIO =
+  'grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1.2fr)_6rem_7rem_6.5rem_6.5rem]'
+const COLONNE_SENZA_STIPENDIO =
+  'grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1.2fr)_6rem_7rem_6.5rem]'
+
 export function DipendentiPage() {
   const navigate = useNavigate()
   const [conArchiviati, setConArchiviati] = useState(false)
   const puoScrivere = usePermission('anagrafiche.write')
 
   const { data: dipendenti, isPending, error } = useDipendenti({ soloAttivi: !conArchiviati })
+  // Lo stipendio solo a chi fa le paghe: per gli altri la colonna non
+  // esiste, e la query non parte nemmeno.
+  const vedePaghe = usePermission('paghe.read')
+  const { data: stipendi } = useStipendi({ abilitato: vedePaghe })
+  const COLONNE = vedePaghe ? COLONNE_CON_STIPENDIO : COLONNE_SENZA_STIPENDIO
 
   if (isPending) return <p className="text-sm font-bold text-gray-600">Carico le risorse…</p>
   if (error) {
@@ -121,18 +148,31 @@ export function DipendentiPage() {
           chiave={(d) => d.id}
           spenta={(d) => !d.attivo}
           onApri={(d) => navigate(`/anagrafiche/operai/${d.id}`)}
+          intestazioneDa="lg"
+          intestazione={
+            <div className={cn(COLONNE, 'w-full')}>
+              <span>Cognome</span>
+              <span>Nome</span>
+              <span>Mansione</span>
+              <span>Impiego</span>
+              <span>Assunzione</span>
+              {vedePaghe && <span className="text-right">Stipendio</span>}
+              <span className="text-right">Costo orario</span>
+            </div>
+          }
         >
           {(d) => {
             const t = tariffaVigente(d.dipendente_costi)
+            const s = vedePaghe ? stipendioVigente(stipendi, d.id) : null
             const tipo = TIPI[d.tipo] ?? TIPI.operaio
             const permesso = d.permesso_soggiorno ? statoScadenza(d.permesso_scadenza) : null
 
+            /* Accanto al cognome restano solo gli allarmi che nessuna
+               colonna dice: archiviato e permesso di soggiorno. «Da
+               inquadrare» e «in prova» stanno nella colonna
+               dell'assunzione, al posto della data che manca. */
             const allarmi: { testo: string; colore: 'errore' | 'attesa' }[] = []
             if (!d.attivo) allarmi.push({ testo: 'archiviato', colore: 'attesa' })
-            if (d.stato_rapporto === 'da_inquadrare')
-              allarmi.push({ testo: 'da inquadrare', colore: 'errore' })
-            if (d.stato_rapporto === 'in_prova')
-              allarmi.push({ testo: 'in prova', colore: 'attesa' })
             if (permesso === 'scaduto')
               allarmi.push({ testo: 'permesso scaduto', colore: 'errore' })
             if (permesso === 'in-scadenza' && d.permesso_scadenza)
@@ -142,22 +182,13 @@ export function DipendentiPage() {
               })
 
             return (
-              /* Colonne fisse a destra, cosi' tipo e costo si
-                 incolonnano riga per riga e si leggono dall'alto in
-                 basso. Su telefono il tipo si riduce all'emoji, che sta
-                 comunque davanti al nome. */
-              <div className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 sm:grid-cols-[minmax(0,1fr)_8rem_6rem]">
+              <div className={cn(COLONNE, 'w-full items-center gap-y-1')}>
                 <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-                  <span
-                    role="img"
-                    aria-label={`${tipo.etichetta}, ${tipo.dove}`}
-                    title={`${tipo.etichetta} — ${tipo.dove}`}
-                    className="w-5 shrink-0 text-center text-base leading-none"
-                  >
-                    {tipo.segno}
-                  </span>
                   <span className="text-sm font-extrabold text-black">
-                    {d.cognome} {d.nome}
+                    {d.cognome}
+                    {/* Sotto lg la colonna del nome non c'e': il nome
+                        sta accanto al cognome, come in rubrica. */}
+                    <span className="lg:hidden"> {d.nome}</span>
                   </span>
                   {allarmi.map((a) => (
                     <Badge key={a.testo} colore={a.colore} className="px-2 py-0.5 text-[10px]">
@@ -166,12 +197,58 @@ export function DipendentiPage() {
                   ))}
                 </span>
 
-                <span className="hidden sm:block">
-                  <Badge colore={tipo.colore} className="px-2 py-0.5 text-[10px]">
-                    {tipo.etichetta}
-                  </Badge>
+                <span className="hidden truncate text-sm font-extrabold text-black lg:block">
+                  {d.nome}
                 </span>
 
+                {/* La mansione scritta nella scheda; se manca, il tipo
+                    (operaio, tecnico, impiegato) in grigio, che dice
+                    comunque qualcosa piu' di un trattino. */}
+                <span
+                  className={cn(
+                    'hidden truncate text-sm font-semibold lg:block',
+                    d.mansione?.trim() ? 'text-gray-800' : 'text-gray-400',
+                  )}
+                >
+                  {d.mansione?.trim() || tipo.etichetta.toLowerCase()}
+                </span>
+
+                <Data valore={d.data_impiego} />
+
+                <span className="hidden lg:block">
+                  {d.data_assunzione ? (
+                    <span className="numerico text-sm font-semibold text-gray-800">
+                      {fmtData(d.data_assunzione)}
+                    </span>
+                  ) : d.stato_rapporto === 'da_inquadrare' ? (
+                    <Badge colore="errore" className="px-2 py-0.5 text-[10px]">
+                      da inquadrare
+                    </Badge>
+                  ) : d.stato_rapporto === 'in_prova' ? (
+                    <Badge colore="attesa" className="px-2 py-0.5 text-[10px]">
+                      in prova
+                    </Badge>
+                  ) : (
+                    <span className="text-sm font-semibold text-gray-400">—</span>
+                  )}
+                </span>
+
+                {vedePaghe && (
+                  <span
+                    className={cn(
+                      'numerico hidden justify-self-end text-sm lg:block',
+                      s ? 'font-black text-black' : 'font-semibold text-gray-400',
+                    )}
+                    title={s ? `Stipendio pattuito dal ${fmtData(s.valido_dal)}` : undefined}
+                  >
+                    {s ? euro(s.importo_mensile) : '—'}
+                  </span>
+                )}
+
+                {/* IL COSTO ORARIO RESTA ROSA QUANDO MANCA: senza
+                    tariffa le ore di questa persona valgono zero euro
+                    nel consuntivo del cantiere, ed e' il lavoro di
+                    Stefania accorgersene da qui. */}
                 <span
                   className={cn(
                     'numerico justify-self-end text-sm font-black text-black',
@@ -187,5 +264,16 @@ export function DipendentiPage() {
         </Rubrica>
       )}
     </div>
+  )
+}
+
+/** Una data in colonna, o un trattino grigio se manca. */
+function Data({ valore }: { valore: string | null }) {
+  return valore ? (
+    <span className="numerico hidden text-sm font-semibold text-gray-800 lg:block">
+      {fmtData(valore)}
+    </span>
+  ) : (
+    <span className="hidden text-sm font-semibold text-gray-400 lg:block">—</span>
   )
 }

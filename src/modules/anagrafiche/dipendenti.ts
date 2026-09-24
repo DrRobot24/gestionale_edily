@@ -15,7 +15,7 @@ import { useSession } from '../auth/SessionProvider'
 
 const CAMPI =
   'id, matricola, nome, cognome, codice_fiscale, mansione, livello_ccnl, tipo_contratto, ' +
-  'data_assunzione, data_cessazione, telefono, email, attivo, user_id, tipo, ' +
+  'data_impiego, data_assunzione, data_cessazione, telefono, email, attivo, user_id, tipo, ' +
   // La scheda della persona, dal 2026-09-18: vedi `scheda-personale.sql`.
   'data_nascita, luogo_nascita, residenza, patente, note, ' +
   'permesso_soggiorno, permesso_scadenza, dpi, stato_rapporto'
@@ -117,6 +117,10 @@ export type DatiDipendente = {
   mansione: string | null
   livello_ccnl: string | null
   tipo_contratto: string | null
+  /** Il primo giorno di lavoro, dal 2026-09-24. Puo' venire PRIMA
+   *  dell'assunzione — prova, da inquadrare — mai dopo: lo impone un
+   *  check, e un trigger la riempie con l'assunzione se manca. */
+  data_impiego: string | null
   data_assunzione: string | null
   data_cessazione: string | null
   telefono: string | null
@@ -288,5 +292,107 @@ export function useMioDipendente() {
       if (error) throw error
       return data
     },
+  })
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   Lo stipendio pattuito, dal 2026-09-24.
+
+   In una tabella sua e non in `dipendenti`, perche' `dipendenti` la
+   legge anche il tecnico: qui la RLS chiude su `paghe.read`. Storico
+   per data come le tariffe — si aggiunge, non si sovrascrive. Vedi
+   `supabase/schema/risorse-impiego-stipendio.sql`.
+
+   Chi non ha `paghe.read` non deve nemmeno chiedere: la query
+   tornerebbe vuota, e un elenco vuoto si leggerebbe come «stipendio
+   mancante» su tutti. Per questo `abilitato`.
+   ══════════════════════════════════════════════════════════════════ */
+
+export type Stipendio = {
+  id: string
+  dipendente_id: string
+  valido_dal: string
+  importo_mensile: number
+  note: string | null
+}
+
+export function useStipendi({
+  dipendenteId,
+  abilitato,
+}: {
+  dipendenteId?: string
+  abilitato: boolean
+}) {
+  const { org } = useSession()
+
+  return useQuery({
+    queryKey: ['stipendi', org?.id, dipendenteId ?? 'tutti'],
+    enabled: Boolean(org?.id) && abilitato,
+    queryFn: async (): Promise<Stipendio[]> => {
+      let q = supabase
+        .from('dipendente_stipendi')
+        .select('id, dipendente_id, valido_dal, importo_mensile, note')
+        .eq('org_id', org!.id)
+      if (dipendenteId) q = q.eq('dipendente_id', dipendenteId)
+      const { data, error } = await q.order('valido_dal', { ascending: false })
+      if (error) throw error
+      return data
+    },
+  })
+}
+
+/** Lo stipendio in vigore oggi: l'ultimo gia' cominciato. Come
+ *  `tariffaVigente`, uno inserito in anticipo non conta finche' non
+ *  arriva la sua data. */
+export function stipendioVigente(
+  stipendi: Stipendio[] | undefined,
+  dipendenteId: string,
+  aData = new Date().toLocaleDateString('sv-SE'),
+) {
+  return (
+    (stipendi ?? [])
+      .filter((s) => s.dipendente_id === dipendenteId && s.valido_dal <= aData)
+      .sort((a, b) => b.valido_dal.localeCompare(a.valido_dal))[0] ?? null
+  )
+}
+
+export function useAggiungiStipendio() {
+  const { org } = useSession()
+  const qc = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (s: Omit<Stipendio, 'id'>) => {
+      const { error } = await supabase
+        .from('dipendente_stipendi')
+        .insert({ ...s, org_id: org!.id })
+      if (error) {
+        if (error.code === '23505') {
+          throw new Error('C’è già uno stipendio che parte da quel giorno.')
+        }
+        throw error
+      }
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['stipendi'] }),
+  })
+}
+
+export function useEliminaStipendio() {
+  const { org } = useSession()
+  const qc = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      // Una DELETE respinta dalla RLS tocca zero righe senza errore:
+      // `.select()` dice se e' sparita davvero.
+      const { data, error } = await supabase
+        .from('dipendente_stipendi')
+        .delete()
+        .eq('id', id)
+        .eq('org_id', org!.id)
+        .select('id')
+      if (error) throw error
+      if (!data?.length) throw new Error('Non hai il permesso di cancellare questo stipendio.')
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['stipendi'] }),
   })
 }

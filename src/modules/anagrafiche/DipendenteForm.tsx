@@ -7,6 +7,7 @@ import { data as fmtData, euro } from '../../lib/formato'
 import { Avviso, Badge, Button, Campo, CampoArea, CampoSelect, Card, Cifra, Percorso, Table } from '../../ui'
 import { usePermission } from '../auth/usePermission'
 import { RiquadroDocumentiPersona } from './RiquadroDocumentiPersona'
+import { RiquadroStipendio } from './RiquadroStipendio'
 import { useMembri } from '../cantieri/assegnazioni'
 import {
   tariffaVigente,
@@ -60,6 +61,7 @@ const schema = z.object({
   mansione: z.string(),
   livello_ccnl: z.string(),
   tipo_contratto: z.string(),
+  data_impiego: z.string(),
   data_assunzione: z.string(),
   data_cessazione: z.string(),
   telefono: z.string(),
@@ -82,6 +84,15 @@ const schema = z.object({
      cui esiste il campo, cioe' «quando va rinnovato». Il database ha il
      suo check, ma quello rifiuta il caso opposto — data senza permesso —
      e un 23514 non e' una frase leggibile. */
+  /* «Non ci puo' essere assunzione senza impiego, ma impiego senza
+     assunzione si'» (2026-09-24). Il database ha lo stesso check; qui
+     serve a dirlo con una frase invece che con un 23514. L'impiego
+     vuoto con l'assunzione piena invece passa: lo riempie il trigger
+     con la data di assunzione, che e' l'unica cosa certa. */
+  .refine((v) => !v.data_impiego || !v.data_assunzione || v.data_impiego <= v.data_assunzione, {
+    message: 'L’impiego non può cominciare dopo l’assunzione',
+    path: ['data_impiego'],
+  })
   .refine((v) => !v.permesso_soggiorno || v.permesso_scadenza !== '', {
     message: 'Quando scade il permesso?',
     path: ['permesso_scadenza'],
@@ -98,6 +109,7 @@ const VUOTO: Campi = {
   mansione: '',
   livello_ccnl: '',
   tipo_contratto: '',
+  data_impiego: '',
   data_assunzione: '',
   data_cessazione: '',
   telefono: '',
@@ -180,6 +192,7 @@ export function DipendenteForm() {
       mansione: dipendente.mansione ?? '',
       livello_ccnl: dipendente.livello_ccnl ?? '',
       tipo_contratto: dipendente.tipo_contratto ?? '',
+      data_impiego: dipendente.data_impiego ?? '',
       data_assunzione: dipendente.data_assunzione ?? '',
       data_cessazione: dipendente.data_cessazione ?? '',
       telefono: dipendente.telefono ?? '',
@@ -214,6 +227,7 @@ export function DipendenteForm() {
         mansione: vuotoSeVuoto(c.mansione),
         livello_ccnl: vuotoSeVuoto(c.livello_ccnl),
         tipo_contratto: vuotoSeVuoto(c.tipo_contratto),
+        data_impiego: vuotoSeVuoto(c.data_impiego),
         data_assunzione: vuotoSeVuoto(c.data_assunzione),
         data_cessazione: vuotoSeVuoto(c.data_cessazione),
         telefono: vuotoSeVuoto(c.telefono),
@@ -454,7 +468,18 @@ export function DipendenteForm() {
             </CampoSelect>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          {/* Tre date nell'ordine in cui succedono. L'impiego viene
+              prima dell'assunzione: un operaio in prova lavora gia', e
+              il contratto arriva dopo. */}
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Campo
+              etichetta="Data impiego"
+              type="date"
+              disabled={!puoScrivere}
+              suggerimento="Il primo giorno di lavoro"
+              errore={errors.data_impiego?.message}
+              {...register('data_impiego')}
+            />
             <Campo
               etichetta="Data assunzione"
               type="date"
@@ -686,6 +711,12 @@ export function DipendenteForm() {
               tariffe={dipendente.dipendente_costi}
               puoScrivere={puoScrivere}
             />
+          )}
+
+          {/* Lo stipendio solo a chi fa le paghe: chi non ha
+              `paghe.read` non vede nemmeno che il riquadro esiste. */}
+          {dipendente && puoVederePaghe && (
+            <RiquadroStipendio dipendenteId={dipendente.id} puoScrivere={puoScrivere} />
           )}
         </div>
       )}

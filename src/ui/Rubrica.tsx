@@ -26,6 +26,7 @@ export function Rubrica<T>({
   onApri,
   spenta,
   intestazione,
+  intestazioneDa = 'sm',
   children,
 }: {
   voci: T[]
@@ -38,6 +39,10 @@ export function Rubrica<T>({
   /** I titoli delle colonne, in cima all'elenco. Vanno scritti con la
    *  stessa griglia delle righe, perche' cadano sopra i loro dati. */
   intestazione?: ReactNode
+  /** Da che larghezza compaiono i titoli: quella a cui le righe
+   *  smettono di andare a capo. Un elenco con sette colonne ci arriva
+   *  piu' tardi di uno con tre. */
+  intestazioneDa?: 'sm' | 'lg'
   /** Il contenuto della riga: il nome a sinistra, il resto a destra. */
   children: (v: T) => ReactNode
 }) {
@@ -58,7 +63,12 @@ export function Rubrica<T>({
       {/* Solo da schermo largo: sul telefono le colonne vanno a capo una
           sotto l'altra, e i titoli non cadrebbero piu' sopra niente. */}
       {intestazione && (
-        <div className="hidden border-b-2 border-black bg-black px-4 py-2 text-[11px] font-black uppercase tracking-wide text-white sm:flex">
+        <div
+          className={cn(
+            'hidden border-b-2 border-black bg-black px-4 py-2 text-[11px] font-black uppercase tracking-wide text-white',
+            intestazioneDa === 'lg' ? 'lg:flex' : 'sm:flex',
+          )}
+        >
           {intestazione}
         </div>
       )}

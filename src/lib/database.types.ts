@@ -888,6 +888,51 @@ export type Database = {
         }
         Relationships: []
       }
+      dipendente_stipendi: {
+        Row: {
+          created_at: string
+          dipendente_id: string
+          id: string
+          importo_mensile: number
+          note: string | null
+          org_id: string
+          valido_dal: string
+        }
+        Insert: {
+          created_at?: string
+          dipendente_id: string
+          id?: string
+          importo_mensile: number
+          note?: string | null
+          org_id: string
+          valido_dal: string
+        }
+        Update: {
+          created_at?: string
+          dipendente_id?: string
+          id?: string
+          importo_mensile?: number
+          note?: string | null
+          org_id?: string
+          valido_dal?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dipendente_stipendi_dipendente_id_fkey"
+            columns: ["dipendente_id"]
+            isOneToOne: false
+            referencedRelation: "dipendenti"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dipendente_stipendi_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dipendenti: {
         Row: {
           attivo: boolean
@@ -896,6 +941,7 @@ export type Database = {
           created_at: string
           data_assunzione: string | null
           data_cessazione: string | null
+          data_impiego: string | null
           data_nascita: string | null
           dpi: string[]
           email: string | null
@@ -925,6 +971,7 @@ export type Database = {
           created_at?: string
           data_assunzione?: string | null
           data_cessazione?: string | null
+          data_impiego?: string | null
           data_nascita?: string | null
           dpi?: string[]
           email?: string | null
@@ -954,6 +1001,7 @@ export type Database = {
           created_at?: string
           data_assunzione?: string | null
           data_cessazione?: string | null
+          data_impiego?: string | null
           data_nascita?: string | null
           dpi?: string[]
           email?: string | null
