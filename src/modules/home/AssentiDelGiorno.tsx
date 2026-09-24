@@ -46,6 +46,10 @@ export function AssentiDelGiorno({
   const [chi, setChi] = useState('')
   const [motivo, setMotivo] = useState<string>(ASSENZE[0])
   const [nota, setNota] = useState('')
+  /* Il modulo si apre a richiesta, dal 2026-09-24: sempre aperto
+     occupava mezzo riquadro anche nei giorni in cui non manca nessuno,
+     cioe' quasi sempre. */
+  const [aperto, setAperto] = useState(false)
 
   if (error) {
     return tabellaMancante(error) ? (
@@ -97,61 +101,74 @@ export function AssentiDelGiorno({
         onSuccess: () => {
           setChi('')
           setNota('')
+          setAperto(false)
         },
       },
     )
   }
 
+  /* UNA RIGA SOLA, dal 2026-09-24: gli assenti come etichette con la
+     loro ✕, e il pulsante per segnarne uno nuovo. Prima erano un
+     riquadro con intestazione, elenco e modulo sempre aperto. */
   return (
     <Card className="overflow-hidden">
-      <div className="flex flex-wrap items-baseline justify-between gap-2 border-b-2 border-black bg-gray-100 px-5 py-3">
-        <h3 className="text-sm font-extrabold uppercase tracking-wide text-black">Assenti</h3>
-        <p className="text-xs font-semibold text-gray-600">
-          Chi oggi non era in nessun cantiere, e perché
-        </p>
-      </div>
+      <div className="flex flex-wrap items-center gap-2 px-4 py-2.5">
+        <h3 className="mr-1 text-xs font-extrabold uppercase tracking-wide text-black">
+          Assenti
+        </h3>
 
-      {isPending ? (
-        <p className="px-5 py-3 text-sm font-semibold text-gray-600">Carico le assenze…</p>
-      ) : elenco.length === 0 ? (
-        <p className="px-5 py-3 text-sm font-semibold text-gray-600">
-          Nessun assente segnato.
-        </p>
-      ) : (
-        <ul className="divide-y divide-gray-200">
-          {elenco.map((a) => (
-            <li key={a.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-2.5">
-              <span className="text-sm font-bold text-black">
-                {nome(a.dipendente_id)}
-                <span className="ml-2 rounded-full border-2 border-black bg-gray-200 px-2 py-0.5 text-[10px] font-extrabold uppercase">
-                  {a.motivo}
-                </span>
-                {a.nota && (
-                  <span className="ml-2 text-xs font-semibold text-gray-600">{a.nota}</span>
-                )}
+        {isPending ? (
+          <span className="text-xs font-semibold text-gray-600">Carico…</span>
+        ) : elenco.length === 0 ? (
+          <span className="text-xs font-semibold text-gray-500">nessuno</span>
+        ) : (
+          elenco.map((a) => (
+            <span
+              key={a.id}
+              title={a.nota ?? undefined}
+              className="flex items-center gap-1.5 rounded-full border-2 border-black bg-gray-100 py-0.5 pr-1 pl-2.5 text-xs font-bold text-black"
+            >
+              {nome(a.dipendente_id)}
+              <span className="text-[10px] font-extrabold uppercase text-gray-600">
+                · {a.nota ?? a.motivo}
               </span>
-              {!bloccata && (
-                <Button
-                  dimensione="sm"
-                  variante="secondario"
+              {!bloccata ? (
+                <button
+                  type="button"
+                  aria-label={`Togli ${nome(a.dipendente_id)} dagli assenti`}
                   disabled={togli.isPending}
                   onClick={() => togli.mutate(a.dipendente_id)}
+                  className="grid h-5 w-5 cursor-pointer place-content-center rounded-full text-xs font-black hover:bg-rose-200"
                 >
-                  Togli
-                </Button>
+                  ✕
+                </button>
+              ) : (
+                <span className="w-1" />
               )}
-            </li>
-          ))}
-        </ul>
-      )}
+            </span>
+          ))
+        )}
 
-      {bloccata ? (
-        <p className="border-t-2 border-black bg-gray-50 px-5 py-2 text-xs font-semibold text-gray-600">
-          Il titolare ha già validato questa giornata: le assenze non si modificano più.
-        </p>
-      ) : (
-        <div className="grid gap-3 border-t-2 border-black bg-gray-50 px-5 py-4">
-          <div className="grid gap-3 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto] sm:items-end">
+        {!bloccata && !aperto && (
+          <Button
+            dimensione="sm"
+            variante="secondario"
+            className="ml-auto"
+            onClick={() => setAperto(true)}
+          >
+            + Segna assente
+          </Button>
+        )}
+        {bloccata && (
+          <span className="ml-auto text-[11px] font-semibold text-gray-500">
+            Giornata già validata: non si modificano più.
+          </span>
+        )}
+      </div>
+
+      {!bloccata && aperto && (
+        <div className="grid gap-3 border-t-2 border-black bg-gray-50 px-4 py-3">
+          <div className="grid gap-3 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto_auto] sm:items-end">
             <CampoSelect etichetta="Chi" value={chi} onChange={(e) => setChi(e.target.value)}>
               <option value="">Scegli la persona…</option>
               {scegliibili.map((p) => {
@@ -175,12 +192,17 @@ export function AssentiDelGiorno({
                 </option>
               ))}
             </CampoSelect>
-            <Button
-              variante="primario"
-              disabled={!pronto || segna.isPending}
-              onClick={salva}
-            >
+            <Button variante="primario" disabled={!pronto || segna.isPending} onClick={salva}>
               {segna.isPending ? 'Salvo…' : 'Segna assente'}
+            </Button>
+            <Button
+              variante="secondario"
+              onClick={() => {
+                segna.reset()
+                setAperto(false)
+              }}
+            >
+              Annulla
             </Button>
           </div>
 
@@ -192,10 +214,12 @@ export function AssentiDelGiorno({
               onChange={(e) => setNota(e.target.value)}
             />
           )}
+        </div>
+      )}
 
-          {(segna.error || togli.error) && (
-            <Avviso tono="errore">{(segna.error ?? togli.error)?.message}</Avviso>
-          )}
+      {(segna.error || togli.error) && (
+        <div className="border-t-2 border-black px-4 py-3">
+          <Avviso tono="errore">{(segna.error ?? togli.error)?.message}</Avviso>
         </div>
       )}
     </Card>

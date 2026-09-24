@@ -92,7 +92,12 @@ export function Dashboard() {
   return (
     /* Piu' larga per chi valida: la sua home e' su due colonne (vedi
        sotto), e in 5xl la colonna del calendario restava schiacciata. */
-    <div className={cn('mx-auto grid gap-6', puoValidare ? 'max-w-7xl' : 'max-w-5xl')}>
+    <div
+      className={cn(
+        'mx-auto grid gap-6',
+        puoValidare || puoCompilare ? 'max-w-7xl' : 'max-w-5xl',
+      )}
+    >
       {/* Le frecce stanno nella fascia, ai lati della data: la data
           grande e' il titolo della pagina, e il posto per cambiarla e'
           quello dove la si legge. Chi non compila la riceve senza
@@ -169,8 +174,17 @@ export function Dashboard() {
               riquadro lo segue senza toccare questo file. */}
 
           {/* ── Chi compila: prima la giornata, poi le code ── */}
+          {/* ── Chi compila: DUE COLONNE, dal 2026-09-24 ──
+
+              «Pesantuccia», l'utente guardando la home del tecnico: una
+              colonna stretta con meta' schermo vuoto, il pulsante
+              d'invio in fondo a tutto, sette card con sette pulsanti.
+              A sinistra la giornata da consegnare — fascia d'azione in
+              cima, card compatte, assenti in una riga — e a destra, di
+              lato, il contesto: il mese, le ore della squadra, le sue.
+              Sul telefono tornano in colonna, la giornata per prima. */}
           {puoCompilare && (
-            <>
+            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
               <CantieriDelGiorno giorno={giorno} onCambiaGiorno={setGiorno} />
 
               {/* Il calendario sta SOTTO le card e SOPRA le code, e la
@@ -183,18 +197,12 @@ export function Dashboard() {
                   in due il «guarda le schede, poi mandale». Qui e' il
                   contesto che viene dopo il presente.
 
-                  TRE COLONNE, e non e' una scelta estetica. Da solo, il
-                  calendario stretto lasciava mezza riga bianca — «è
-                  follia», ha detto l'utente, e aveva ragione: in una
-                  dashboard uno spazio vuoto e' spazio che qualcuno ha
-                  dimenticato di usare.
-
-                  I tre riquadri rispondono a tre domande diverse sullo
-                  stesso giorno, e per questo stanno affiancati invece
-                  che in fila: dove sto nel mese, quante ore ha fatto la
-                  squadra, quante ne ho fatte io. Sul telefono si
-                  impilano in quest'ordine. */}
-              <div className="grid gap-4 lg:grid-cols-3 lg:items-start">
+                  IN COLONNA A DESTRA, dal 2026-09-24 (prima erano tre
+                  affiancati sotto le card). Rispondono a tre domande
+                  sullo stesso giorno — dove sto nel mese, quante ore ha
+                  fatto la squadra, quante ne ho fatte io — e stanno di
+                  lato alla giornata da consegnare, non sotto. */}
+              <div className="grid gap-4">
                 <CalendarioGiornate giorno={giorno} onScegli={setGiorno} />
                 <ControlloOre giorno={giorno} />
                 {/* Le ore di chi compila. Erano l'unica cosa che la
@@ -219,7 +227,7 @@ export function Dashboard() {
                   Il riquadro nuovo le tiene insieme tutte, in cima, con
                   i respinti per primi. Vedi `RimastoIndietro`. */}
 
-            </>
+            </div>
           )}
 
           {/* ── Chi tiene i registri: le anagrafiche, non i rapportini ──

@@ -70,6 +70,38 @@ export function RimastoIndietro() {
   // Niente da dire: il riquadro non esiste proprio.
   if (daFare === 0 && attesa === 0) return null
 
+  /* SOLO COSE IN ATTESA: UNA RIGA, dal 2026-09-24. Un riquadro azzurro
+     intero con intestazione per dire «non devi fare niente» pesava piu'
+     di tutto il resto della home. Resta visibile — se passano i giorni
+     vale un sollecito — ma alto quanto un'etichetta. Il riquadro pieno
+     torna appena c'e' qualcosa di suo da fare. */
+  if (daFare === 0) {
+    return (
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border-2 border-black bg-sky-100 px-4 py-2">
+        <span className="text-xs font-extrabold uppercase tracking-wide text-black">
+          In attesa della firma
+        </span>
+        {data.inAttesa.map((g) => {
+          const giorni = g.inviato_at ? giorniDa(g.inviato_at.slice(0, 10)) : 0
+          return (
+            <span
+              key={g.id}
+              className="rounded-full border-2 border-black bg-white px-2.5 py-0.5 text-xs font-bold capitalize text-black"
+            >
+              {dataEstesa(g.data)} · <span className="numerico">{numero(g.ore)}</span> h
+              {giorni > 0 && (
+                <span className="normal-case text-gray-600"> · da {giorni} gg</span>
+              )}
+            </span>
+          )
+        })}
+        <span className="ml-auto text-[11px] font-semibold text-gray-600">
+          Niente da fare: aspettano il titolare.
+        </span>
+      </div>
+    )
+  }
+
   return (
     <Card className="overflow-hidden">
       {/* La fascia e' ROSSA solo se c'e' del lavoro suo. Con le sole

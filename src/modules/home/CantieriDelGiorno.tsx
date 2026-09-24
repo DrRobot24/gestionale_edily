@@ -262,69 +262,53 @@ export function CantieriDelGiorno({
 
   return (
     <div className="grid gap-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          {/* Il titolo dice OGGI solo quando e' oggi. Da quando si
-              sfoglia il calendario, «I cantieri di oggi» su una giornata
-              di tre giorni fa e' semplicemente falso, e chi ci lavora
-              sopra crede di star compilando la giornata di adesso. */}
-          <h2 className="text-lg font-extrabold capitalize text-black">
+      {/* LA FASCIA D'AZIONE IN CIMA, dal 2026-09-24. Prima il pulsante
+          d'invio stava in fondo, sotto sette card e sotto gli assenti,
+          e il contatore «0/7» in alto a destra, lontano da lui: la cosa
+          da fare era l'ultima che si incontrava. Adesso titolo,
+          avanzamento, cosa manca e pulsante stanno insieme, ed e' la
+          prima cosa sotto il saluto. Verde quando la giornata e' pronta
+          a partire, come prima. */}
+      <Card
+        className={cn(
+          'flex flex-wrap items-center justify-between gap-x-4 gap-y-3 px-4 py-3',
+          complete ? 'bg-lime-100' : 'bg-white',
+        )}
+      >
+        <div className="min-w-0">
+          {/* Il titolo dice OGGI solo quando e' oggi: su una giornata di
+              tre giorni fa «I cantieri di oggi» sarebbe falso. */}
+          <h2 className="text-base font-extrabold capitalize leading-tight text-black">
             {giorno === oggi() ? 'I cantieri di oggi' : `I cantieri di ${dataEstesa(giorno)}`}
           </h2>
-          <p className="text-xs font-semibold text-gray-600">
-            Ogni cantiere attivo vuole la sua scheda, anche quelli fermi.
+          <p className="text-xs font-bold text-gray-700">
+            {mancanoLeMieOre && complete
+              ? 'Mancano le tue ore: dichiara quante ne hai lavorate in questa giornata.'
+              : riepilogo(schede.length, compilate, daSpedire)}
           </p>
         </div>
 
-        <Avanzamento inviate={inviate} compilate={compilate} totale={schede.length} />
-      </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <Avanzamento inviate={inviate} compilate={compilate} totale={schede.length} />
+          {/* Quando a bloccare sono le proprie ore, il pulsante che serve
+              non e' quello dell'invio: e' la strada per scriverle. */}
+          {mancanoLeMieOre && complete && (
+            <Button dimensione="sm" onClick={() => navigate(`/mie-ore?data=${giorno}`)}>
+              Compila le tue ore
+            </Button>
+          )}
+          <Button
+            variante="primario"
+            disabled={!complete || !daSpedire || mancanoLeMieOre || invia.isPending}
+            onClick={() => invia.mutate()}
+          >
+            {invia.isPending ? 'Invio…' : 'Invia il foglio della giornata'}
+          </Button>
+        </div>
+      </Card>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {schede.map(({ cantiere, semaforo }) => (
-          <SchedaCantiere
-            key={cantiere.id}
-            codice={cantiere.codice}
-            denominazione={cantiere.denominazione}
-            luogo={
-              cantiere.comune
-                ? `${cantiere.comune}${cantiere.provincia ? ` (${cantiere.provincia})` : ''}`
-                : null
-            }
-            semaforo={semaforo}
-            /* La card porta al CANTIERE, non dritta al rapportino.
-               Prima saltava questa tappa e si finiva a compilare un
-               documento su un cantiere mai guardato: chi ci lavora
-               vuole prima vedere la squadra, i giorni gia' fatti e le
-               foto, e decidere dopo. Il giorno viaggia nell'indirizzo,
-               cosi' la scheda si apre gia' sulla giornata giusta. */
-            onApri={() => navigate(`/cantieri/${cantiere.id}?data=${giorno}`)}
-          />
-        ))}
-      </div>
-
-      {/* Il controllo delle ore stava QUI, fra le card e il pulsante di
-          invio: era il posto giusto finche' compariva solo quando
-          qualcosa non tornava — un attimo prima di decidere se mandare.
-          Dal 2026-09-15 vive accanto al calendario e dice il totale
-          anche quando le ore quadrano, quindi e' diventato un riquadro
-          fisso e non un avviso: infilarlo qui spezzerebbe la sequenza
-          «guarda le schede, poi mandale». */}
-
-      {/* Chi non c'era: dopo le card, prima dell'invio. Si blocca
-          appena il titolare ha firmato una scheda del giorno, come nel
-          database (`app.giornata_validata`). */}
-      <AssentiDelGiorno
-        giorno={giorno}
-        bloccata={schede.some(
-          (s) => s.rapportino?.stato === 'validato' || s.rapportino?.stato === 'contabilizzato',
-        )}
-      />
-
-      {/* `whitespace-pre-line` non e' un dettaglio estetico: il rifiuto
-          per le ore che non tornano elenca una persona per riga, e in
-          HTML gli a capo si perdono. Senza, sei nomi diventano un muro
-          di testo su una riga sola, cioe' proprio la cosa che l'elenco
-          serviva a evitare. */}
+      {/* `whitespace-pre-line`: il rifiuto per le ore che non tornano
+          elenca una persona per riga, e in HTML gli a capo si perdono. */}
       {invia.isError && (
         <Avviso tono="errore" className="whitespace-pre-line">
           {(invia.error as Error).message}
@@ -336,34 +320,39 @@ export function CantieriDelGiorno({
         </Avviso>
       )}
 
-      <Card
-        className={cn(
-          'flex flex-wrap items-center justify-between gap-3 p-4',
-          complete ? 'bg-lime-100' : 'bg-white',
+      {/* Le card restano card — il verde della card e' il segno che il
+          rapportino c'e', l'utente ci tiene — ma a meta' altezza e senza
+          pulsante: e' tutta la card a portare al cantiere. Sette
+          pulsanti gialli identici dicevano sette volte la stessa cosa. */}
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {schede.map(({ cantiere, semaforo }) => (
+          <SchedaCantiere
+            key={cantiere.id}
+            codice={cantiere.codice}
+            denominazione={cantiere.denominazione}
+            luogo={
+              cantiere.comune
+                ? `${cantiere.comune}${cantiere.provincia ? ` (${cantiere.provincia})` : ''}`
+                : null
+            }
+            semaforo={semaforo}
+            /* La card porta al CANTIERE, non dritta al rapportino: chi
+               ci lavora vuole prima vedere squadra, giorni e foto. Il
+               giorno viaggia nell'indirizzo. */
+            onApri={() => navigate(`/cantieri/${cantiere.id}?data=${giorno}`)}
+          />
+        ))}
+      </div>
+
+      {/* Chi non c'era: dopo le card. Si blocca appena il titolare ha
+          firmato una scheda del giorno, come nel database
+          (`app.giornata_validata`). */}
+      <AssentiDelGiorno
+        giorno={giorno}
+        bloccata={schede.some(
+          (s) => s.rapportino?.stato === 'validato' || s.rapportino?.stato === 'contabilizzato',
         )}
-      >
-        <p className="text-sm font-bold text-black">
-          {mancanoLeMieOre && complete
-            ? 'Mancano le tue ore: dichiara quante ne hai lavorate in questa giornata.'
-            : riepilogo(schede.length, compilate, daSpedire)}
-        </p>
-        {/* Quando a bloccare sono le proprie ore, il pulsante che serve
-            non e' quello dell'invio: e' la strada per andare a
-            scriverle. Dirlo senza darla obbliga a cercare la voce in
-            sidebar mentre si e' fermi qui. */}
-        {mancanoLeMieOre && complete && (
-          <Button dimensione="sm" onClick={() => navigate(`/mie-ore?data=${giorno}`)}>
-            Compila le tue ore
-          </Button>
-        )}
-        <Button
-          variante="primario"
-          disabled={!complete || !daSpedire || mancanoLeMieOre || invia.isPending}
-          onClick={() => invia.mutate()}
-        >
-          {invia.isPending ? 'Invio…' : 'Invia il foglio della giornata'}
-        </Button>
-      </Card>
+      />
     </div>
   )
 }
@@ -454,37 +443,28 @@ function SchedaCantiere({
 }) {
   const a = ASPETTO[semaforo]
 
+  /* TUTTA LA CARD E' IL PULSANTE, dal 2026-09-24. Porta sempre allo
+     stesso posto, la scheda del cantiere; cosa c'e' da fare lo dice la
+     fascia colorata. */
   return (
-    <Card className="overflow-hidden">
-      <div className={cn('flex items-center gap-2 border-b-2 border-black px-4 py-2', a.fascia)}>
-        <span className={cn('h-3 w-3 rounded-full border-2 border-black', a.punto)} />
-        <span className="text-[11px] font-extrabold uppercase tracking-wide text-black">
+    <button
+      type="button"
+      onClick={onApri}
+      className="neo-press cursor-pointer overflow-hidden rounded-xl border-2 border-black bg-white text-left shadow-neo hover:bg-amber-50"
+    >
+      <div className={cn('flex items-center gap-2 border-b-2 border-black px-3 py-1', a.fascia)}>
+        <span className={cn('h-2.5 w-2.5 rounded-full border-2 border-black', a.punto)} />
+        <span className="text-[10px] font-extrabold uppercase tracking-wide text-black">
           {a.testo}
         </span>
       </div>
-
-      <div className="grid gap-3 p-4">
-        <div className="min-w-0">
-          <p className="truncate text-xs font-bold text-gray-600">{codice}</p>
-          <p className="truncate text-base font-extrabold leading-tight text-black">
-            {denominazione}
-          </p>
-          {luogo && <p className="truncate text-xs font-semibold text-gray-600">{luogo}</p>}
-        </div>
-
-        {/* Un'etichetta sola per tutti e tre i colori: il bottone porta
-            sempre nello stesso posto, e scrivergli sopra «Compila»
-            prometterebbe un modulo mentre si apre una panoramica. Cosa
-            c'e' da fare lo dice gia' la fascia colorata qui sopra. */}
-        <Button
-          variante={semaforo === 'verde' ? undefined : 'primario'}
-          dimensione="sm"
-          onClick={onApri}
-          className="w-full"
-        >
-          Apri il cantiere
-        </Button>
+      <div className="min-w-0 px-3 py-2">
+        <p className="truncate text-sm font-extrabold leading-tight text-black">
+          <span className="mr-1.5 text-[11px] font-bold text-gray-600">{codice}</span>
+          {denominazione}
+        </p>
+        {luogo && <p className="truncate text-[11px] font-semibold text-gray-600">{luogo}</p>}
       </div>
-    </Card>
+    </button>
   )
 }
