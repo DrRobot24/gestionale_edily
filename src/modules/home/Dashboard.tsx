@@ -140,6 +140,10 @@ export function Dashboard() {
               di un giorno compare sotto il calendario solo quando lo si
               clicca. Sul telefono tornano una sotto l'altra, nello
               stesso ordine. */}
+          {/* I registri in cima, in una riga sola: la situazione
+              dell'impresa prima della coda. Vedi `IlSuoLavoro`. */}
+          {puoValidare && <IlSuoLavoro compatto />}
+
           {puoValidare && (
             <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_24rem] lg:items-start">
               <GiornateDaValidare />
@@ -257,11 +261,8 @@ export function Dashboard() {
               `paghe.read` senza `rapportini.validate` ed entra. */}
           {can('paghe.read') && !puoValidare && <OreArrivate />}
 
-          {/* I REGISTRI NON A CHI VALIDA, dal 2026-09-24: dieci clienti
-              e otto cantieri non chiedono niente a Giuseppe, e il menu
-              porta gia' a quelle pagine. Restano a Stefania, per cui
-              sono la porta d'ingresso del suo lavoro. Stessa regola di
-              «Ore arrivate» qui sopra: chi valida non elabora. */}
+          {/* I registri a riquadri pieni per chi li tiene e non
+              valida — Stefania. Il titolare li ha in cima, compatti. */}
           {!puoValidare && <IlSuoLavoro />}
         </div>
       )}

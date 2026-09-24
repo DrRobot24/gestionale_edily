@@ -32,7 +32,7 @@ import { useGiacenze } from '../magazzino/magazzino'
    azienda.
    ══════════════════════════════════════════════════════════════════ */
 
-export function IlSuoLavoro() {
+export function IlSuoLavoro({ compatto = false }: { compatto?: boolean } = {}) {
   const { can } = useSession()
 
   /* I registri li vede chi li tiene. Senza questo permesso il riquadro
@@ -107,6 +107,25 @@ export function IlSuoLavoro() {
     },
   ]
 
+  /* LA STRISCIA DEL TITOLARE, dal 2026-09-24. Per un giorno la sua
+     home i registri non li ha avuti — «chi valida non elabora» — e
+     l'utente l'ha corretto subito: «li deve vedere sempre il titolare!
+     Deve avere sempre la situazione aggiornata». Per Stefania sono la
+     porta d'ingresso del lavoro; per Giuseppe sono il polso
+     dell'impresa, da leggere in un colpo d'occhio sopra la coda da
+     firmare. Quindi gli stessi numeri, ma in una riga sola e sobria:
+     pillole bianche col pallino del colore, non sei riquadri pieni che
+     si contendono l'occhio con le giornate da validare. */
+  if (compatto) {
+    return (
+      <nav aria-label="I registri" className="flex flex-wrap items-center gap-2">
+        {registri.map((r) => (
+          <Pillola key={r.a} {...r} />
+        ))}
+      </nav>
+    )
+  }
+
   return (
     <Card className="overflow-hidden">
       <div className="border-b-2 border-black bg-white px-5 py-3">
@@ -130,6 +149,38 @@ export function IlSuoLavoro() {
         ))}
       </div>
     </Card>
+  )
+}
+
+function Pillola({
+  etichetta,
+  a,
+  quanti,
+  colore,
+  nota,
+}: {
+  etichetta: string
+  a: string
+  quanti: number | undefined
+  colore: string
+  nota: string
+}) {
+  const navigate = useNavigate()
+
+  return (
+    <button
+      type="button"
+      onClick={() => navigate(a)}
+      title={nota}
+      className="neo-press flex cursor-pointer items-center gap-2 rounded-full border-2 border-black bg-white py-1 pr-3.5 pl-2 shadow-neo-xs hover:bg-amber-50"
+    >
+      <span
+        aria-hidden="true"
+        className={cn('h-3 w-3 shrink-0 rounded-full border-2 border-black', colore)}
+      />
+      <span className="numerico text-sm font-black text-black">{quanti ?? '—'}</span>
+      <span className="text-xs font-bold uppercase tracking-wide text-gray-700">{etichetta}</span>
+    </button>
   )
 }
 
