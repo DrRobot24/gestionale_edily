@@ -701,9 +701,24 @@ export function DipendenteForm() {
           Solo su una scheda gia' salvata: tutti e due hanno bisogno di
           una persona a cui appartenere, e prima del primo salvataggio
           quella persona non ha ancora un id. */}
+      {/* DUE PILE INDIPENDENTI, dal 2026-09-24, non celle di una
+          griglia sola. Con la griglia la seconda riga partiva sotto il
+          piu' alto dei due riquadri della prima: le tariffe col modulo
+          aperto lasciavano un buco sotto i documenti, e lo stipendio
+          restava solo con mezza pagina vuota accanto. A sinistra
+          documenti e stipendio, a destra le tariffe, che sono le piu'
+          alte: le due colonne vengono circa pari. */}
       {!nuovo && (
         <div className="grid items-start gap-4 lg:grid-cols-2">
-          {id && <RiquadroDocumentiPersona dipendenteId={id} puoScrivere={puoScrivere} />}
+          <div className="grid gap-4">
+            {id && <RiquadroDocumentiPersona dipendenteId={id} puoScrivere={puoScrivere} />}
+
+            {/* Lo stipendio solo a chi fa le paghe: chi non ha
+                `paghe.read` non vede nemmeno che il riquadro esiste. */}
+            {dipendente && puoVederePaghe && (
+              <RiquadroStipendio dipendenteId={dipendente.id} puoScrivere={puoScrivere} />
+            )}
+          </div>
 
           {dipendente && (
             <Tariffe
@@ -711,12 +726,6 @@ export function DipendenteForm() {
               tariffe={dipendente.dipendente_costi}
               puoScrivere={puoScrivere}
             />
-          )}
-
-          {/* Lo stipendio solo a chi fa le paghe: chi non ha
-              `paghe.read` non vede nemmeno che il riquadro esiste. */}
-          {dipendente && puoVederePaghe && (
-            <RiquadroStipendio dipendenteId={dipendente.id} puoScrivere={puoScrivere} />
           )}
         </div>
       )}
