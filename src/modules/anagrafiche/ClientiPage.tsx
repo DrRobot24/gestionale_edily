@@ -4,6 +4,9 @@ import { Avviso, Badge, Button, Rubrica, Vuoto } from '../../ui'
 import { usePermission } from '../auth/usePermission'
 import { useClienti } from './clienti'
 
+/** La stessa griglia per i titoli e per le righe, cosi' restano in colonna. */
+const COLONNE = 'grid gap-x-6 sm:grid-cols-[2fr_3fr_1fr]'
+
 export function ClientiPage() {
   const navigate = useNavigate()
   const [conArchiviati, setConArchiviati] = useState(false)
@@ -65,12 +68,19 @@ export function ClientiPage() {
           chiave={(c) => c.id}
           spenta={(c) => !c.attivo}
           onApri={(c) => navigate(`/anagrafiche/clienti/${c.id}`)}
+          intestazione={
+            <div className={`${COLONNE} w-full`}>
+              <span>Nominativo</span>
+              <span>Indirizzo</span>
+              <span>Telefono</span>
+            </div>
+          }
         >
           {(c) => {
             const indirizzo = indirizzoCompleto(c)
             const telefono = c.telefono?.trim()
             return (
-              <div className="grid w-full gap-x-6 gap-y-0.5 sm:grid-cols-[2fr_3fr_1fr]">
+              <div className={`${COLONNE} w-full gap-y-0.5`}>
                 <span className="flex min-w-0 items-center gap-2">
                   <span className="truncate text-sm font-extrabold text-black">
                     {c.ragione_sociale}

@@ -25,6 +25,7 @@ export function Rubrica<T>({
   chiave,
   onApri,
   spenta,
+  intestazione,
   children,
 }: {
   voci: T[]
@@ -34,6 +35,9 @@ export function Rubrica<T>({
   onApri: (v: T) => void
   /** Le righe archiviate si mostrano in grigio. */
   spenta?: (v: T) => boolean
+  /** I titoli delle colonne, in cima all'elenco. Vanno scritti con la
+   *  stessa griglia delle righe, perche' cadano sopra i loro dati. */
+  intestazione?: ReactNode
   /** Il contenuto della riga: il nome a sinistra, il resto a destra. */
   children: (v: T) => ReactNode
 }) {
@@ -51,6 +55,13 @@ export function Rubrica<T>({
 
   return (
     <div className="overflow-hidden rounded-xl border-2 border-black bg-white shadow-neo">
+      {/* Solo da schermo largo: sul telefono le colonne vanno a capo una
+          sotto l'altra, e i titoli non cadrebbero piu' sopra niente. */}
+      {intestazione && (
+        <div className="hidden border-b-2 border-black bg-black px-4 py-2 text-[11px] font-black uppercase tracking-wide text-white sm:flex">
+          {intestazione}
+        </div>
+      )}
       {gruppi.map((g, i) => (
         <section key={g.lettera} aria-label={`Lettera ${g.lettera}`}>
           <h2
