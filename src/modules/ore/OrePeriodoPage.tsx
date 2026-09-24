@@ -682,9 +682,9 @@ function Cella({
      segno. Si accende l'anomalia e nient'altro, come il semaforo dei
      cantieri o la fascia «MANCA» sulla tariffa.
 
-     NON UN COLORE: in questa tabella il giallo dice gia' «oggi» e il
-     grigio «fine settimana»; un terzo colore sulla cella entrerebbe in
-     conflitto con due significati gia' assegnati. E non il numero
+     NON UN COLORE: il fondo della cella e' del semaforo delle ore (dal
+     2026-09-24), e un secondo significato sullo stesso fondo non si
+     leggerebbe piu'. E non il numero
      spezzato «6+2», che raddoppia la larghezza delle colonne e rompe
      l'incolonnamento appena sistemato.
 
@@ -693,6 +693,7 @@ function Cella({
      posto dove la persona e' stata. */
   const quantiCantieri = casella.cantieri.filter((k) => Number(k.ore) > 0).length
   const sparso = quantiCantieri > 1
+  const luce = semaforo(lav, nonFeriale)
 
   return (
     /* UNA CELLA PIENA DI SABATO NON RESTA GRIGIA: se qualcuno ha
@@ -701,14 +702,14 @@ function Cella({
        si legge come gli altri — anzi, spicca proprio perche' intorno e'
        grigio, che e' l'effetto giusto: un sabato lavorato E' una cosa
        da notare. */
-    <td className={cn('border-l-2 border-gray-300 p-1 text-center')}>
+    <td className={cn('border-l-2 border-gray-300 p-1 text-center', SEMAFORO[luce].cella)}>
       <button
         type="button"
         onClick={onApri}
         aria-expanded={aperta}
         aria-label={`${assente ? 'Assenza' : `${ore(lav)} ore`} il ${dataEstesa(casella.data)}${
           sparso ? ` su ${quantiCantieri} cantieri` : ''
-        }`}
+        } — ${SEMAFORO[luce].detto}`}
         /* Il dettaglio passando sopra, senza aprire niente: i pallini
            dicono QUANTI, il `title` dice QUALI e con quante ore. Chi
            vuole solo togliersi il dubbio non deve piu' espandere. */
@@ -732,9 +733,10 @@ function Cella({
            automatico e dimensiona su cio' che trova dentro. */
         className={cn(
           'relative mx-auto block w-14 rounded-lg border-2 py-1.5 transition-colors',
-          aperta
-            ? 'border-black bg-amber-300'
-            : 'border-transparent hover:border-black hover:bg-amber-100',
+          /* Aperta = bordo nero e basta: il fondo e' gia' del
+             semaforo, e un giallo «aperta» sopra un giallo «da
+             guardare» li renderebbe indistinguibili. */
+          aperta ? 'border-black bg-white/60' : 'border-transparent hover:border-black',
         )}
       >
         {assente ? (
@@ -760,7 +762,7 @@ function Cella({
             }
             className="flex flex-col items-center"
           >
-            <span className="numerico text-sm font-black text-gray-500">0</span>
+            <span className="numerico text-sm font-black text-rose-800">0</span>
             <span className="-mb-1 text-[9px] font-extrabold uppercase leading-none tracking-wide text-gray-600">
               {siglaAssenza(casella.tipo_assenza)}
             </span>
@@ -805,6 +807,52 @@ function Cella({
       </button>
     </td>
   )
+}
+
+/* ── il semaforo ─────────────────────────────────────────────────── */
+
+type Luce = 'verde' | 'giallo' | 'rosso'
+
+/**
+ * Il colore di una giornata VALIDATA, dal 2026-09-24. Proposto
+ * dall'utente: «rosso se sono 0 ore, giallo se sono meno di 8 o piu'
+ * di 8 perche' si deve fornire un motivo, verde se sono 8».
+ *
+ *   verde    8 ore esatte: niente da chiedere.
+ *   giallo   diverso da 8, ma lavorato: serve un motivo. Il pallino
+ *            azzurro dice se il tecnico l'ha gia' scritto — giallo con
+ *            pallino e' spiegato, giallo senza pallino va chiesto.
+ *   rosso    zero ore lavorate. Con la sigla sotto (FER, PER, MAL) il
+ *            motivo c'e' gia'; resta rosso lo stesso perche' e' una
+ *            giornata senza lavoro, ed e' la prima cosa che chi fa le
+ *            paghe deve vedere.
+ *
+ * SABATO E DOMENICA NON SI PRETENDONO: l'attesa li' e' zero, non otto.
+ * Un fine settimana lavorato e' giallo qualunque sia il numero — e' ore
+ * in piu' rispetto al dovuto, con un motivo da dare — e uno a zero non
+ * arriva nemmeno qui, perche' nessuno manda la scheda di un sabato di
+ * riposo.
+ *
+ * IL TRATTINO NON HA COLORE. Vuol dire «nessuna giornata validata», non
+ * «zero ore»: puo' essere una scheda ferma dal titolare, e colorarla di
+ * rosso accuserebbe di un'assenza chi magari ha lavorato. Meglio non
+ * dire che dire sbagliato.
+ */
+function semaforo(lavorate: number, nonFeriale: boolean): Luce {
+  if (nonFeriale) return lavorate > 0 ? 'giallo' : 'rosso'
+  if (lavorate === 0) return 'rosso'
+  if (lavorate === 8) return 'verde'
+  return 'giallo'
+}
+
+/* Fondi tenui: il colore deve dire lo stato senza coprire la cifra.
+   Il verde e' il piu' leggero dei tre, perche' e' il caso normale e
+   ricopre quasi tutta la griglia; il rosso il piu' carico, perche' e'
+   quello da trovare per primo. */
+const SEMAFORO: Record<Luce, { cella: string; detto: string }> = {
+  verde: { cella: 'bg-lime-100', detto: 'otto ore' },
+  giallo: { cella: 'bg-amber-200', detto: 'diverso da otto ore, serve un motivo' },
+  rosso: { cella: 'bg-rose-200', detto: 'nessuna ora lavorata' },
 }
 
 /* ── il dettaglio ────────────────────────────────────────────────── */
@@ -1169,11 +1217,22 @@ function Giornata({
 function Legenda() {
   return (
     <p className="flex flex-wrap items-center gap-x-4 gap-y-1 px-1 text-[11px] font-semibold text-gray-600">
+      <span className="inline-flex items-center gap-1">
+        <span className="inline-block h-3 w-3 rounded border-2 border-gray-400 bg-lime-100" /> 8 ore
+      </span>
+      <span className="inline-flex items-center gap-1">
+        <span className="inline-block h-3 w-3 rounded border-2 border-gray-400 bg-amber-200" /> più o
+        meno di 8, serve un motivo
+      </span>
+      <span className="inline-flex items-center gap-1">
+        <span className="inline-block h-3 w-3 rounded border-2 border-gray-400 bg-rose-200" /> 0 ore
+        lavorate
+      </span>
       <span>
         <span className="font-black text-rose-700">8</span> comprende straordinario
       </span>
       <span>
-        <span className="numerico font-black text-gray-500">0</span>
+        <span className="numerico font-black text-rose-800">0</span>
         <span className="ml-0.5 text-[9px] font-extrabold text-gray-600">FER</span> assente
         tutto il giorno, col motivo
       </span>
