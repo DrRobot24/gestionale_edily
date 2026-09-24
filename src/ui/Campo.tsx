@@ -51,8 +51,13 @@ function Guscio({
   suggerimento?: string
   children: ReactNode
 }) {
+  /* `content-start`: in una riga di campi affiancati il guscio viene
+     stirato all'altezza del piu' alto, e senza questo la griglia
+     spartiva lo spazio in piu' fra le sue righe — l'etichetta e il
+     campo scendevano, e i campi di una stessa riga non stavano piu'
+     alla stessa altezza di quello col suggerimento sotto (2026-09-24). */
   return (
-    <div className="grid gap-1.5">
+    <div className="grid content-start gap-1.5">
       {etichetta && (
         <label htmlFor={idControllo} className="text-xs font-bold uppercase text-black">
           {etichetta}

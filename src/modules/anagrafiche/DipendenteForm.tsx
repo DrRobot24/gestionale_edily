@@ -871,7 +871,10 @@ function FormTariffa({
     <div className="grid gap-3 rounded-xl border-2 border-black bg-amber-50 p-4">
       {errore && <Avviso tono="errore">{errore}</Avviso>}
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Due per riga e non quattro: il riquadro sta in mezza pagina
+          accanto ai documenti, e in un quarto di mezza pagina il campo
+          data non ci sta — finiva sotto il costo orario. */}
+      <div className="grid gap-3 sm:grid-cols-2">
         <Campo
           etichetta="Valida dal"
           type="date"
