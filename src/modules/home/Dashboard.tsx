@@ -1,4 +1,4 @@
-import { Avviso } from '../../ui'
+import { Avviso, cn } from '../../ui'
 import { useSession } from '../auth/SessionProvider'
 import { useRapportini } from '../rapportini/useRapportini'
 import { Benvenuto } from './Benvenuto'
@@ -90,7 +90,9 @@ export function Dashboard() {
   const puoCompilare = can('rapportini.create')
 
   return (
-    <div className="mx-auto grid max-w-5xl gap-6">
+    /* Piu' larga per chi valida: la sua home e' su due colonne (vedi
+       sotto), e in 5xl la colonna del calendario restava schiacciata. */
+    <div className={cn('mx-auto grid gap-6', puoValidare ? 'max-w-7xl' : 'max-w-5xl')}>
       {/* Le frecce stanno nella fascia, ai lati della data: la data
           grande e' il titolo della pagina, e il posto per cambiarla e'
           quello dove la si legge. Chi non compila la riceve senza
@@ -125,8 +127,25 @@ export function Dashboard() {
 
       {!isPending && !error && (
         <div className="grid gap-6">
-          {/* ── Chi valida: le giornate, non le schede sciolte ── */}
-          {puoValidare && <GiornateDaValidare />}
+          {/* ── Chi valida: DUE COLONNE, dal 2026-09-24 ──
+
+              «Non e' troppo dispersiva?», l'utente guardando la home di
+              Giuseppe. Lo era: tutto in una colonna stretta, meta'
+              schermo vuoto a destra, e le due cose che fa — firmare e
+              sollecitare — una sotto l'altra da scorrere.
+
+              A sinistra, larga, la coda da firmare: e' il lavoro per
+              cui apre la pagina. A destra, stretta, il calendario di chi
+              deve ancora consegnare: si guarda di lato, e il dettaglio
+              di un giorno compare sotto il calendario solo quando lo si
+              clicca. Sul telefono tornano una sotto l'altra, nello
+              stesso ordine. */}
+          {puoValidare && (
+            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_24rem] lg:items-start">
+              <GiornateDaValidare />
+              <ConsegneDalCampo />
+            </div>
+          )}
 
           {/* Le consegne dal campo STANNO SOTTO la coda da validare, e
               l'ordine e' quello del lavoro: prima cio' che e' arrivato
@@ -144,7 +163,6 @@ export function Dashboard() {
               Sul permesso `rapportini.validate` e non sul ruolo, come
               ovunque qui: il giorno che la firma va a qualcun altro, il
               riquadro lo segue senza toccare questo file. */}
-          {puoValidare && <ConsegneDalCampo />}
 
           {/* ── Chi compila: prima la giornata, poi le code ── */}
           {puoCompilare && (
@@ -239,7 +257,12 @@ export function Dashboard() {
               `paghe.read` senza `rapportini.validate` ed entra. */}
           {can('paghe.read') && !puoValidare && <OreArrivate />}
 
-          <IlSuoLavoro />
+          {/* I REGISTRI NON A CHI VALIDA, dal 2026-09-24: dieci clienti
+              e otto cantieri non chiedono niente a Giuseppe, e il menu
+              porta gia' a quelle pagine. Restano a Stefania, per cui
+              sono la porta d'ingresso del suo lavoro. Stessa regola di
+              «Ore arrivate» qui sopra: chi valida non elabora. */}
+          {!puoValidare && <IlSuoLavoro />}
         </div>
       )}
     </div>

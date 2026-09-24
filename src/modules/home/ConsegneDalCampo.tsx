@@ -142,37 +142,19 @@ export function ConsegneDalCampo() {
 
       {isPending && <p className="text-sm font-bold text-gray-600">Carico le consegne…</p>}
 
-      {/* IL DETTAGLIO STA DI FIANCO, non sotto.
-
-          Sotto c'era, ed era sbagliato: un calendario e' largo quanto
-          sette caselle e basta, quindi con un tecnico solo restava
-          mezza schermata bianca a destra — e il dettaglio, che e' fatto
-          di righe corte, andava a stendersi sotto a tutta pagina per
-          contenerle. Due sprechi in una volta, lo spazio vuoto sopra e
-          quello dentro le righe allargate. Segnalato dall'utente il
-          2026-09-22 guardando la sua home.
-
-          Le due colonne non sono uguali: il calendario chiede la sua
-          larghezza naturale e non di piu', il dettaglio si prende il
-          resto. `lg:w-[22rem] lg:shrink-0` sulla prima e `flex-1` sulla
-          seconda fanno esattamente questo, mentre `lg:grid-cols-2`
-          avrebbe diviso a meta' allargando le caselle per niente.
-
-          `items-start` perche' il dettaglio non deve allungarsi fino in
-          fondo al calendario quando ha tre righe: si ferma dov'e'
-          finito.
-
-          Sul telefono si impilano, calendario sopra e dettaglio sotto,
-          che e' l'ordine del gesto: clicchi un giorno, leggi cosa c'e'
-          dentro. */}
       {!isPending && tecnici.length > 0 && (
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+        /* SEMPRE IN COLONNA, dal 2026-09-24: il riquadro sta nella
+           colonna stretta a destra della coda da firmare, e il
+           dettaglio del giorno scende sotto il calendario. Non c'e'
+           piu' il segnaposto «clicca una giornata»: occupava mezzo
+           riquadro per dire che li' non c'era niente. */
+        <div className="grid gap-4">
           {/* I calendari restano in colonna anche con piu' tecnici: due
               affiancati qui dentro rimangerebbero lo spazio al
               dettaglio, che e' proprio cio' che si stava correggendo.
               In verticale si confrontano lo stesso — stesso mese,
               stessa griglia, uno sotto l'altro. */}
-          <div className="grid gap-4 lg:w-[22rem] lg:shrink-0">
+          <div className="grid gap-4">
             {tecnici.map((t) => (
               <CalendarioTecnico
                 key={t.dipendenteId}
@@ -188,8 +170,8 @@ export function ConsegneDalCampo() {
             ))}
           </div>
 
-          <div className="lg:flex-1 lg:min-w-0">
-            {giornoAperto ? (
+          <div className="min-w-0">
+            {giornoAperto && (
               /* DUE RIQUADRI, e rispondono a due domande diverse sullo
                  stesso giorno.
 
@@ -216,19 +198,6 @@ export function ConsegneDalCampo() {
                   onChiudi={() => setGiornoAperto(null)}
                 />
                 <LaGiornataDi giorno={giornoAperto} />
-              </div>
-            ) : (
-              /* L'invito compare SOLO da schermo largo (`hidden lg:`):
-                 sul telefono le due colonne si impilano, e un
-                 segnaposto grigio fra il calendario e il resto della
-                 pagina sarebbe un ostacolo da scorrere. Da desktop
-                 invece riempie il posto del dettaglio e dice cosa fare
-                 per vederlo — senza, la colonna vuota sembra un pezzo
-                 che non ha caricato. */
-              <div className="hidden h-full min-h-64 place-content-center rounded-xl border-2 border-dashed border-black/25 bg-white/50 p-6 text-center lg:grid">
-                <p className="text-sm font-bold text-gray-500">
-                  Clicca una giornata per vedere cosa è arrivato e cosa manca.
-                </p>
               </div>
             )}
           </div>

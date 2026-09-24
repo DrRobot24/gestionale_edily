@@ -51,6 +51,9 @@ export function GiornateDaValidare() {
   const location = useLocation()
   const { data: schede, isPending, error } = useDaValidare()
   const { data: oreProprie } = useOrePersonaliDaValidare()
+  /* Chi ha aperto o chiuso a mano. Un giorno che non c'e' qui segue la
+     regola di partenza: aperta la piu' vecchia, chiuse le altre. */
+  const [scelte, setScelte] = useState<Record<string, boolean>>({})
 
   if (isPending) return <p className="text-sm font-bold text-gray-600">Carico le giornate…</p>
   if (error) {
@@ -94,15 +97,20 @@ export function GiornateDaValidare() {
     if (!giornate.has(o.data)) giornate.set(o.data, [])
   }
 
-  // Dal piu' recente: le due mappe fuse possono aver perso l'ordine.
-  const inOrdine = [...giornate.entries()].sort((a, b) => b[0].localeCompare(a[0]))
+  /* DALLA PIU' VECCHIA, dal 2026-09-24: e' una coda, e si firma
+     nell'ordine in cui le cose sono arrivate. Prima stava in cima la
+     piu' recente, e una giornata di tre giorni fa finiva in fondo alla
+     pagina — proprio quella che aspetta da piu' tempo. */
+  const inOrdine = [...giornate.entries()].sort((a, b) => a[0].localeCompare(b[0]))
+  const piuVecchia = inOrdine[0]?.[0]
+  const aperta = (g: string) => scelte[g] ?? g === piuVecchia
 
   return (
     <div className="grid gap-4">
       <div>
         <h2 className="text-lg font-extrabold text-black">Giornate da validare</h2>
         <p className="text-xs font-semibold text-gray-600">
-          Il quadro d&rsquo;insieme. Apri una scheda quando vuoi entrare nel dettaglio.
+          Dalla più vecchia. Premi una giornata per aprirla o chiuderla.
         </p>
       </div>
 
@@ -118,9 +126,28 @@ export function GiornateDaValidare() {
           <Card key={giorno} className="overflow-hidden">
             {/* La data e' il titolo del riquadro, non una didascalia:
                 e' l'unita' di lettura del titolare da quando riceve
-                giornate intere invece di schede sciolte. */}
-            <div className="flex flex-wrap items-baseline justify-between gap-2 border-b-2 border-black bg-yellow-300 px-5 py-3">
-              <h3 className="text-xl font-extrabold capitalize leading-tight text-black">
+                giornate intere invece di schede sciolte.
+
+                ED E' IL PULSANTE CHE LA APRE, dal 2026-09-24. Chiusa,
+                la giornata e' una riga sola che dice gia' quanto pesa —
+                schede, ore, cantieri fermi — e con tre giorni in coda la
+                pagina non diventa piu' un rotolo. Aperta di partenza
+                resta solo la piu' vecchia, che e' quella da firmare per
+                prima: chiuderle tutte avrebbe chiesto un click in piu'
+                proprio per l'unica cosa che si viene a fare. */}
+            <button
+              type="button"
+              aria-expanded={aperta(giorno)}
+              onClick={() => setScelte((s) => ({ ...s, [giorno]: !aperta(giorno) }))}
+              className={cn(
+                'flex w-full cursor-pointer flex-wrap items-baseline justify-between gap-2 bg-yellow-300 px-5 py-3 text-left hover:bg-yellow-200',
+                aperta(giorno) && 'border-b-2 border-black',
+              )}
+            >
+              <h3 className="flex items-baseline gap-2 text-xl font-extrabold capitalize leading-tight text-black">
+                <span aria-hidden="true" className="w-4 text-sm">
+                  {aperta(giorno) ? '▼' : '▶'}
+                </span>
                 {dataEstesa(giorno)}
               </h3>
               <p className="text-xs font-bold text-black/70">
@@ -129,8 +156,9 @@ export function GiornateDaValidare() {
                 <span className="numerico">{formattaNumero(ore)}</span> ore
                 {ferme > 0 && ` · ${ferme} senza attività`}
               </p>
-            </div>
+            </button>
 
+            {aperta(giorno) && (
             <ul className="divide-y-2 divide-black">
               {delGiorno.map((s) => (
                 <RigaScheda
@@ -149,6 +177,7 @@ export function GiornateDaValidare() {
 
               <RigaAssenti giorno={giorno} />
             </ul>
+            )}
           </Card>
         )
       })}
