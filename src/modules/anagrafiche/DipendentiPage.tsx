@@ -163,7 +163,7 @@ export function DipendentiPage() {
               <span>Mansione</span>
               <span>Impiego</span>
               <span>Assunzione</span>
-              {vedePaghe && <span className="text-right">Salario</span>}
+              {vedePaghe && <span className="text-right">Paga mensile</span>}
               <span className="text-right">Costo orario</span>
             </div>
           }
@@ -246,7 +246,7 @@ export function DipendentiPage() {
                       'numerico hidden justify-self-end text-sm lg:block',
                       s ? 'font-black text-black' : 'font-semibold text-gray-400',
                     )}
-                    title={s ? `Salario pattuito dal ${fmtData(s.valido_dal)}` : undefined}
+                    title={s ? `Paga mensile pattuita dal ${fmtData(s.valido_dal)}` : undefined}
                   >
                     {s ? euro(s.importo_mensile) : '—'}
                   </span>

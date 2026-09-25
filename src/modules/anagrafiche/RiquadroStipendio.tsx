@@ -77,7 +77,7 @@ export function RiquadroStipendio({
     <Card className="grid gap-3 p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="text-lg font-extrabold text-black">Salario</h2>
+          <h2 className="text-lg font-extrabold text-black">Paga mensile</h2>
           <p className="text-xs font-semibold text-gray-600">
             Il fisso mensile pattuito con la persona. Quando cambia se ne aggiunge uno nuovo
             con la data da cui vale.
