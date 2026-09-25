@@ -158,59 +158,64 @@ export function contoFerie(
   }
 }
 
-export function useBustePaga(dipendenteId: string | undefined, anno: number) {
+/**
+ * Quanto ha percepito la persona, mese per mese, dal RIEPILOGO
+ * ECONOMICO (dal 2026-09-25).
+ *
+ * Prima qui c'era il netto scritto a mano da Stefania dal cedolino
+ * (`buste_paga`, mai attivata). Da quando il riepilogo del mese calcola
+ * chi prende quanto — paga globale o giornaliera, acconti, rimborsi,
+ * trattenute — quel numero c'e' gia', e scriverlo due volte vorrebbe
+ * dire due cifre che prima o poi non tornano.
+ *
+ * PERCEPITO = maturato + rimborsi − trattenute. Gli acconti ci sono
+ * dentro: sono soldi gia' dati durante il mese, non soldi in meno.
+ *
+ * Solo i mesi VALIDATI dal titolare hanno una cifra; un mese inviato e
+ * non ancora firmato si dice come tale, non come un numero.
+ */
+export type PercepitoMese = { stato: 'validato' | 'inviato'; percepito: number | null }
+
+export function usePercepito(dipendenteId: string | undefined, anno: number) {
   const { org } = useSession()
 
   return useQuery({
-    queryKey: ['buste-paga', org?.id, dipendenteId, anno],
+    queryKey: ['paghe', 'percepito', org?.id, dipendenteId, anno],
     enabled: Boolean(org?.id && dipendenteId),
     retry: false,
-    queryFn: async (): Promise<Map<number, number>> => {
-      const { data, error } = await supabase
-        .from('buste_paga')
-        .select('mese, netto')
+    queryFn: async (): Promise<Map<number, PercepitoMese>> => {
+      const { data: mesi, error } = await supabase
+        .from('paghe_mesi')
+        .select('id, mese, stato')
         .eq('org_id', org!.id)
-        .eq('dipendente_id', dipendenteId!)
         .eq('anno', anno)
+        .in('stato', ['inviato', 'validato'])
       if (error) throw error
-      return new Map((data ?? []).map((b) => [b.mese, Number(b.netto)]))
-    },
-  })
-}
+      const perMese = new Map<number, PercepitoMese>()
+      if (!mesi?.length) return perMese
 
-export function useSalvaNetto(dipendenteId: string, anno: number) {
-  const { org } = useSession()
-  const qc = useQueryClient()
+      const { data: righe, error: e2 } = await supabase
+        .from('paghe_righe')
+        .select('mese_id, maturato, rimborsi, trattenute')
+        .eq('dipendente_id', dipendenteId!)
+        .in(
+          'mese_id',
+          mesi.map((m) => m.id),
+        )
+      if (e2) throw e2
 
-  return useMutation({
-    mutationFn: async ({ mese, netto }: { mese: number; netto: number | null }) => {
-      /* Il campo svuotato cancella il netto di quel mese: un numero che
-         non c'e' e' meglio di uno zero, che sembrerebbe «ha preso zero». */
-      if (netto === null) {
-        const { error } = await supabase
-          .from('buste_paga')
-          .delete()
-          .eq('org_id', org!.id)
-          .eq('dipendente_id', dipendenteId)
-          .eq('anno', anno)
-          .eq('mese', mese)
-        if (error) throw new Error(error.message)
-        return
+      for (const m of mesi) {
+        const r = righe?.find((x) => x.mese_id === m.id)
+        perMese.set(m.mese, {
+          stato: m.stato as PercepitoMese['stato'],
+          percepito:
+            m.stato === 'validato' && r
+              ? Number(r.maturato) + Number(r.rimborsi) - Number(r.trattenute)
+              : null,
+        })
       }
-      const { error } = await supabase.from('buste_paga').upsert(
-        {
-          org_id: org!.id,
-          dipendente_id: dipendenteId,
-          anno,
-          mese,
-          netto,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'dipendente_id,anno,mese' },
-      )
-      if (error) throw new Error(error.message)
+      return perMese
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['buste-paga'] }),
   })
 }
 

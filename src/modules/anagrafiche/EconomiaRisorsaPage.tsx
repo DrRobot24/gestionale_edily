@@ -9,11 +9,10 @@ import {
   ORE_GIORNO,
   contoFerie,
   perMese,
-  useBustePaga,
+  usePercepito,
   useGiornateRisorsa,
   useMonteFerie,
   useSalvaMonteFerie,
-  useSalvaNetto,
   type MeseRisorsa,
   type MonteFerie,
 } from './economiaRisorsa'
@@ -61,7 +60,7 @@ export function EconomiaRisorsaPage() {
     inizioAnno,
     fineAnno,
   )
-  const { data: buste, error: erroreBuste } = useBustePaga(id, anno)
+  const { data: percepito } = usePercepito(id, anno)
   const { data: monte, error: erroreMonte } = useMonteFerie(id)
 
   /* Il goduto si conta dal giorno dopo il saldo fino a oggi, qualunque
@@ -73,7 +72,7 @@ export function EconomiaRisorsaPage() {
   )
 
   const mancaSql =
-    [erroreBuste, erroreMonte].some((e) => e && tabellaMancante(e as Error))
+    Boolean(erroreMonte && tabellaMancante(erroreMonte as Error))
 
   /* I mesi da mostrare: l'anno in corso fino al mese di oggi, gli anni
      passati per intero. I mesi futuri sarebbero righe di trattini. */
@@ -92,7 +91,10 @@ export function EconomiaRisorsaPage() {
     }),
     { mese: 0, giorniLavorati: 0, oreOrdinarie: 0, oreStraordinarie: 0, ferie: 0, malattia: 0, permesso: 0, altre: 0 },
   )
-  const nettoAnno = [...(buste?.values() ?? [])].reduce((t, n) => t + n, 0)
+  const percepitoAnno = [...(percepito?.values() ?? [])].reduce(
+    (t, p) => t + (p.percepito ?? 0),
+    0,
+  )
 
   return (
     <div className="mx-auto grid max-w-6xl gap-4">
@@ -105,7 +107,8 @@ export function EconomiaRisorsaPage() {
         <div>
           <h1 className="text-2xl font-extrabold text-black">Economia · {nome}</h1>
           <p className="text-xs font-semibold text-gray-600">
-            Giorni e ore dalle sole giornate validate dal titolare · il netto dal cedolino
+            Giorni e ore dalle sole giornate validate dal titolare · il percepito dal Riepilogo
+            economico firmato
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -126,8 +129,8 @@ export function EconomiaRisorsaPage() {
 
       {mancaSql && (
         <Avviso tono="info">
-          Netto e ferie non sono ancora attivi: manca <code>economia-risorse.sql</code> nel
-          database. Giorni e ore si leggono lo stesso.
+          Il conto di ferie e permessi non è ancora attivo: manca{' '}
+          <code>economia-risorse.sql</code> nel database. Il resto si legge lo stesso.
         </Avviso>
       )}
 
@@ -166,7 +169,7 @@ export function EconomiaRisorsaPage() {
                   <th className="!text-right">Malattia (gg)</th>
                   <th className="!text-right">Permessi (h)</th>
                   <th className="!text-right">Altre ass. (gg)</th>
-                  <th className="!text-right">Netto in busta</th>
+                  <th className="!text-right">Percepito</th>
                 </tr>
               </thead>
               <tbody>
@@ -182,18 +185,17 @@ export function EconomiaRisorsaPage() {
                     <Cifra>{giorni(m.malattia)}</Cifra>
                     <Cifra>{oreONiente(m.permesso)}</Cifra>
                     <Cifra>{giorni(m.altre)}</Cifra>
-                    <td className="text-right">
-                      {id && !mancaSql ? (
-                        <CellaNetto
-                          dipendenteId={id}
-                          anno={anno}
-                          mese={m.mese}
-                          valore={buste?.get(m.mese) ?? null}
-                        />
+                    {/* Dal Riepilogo economico: la cifra c'e' solo a
+                        mese firmato dal titolare. */}
+                    <Cifra>
+                      {percepito?.get(m.mese)?.percepito != null ? (
+                        euro(percepito.get(m.mese)!.percepito)
+                      ) : percepito?.get(m.mese)?.stato === 'inviato' ? (
+                        <span className="text-[11px] font-bold text-amber-700">da firmare</span>
                       ) : (
                         '—'
                       )}
-                    </td>
+                    </Cifra>
                   </tr>
                 ))}
                 <RigaTotale>
@@ -205,7 +207,7 @@ export function EconomiaRisorsaPage() {
                   <Cifra>{giorni(totale.malattia)}</Cifra>
                   <Cifra>{oreONiente(totale.permesso)}</Cifra>
                   <Cifra>{giorni(totale.altre)}</Cifra>
-                  <Cifra>{nettoAnno > 0 ? euro(nettoAnno) : '—'}</Cifra>
+                  <Cifra>{percepitoAnno > 0 ? euro(percepitoAnno) : '—'}</Cifra>
                 </RigaTotale>
               </tbody>
             </Table>
@@ -213,65 +215,6 @@ export function EconomiaRisorsaPage() {
         )}
       </Card>
     </div>
-  )
-}
-
-/**
- * Il netto di un mese, scritto nella cella.
- *
- * Si salva uscendo dal campo (o con Invio), solo se e' cambiato: un
- * pulsante «Salva» per ogni riga sarebbero dodici pulsanti per dodici
- * numeri. Svuotarlo toglie il netto di quel mese.
- */
-function CellaNetto({
-  dipendenteId,
-  anno,
-  mese,
-  valore,
-}: {
-  dipendenteId: string
-  anno: number
-  mese: number
-  valore: number | null
-}) {
-  const salva = useSalvaNetto(dipendenteId, anno)
-  const [testo, setTesto] = useState<string | null>(null)
-  const mostrato = testo ?? (valore === null ? '' : String(valore).replace('.', ','))
-
-  function conferma() {
-    if (testo === null) return
-    /* «1.234,50» all'italiana: i punti sono migliaia, la virgola i
-       decimali. Senza virgola il punto e' il decimale: «1234.50» deve
-       restare milleduecento, non diventare centoventitremila. */
-    const t = testo.trim()
-    const pulito = t.includes(',') ? t.replace(/\./g, '').replace(',', '.') : t
-    const numeroNuovo = pulito === '' ? null : Number(pulito)
-    if (numeroNuovo !== null && (Number.isNaN(numeroNuovo) || numeroNuovo < 0)) return
-    if (numeroNuovo === valore) {
-      setTesto(null)
-      return
-    }
-    salva.mutate({ mese, netto: numeroNuovo }, { onSuccess: () => setTesto(null) })
-  }
-
-  return (
-    <input
-      inputMode="decimal"
-      value={mostrato}
-      placeholder="—"
-      aria-label={`Netto di ${MESI[mese - 1]} ${anno}`}
-      title={salva.error ? salva.error.message : 'Il netto dal cedolino. Invio o uscire dal campo per salvare.'}
-      onChange={(e) => setTesto(e.target.value)}
-      onBlur={conferma}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
-      }}
-      className={cn(
-        'numerico h-8 w-28 rounded-lg border-2 bg-white px-2 text-right text-xs font-bold focus:outline-none focus:ring-2 focus:ring-amber-400',
-        salva.error ? 'border-rose-500' : 'border-black/30 focus:border-black',
-        salva.isPending && 'opacity-50',
-      )}
-    />
   )
 }
 

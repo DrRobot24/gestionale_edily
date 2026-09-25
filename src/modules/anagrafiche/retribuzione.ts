@@ -198,3 +198,77 @@ export function useEliminaTariffa() {
     },
   })
 }
+
+/* ── la riga del Riepilogo economico ──────────────────────────────── */
+
+/** Le assenze in tre mucchi. Il motivo e' testo libero (vedi i difetti
+ *  noti in STATO_LAVORI): si riconosce dalla radice, maiuscole e spazi
+ *  a parte, e cio' che non e' ne' ferie ne' permesso va in «altre» —
+ *  malattia, infortunio, altro. */
+export function categoriaAssenza(tipo: string | null): 'ferie' | 'permessi' | 'altre' {
+  const t = (tipo ?? '').trim().toLowerCase()
+  if (t.startsWith('feri')) return 'ferie'
+  if (t.startsWith('perm')) return 'permessi'
+  return 'altre'
+}
+
+export type RigaEconomica = {
+  giorni: number
+  ore_lavorate: number
+  ore_straordinarie: number
+  ore_ferie: number
+  ore_permessi: number
+  ore_altre: number
+  tariffa: TariffaDelMese
+  /** Quanto ha maturato nel mese, prima di acconti e trattenute. */
+  maturato: number
+}
+
+/**
+ * Il mese di una persona: ore, assenze e quanto ha maturato.
+ *
+ * IL MATURATO SEGUE IL REGIME (utente, 2026-09-25):
+ *   paga globale      la paga intera — chi lavora meno giorni costa di
+ *                     piu' all'ora, non prende di meno. Zero finche' nel
+ *                     mese non c'e' nessuna ora validata.
+ *   paga giornaliera  tariffa × ore effettivamente lavorate: le ore di
+ *                     ferie e permesso a tariffa non si pagano.
+ */
+export function rigaDelMese(
+  storico: Regime[],
+  righe: OreGiorno[] | undefined,
+  dipendenteId: string,
+  giorno: string,
+): RigaEconomica {
+  const { dal, al } = limitiMese(giorno)
+  const giorniLavorati = new Set<string>()
+  const r: RigaEconomica = {
+    giorni: 0,
+    ore_lavorate: 0,
+    ore_straordinarie: 0,
+    ore_ferie: 0,
+    ore_permessi: 0,
+    ore_altre: 0,
+    tariffa: { origine: 'manca' },
+    maturato: 0,
+  }
+
+  for (const o of righe ?? []) {
+    if (o.dipendente_id !== dipendenteId || !o.data || o.data < dal || o.data > al) continue
+    const lav = Number(o.ore_ordinarie) + Number(o.ore_straordinarie)
+    if (lav > 0) giorniLavorati.add(o.data)
+    r.ore_lavorate += lav
+    r.ore_straordinarie += Number(o.ore_straordinarie)
+    const ass = Number(o.ore_assenza)
+    if (ass > 0) r[`ore_${categoriaAssenza(o.tipo_assenza)}`] += ass
+  }
+  r.giorni = giorniLavorati.size
+  r.tariffa = tariffaDelMese(storico, righe, dipendenteId, giorno)
+
+  if (r.tariffa.origine === 'calcolata') r.maturato = r.tariffa.paga
+  else if (r.tariffa.origine === 'manuale') r.maturato = r.tariffa.euroOra * r.ore_lavorate
+
+  // Al centesimo: e' un importo che finisce in un bonifico.
+  r.maturato = Math.round(r.maturato * 100) / 100
+  return r
+}

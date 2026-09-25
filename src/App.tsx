@@ -20,6 +20,7 @@ import { Dashboard } from './modules/home/Dashboard'
 import { EconomiaPage } from './modules/economia/EconomiaPage'
 import { MagazzinoPage } from './modules/magazzino/MagazzinoPage'
 import { MieOrePage } from './modules/oreproprie/MieOrePage'
+import { RiepilogoEconomicoPage } from './modules/paghe/RiepilogoEconomicoPage'
 import { OrePeriodoPage } from './modules/ore/OrePeriodoPage'
 import { useOreDaLeggere } from './modules/ore/useOreDaLeggere'
 import { DipendenteForm } from './modules/anagrafiche/DipendenteForm'
@@ -226,6 +227,19 @@ const VOCI: Voce[] = [
     etichetta: 'Foglio presenze',
     perm: 'paghe.read',
     elemento: <OrePeriodoPage />,
+  },
+
+  /* IL RIEPILOGO ECONOMICO, dal 2026-09-25: il foglio presenze del mese
+     con i soldi accanto — quanto ha maturato ognuno, acconti, rimborsi,
+     trattenute, da bonificare. Lo prepara chi fa le paghe, lo firma il
+     titolare, e dopo la firma va in archivio e si stampa per i bonifici.
+     Subito dopo il foglio presenze perche' ne e' il seguito: prima le
+     ore, poi i soldi. */
+  {
+    to: '/riepilogo-economico',
+    etichetta: 'Riepilogo economico',
+    perm: 'paghe.read',
+    elemento: <RiepilogoEconomicoPage />,
   },
 
 

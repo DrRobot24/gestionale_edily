@@ -11,6 +11,7 @@ import { MieOre } from './MieOre'
 import { GiornateDaValidare } from './GiornateDaValidare'
 import { IlSuoLavoro } from './IlSuoLavoro'
 import { OreArrivate } from './OreArrivate'
+import { RiepiloghiDaFirmare } from '../paghe/RiepiloghiDaFirmare'
 import { oggi } from '../rapportini/campiRapportino'
 import { useDataInIndirizzo } from './useDataInIndirizzo'
 
@@ -159,6 +160,10 @@ export function Dashboard() {
               destra. */}
           {puoValidare && (
             <>
+              {/* La seconda firma, quella dei soldi: sopra le giornate,
+                  perche' da li' partono i bonifici. Sparisce se non c'e'
+                  niente. Vedi `RiepiloghiDaFirmare`. */}
+              <RiepiloghiDaFirmare />
               <GiornateDaValidare />
               <ConsegneDalCampo />
             </>

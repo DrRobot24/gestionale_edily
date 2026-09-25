@@ -1791,6 +1791,159 @@ export type Database = {
         }
         Relationships: []
       }
+      paghe_mesi: {
+        Row: {
+          anno: number
+          created_at: string
+          id: string
+          inviato_at: string | null
+          inviato_da: string | null
+          mese: number
+          motivo: string | null
+          org_id: string
+          stato: string
+          validato_at: string | null
+          validato_da: string | null
+        }
+        Insert: {
+          anno: number
+          created_at?: string
+          id?: string
+          inviato_at?: string | null
+          inviato_da?: string | null
+          mese: number
+          motivo?: string | null
+          org_id: string
+          stato?: string
+          validato_at?: string | null
+          validato_da?: string | null
+        }
+        Update: {
+          anno?: number
+          created_at?: string
+          id?: string
+          inviato_at?: string | null
+          inviato_da?: string | null
+          mese?: number
+          motivo?: string | null
+          org_id?: string
+          stato?: string
+          validato_at?: string | null
+          validato_da?: string | null
+        }
+        Relationships: []
+      }
+      paghe_movimenti: {
+        Row: {
+          anno: number
+          created_at: string
+          dipendente_id: string
+          id: string
+          importo: number
+          mese: number
+          motivo: string
+          org_id: string
+          scritto_da: string | null
+          tipo: string
+        }
+        Insert: {
+          anno: number
+          created_at?: string
+          dipendente_id: string
+          id?: string
+          importo: number
+          mese: number
+          motivo: string
+          org_id: string
+          scritto_da?: string | null
+          tipo: string
+        }
+        Update: {
+          anno?: number
+          created_at?: string
+          dipendente_id?: string
+          id?: string
+          importo?: number
+          mese?: number
+          motivo?: string
+          org_id?: string
+          scritto_da?: string | null
+          tipo?: string
+        }
+        Relationships: []
+      }
+      paghe_righe: {
+        Row: {
+          acconti: number
+          da_bonificare: number
+          dipendente_id: string
+          giorni: number
+          id: string
+          maturato: number
+          mese_id: string
+          movimenti: Json
+          nominativo: string
+          org_id: string
+          ore_altre: number
+          ore_ferie: number
+          ore_lavorate: number
+          ore_permessi: number
+          ore_straordinarie: number
+          paga_globale: number | null
+          regime: string | null
+          rimborsi: number
+          tariffa: number | null
+          tipo: string | null
+          trattenute: number
+        }
+        Insert: {
+          acconti?: number
+          da_bonificare?: number
+          dipendente_id: string
+          giorni?: number
+          id?: string
+          maturato?: number
+          mese_id: string
+          movimenti?: Json
+          nominativo: string
+          org_id: string
+          ore_altre?: number
+          ore_ferie?: number
+          ore_lavorate?: number
+          ore_permessi?: number
+          ore_straordinarie?: number
+          paga_globale?: number | null
+          regime?: string | null
+          rimborsi?: number
+          tariffa?: number | null
+          tipo?: string | null
+          trattenute?: number
+        }
+        Update: {
+          acconti?: number
+          da_bonificare?: number
+          dipendente_id?: string
+          giorni?: number
+          id?: string
+          maturato?: number
+          mese_id?: string
+          movimenti?: Json
+          nominativo?: string
+          org_id?: string
+          ore_altre?: number
+          ore_ferie?: number
+          ore_lavorate?: number
+          ore_permessi?: number
+          ore_straordinarie?: number
+          paga_globale?: number | null
+          regime?: string | null
+          rimborsi?: number
+          tariffa?: number | null
+          tipo?: string | null
+          trattenute?: number
+        }
+        Relationships: []
+      }
       periodi_paga: {
         Row: {
           anno: number
@@ -2868,6 +3021,18 @@ export type Database = {
       }
     }
     Functions: {
+      invia_paghe: {
+        Args: { p_anno: number; p_mese: number; p_org: string; p_righe: Json }
+        Returns: string
+      }
+      decidi_paghe: {
+        Args: { p_anno: number; p_mese: number; p_org: string; p_valida: boolean; p_motivo?: string }
+        Returns: number
+      }
+      riapri_paghe: {
+        Args: { p_anno: number; p_mese: number; p_org: string; p_motivo: string }
+        Returns: number
+      }
       chiudi_periodo_paga: {
         Args: { p_anno: number; p_mese: number; p_org: string }
         Returns: number
