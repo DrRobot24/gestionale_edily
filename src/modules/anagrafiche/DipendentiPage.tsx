@@ -6,6 +6,7 @@ import { usePermission } from '../auth/usePermission'
 import {
   stipendioVigente,
   inServizio,
+  patentiDi,
   tariffaVigente,
   useDipendenti,
   useStipendi,
@@ -220,6 +221,23 @@ export function DipendentiPage() {
                 testo: `permesso: ${giorniA(d.permesso_scadenza)} gg`,
                 colore: 'attesa',
               })
+            /* Le patenti con la scadenza, dal 2026-09-25: stesso metro
+               del permesso — rosso se scaduta, giallo nei trenta giorni
+               prima. Solo la piu' urgente, per non riempire la riga. */
+            const urgente = patentiDi(d.patenti)
+              .filter((p) => p.scade_il)
+              .map((p) => ({ p, stato: statoScadenza(p.scade_il) }))
+              .filter((x) => x.stato === 'scaduto' || x.stato === 'in-scadenza')
+              .sort((x, y) => x.p.scade_il!.localeCompare(y.p.scade_il!))[0]
+            if (urgente)
+              allarmi.push(
+                urgente.stato === 'scaduto'
+                  ? { testo: `${urgente.p.tipo} scaduta`, colore: 'errore' }
+                  : {
+                      testo: `${urgente.p.tipo}: ${giorniA(urgente.p.scade_il!)} gg`,
+                      colore: 'attesa',
+                    },
+              )
 
             return (
               <div className={cn(COLONNE, 'w-full items-center gap-y-1')}>

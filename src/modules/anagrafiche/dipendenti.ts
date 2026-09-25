@@ -18,7 +18,9 @@ const CAMPI =
   'data_impiego, data_assunzione, data_cessazione, azienda_assunzione, telefono, email, attivo, user_id, tipo, ' +
   // La scheda della persona, dal 2026-09-18: vedi `scheda-personale.sql`.
   'data_nascita, luogo_nascita, residenza, patente, note, ' +
-  'permesso_soggiorno, permesso_scadenza, dpi, stato_rapporto'
+  'permesso_soggiorno, permesso_scadenza, dpi, stato_rapporto, ' +
+  // Con le date, dal 2026-09-25: vedi `scheda-patenti-dpi.sql`.
+  'patenti, dpi_consegnati'
 
 const CAMPI_CON_COSTI = `${CAMPI}, dipendente_costi ( id, valido_dal, costo_orario, costo_orario_straordinario, tariffa_vendita_oraria, note )`
 
@@ -135,6 +137,36 @@ export function useDipendente(id: string | undefined) {
 
 export type TipoRisorsa = 'operaio' | 'tecnico' | 'impiegato'
 
+/** Una patente o abilitazione (B, CQC, muletto…), dal 2026-09-25. Le date
+ *  sono YYYY-MM-DD o null: il modulo ne chiede almeno una. */
+export type Patente = { tipo: string; conseguita_il: string | null; scade_il: string | null }
+
+/** Un DPI consegnato, e quando. */
+export type DpiConsegnato = { dpi: string; consegnato_il: string | null }
+
+/** Le liste jsonb arrivano dal database come `Json`: si leggono qui, una
+ *  volta, invece di fidarsi della forma in ogni punto che le usa. */
+export function patentiDi(v: unknown): Patente[] {
+  if (!Array.isArray(v)) return []
+  return v
+    .filter((x): x is Record<string, unknown> => Boolean(x) && typeof x === 'object')
+    .map((x) => ({
+      tipo: String(x.tipo ?? ''),
+      conseguita_il: typeof x.conseguita_il === 'string' ? x.conseguita_il : null,
+      scade_il: typeof x.scade_il === 'string' ? x.scade_il : null,
+    }))
+}
+
+export function dpiConsegnatiDi(v: unknown): DpiConsegnato[] {
+  if (!Array.isArray(v)) return []
+  return v
+    .filter((x): x is Record<string, unknown> => Boolean(x) && typeof x === 'object')
+    .map((x) => ({
+      dpi: String(x.dpi ?? ''),
+      consegnato_il: typeof x.consegnato_il === 'string' ? x.consegnato_il : null,
+    }))
+}
+
 /** Se un contratto c'e' o manca.
  *
  *  Si chiama cosi' di proposito, deciso con l'utente il 2026-09-18:
@@ -185,8 +217,15 @@ export type DatiDipendente = {
   /** Esiste solo se `permesso_soggiorno`: lo impone un check nel
    *  database, non solo il form. */
   permesso_scadenza: string | null
-  /** Scarpe, casco, imbracatura: cosa gli e' stato consegnato. */
+  /** Scarpe, casco, imbracatura: cosa gli e' stato consegnato. Dal
+   *  2026-09-25 e' la copia dei soli nomi di `dpi_consegnati`, tenuta per
+   *  chi legge ancora questa colonna. */
   dpi: string[]
+  /** Le patenti e abilitazioni, con le date. `patente` ne e' la copia in
+   *  testo, per chi legge ancora quella colonna. */
+  patenti: Patente[]
+  /** I DPI consegnati, ognuno con il giorno della consegna. */
+  dpi_consegnati: DpiConsegnato[]
   stato_rapporto: StatoRapporto
 
   /** L'utente che entra nel gestionale con questa anagrafica.

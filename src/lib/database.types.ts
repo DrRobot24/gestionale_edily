@@ -945,12 +945,14 @@ export type Database = {
           data_impiego: string | null
           data_nascita: string | null
           dpi: string[]
+          dpi_consegnati: Json
           email: string | null
           id: string
           livello_ccnl: string | null
           luogo_nascita: string | null
           note: string | null
           patente: string | null
+          patenti: Json
           permesso_scadenza: string | null
           permesso_soggiorno: boolean
           residenza: string | null
@@ -976,12 +978,14 @@ export type Database = {
           data_impiego?: string | null
           data_nascita?: string | null
           dpi?: string[]
+          dpi_consegnati?: Json
           email?: string | null
           id?: string
           livello_ccnl?: string | null
           luogo_nascita?: string | null
           note?: string | null
           patente?: string | null
+          patenti?: Json
           permesso_scadenza?: string | null
           permesso_soggiorno?: boolean
           residenza?: string | null
@@ -1007,12 +1011,14 @@ export type Database = {
           data_impiego?: string | null
           data_nascita?: string | null
           dpi?: string[]
+          dpi_consegnati?: Json
           email?: string | null
           id?: string
           livello_ccnl?: string | null
           luogo_nascita?: string | null
           note?: string | null
           patente?: string | null
+          patenti?: Json
           permesso_scadenza?: string | null
           permesso_soggiorno?: boolean
           residenza?: string | null

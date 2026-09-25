@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
-import { useForm, useWatch } from 'react-hook-form'
+import { useFieldArray, useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useNavigate, useParams } from 'react-router'
 import { z } from 'zod'
 import { data as fmtData, euro } from '../../lib/formato'
-import { Avviso, Badge, Button, Campo, CampoArea, CampoSelect, Card, Cifra, Percorso, Table } from '../../ui'
+import { Avviso, Badge, Button, Campo, CampoArea, CampoSelect, Card, Cifra, Percorso, Table, cn } from '../../ui'
 import { usePermission } from '../auth/usePermission'
 import { RiquadroDocumentiPersona } from './RiquadroDocumentiPersona'
 import { RiquadroStipendio } from './RiquadroStipendio'
@@ -17,6 +17,8 @@ import {
   useDipendente,
   useEliminaDipendente,
   useSalvaDipendente,
+  dpiConsegnatiDi,
+  patentiDi,
 } from './dipendenti'
 
 const CONTRATTI = ['Tempo indeterminato', 'Tempo determinato', 'Apprendistato', 'Stagionale']
@@ -25,6 +27,20 @@ const CONTRATTI = ['Tempo indeterminato', 'Tempo determinato', 'Apprendistato', 
    indicazione dell'utente. Le colonne restano nel database — le legge
    wbs-office, e chi ce le ha le conserva — ma il modulo non le mostra e
    non le riscrive: `DatiDipendente` le ha facoltative apposta. */
+
+/** Suggerimenti per il tipo di patente o abilitazione. Non un elenco
+ *  chiuso: si puo' scrivere quello che manca. */
+const TIPI_PATENTE = [
+  'B',
+  'C',
+  'CE',
+  'CQC',
+  'Carrello elevatore (muletto)',
+  'PLE (piattaforma aerea)',
+  'Gru su autocarro',
+  'Escavatore',
+  'Ponteggi (montaggio)',
+]
 
 /** I DPI che si consegnano davvero in un cantiere edile. Spunte e non
  *  testo libero: «scarpe», «scarpe antinf.» e «calzature» nella stessa
@@ -73,11 +89,16 @@ const schema = z.object({
   data_nascita: z.string(),
   luogo_nascita: z.string(),
   residenza: z.string(),
-  patente: z.string(),
   note: z.string(),
   permesso_soggiorno: z.boolean(),
   permesso_scadenza: z.string(),
-  dpi: z.array(z.string()),
+  /* Patenti e DPI con le date, dal 2026-09-25. La spunta «ha patenti»
+     apre le righe; un DPI spuntato chiede il giorno della consegna. */
+  ha_patenti: z.boolean(),
+  patenti: z.array(
+    z.object({ tipo: z.string(), conseguita_il: z.string(), scade_il: z.string() }),
+  ),
+  dpi_consegnati: z.array(z.object({ dpi: z.string(), consegnato_il: z.string() })),
   stato_rapporto: z.enum(['assunto', 'in_prova', 'da_inquadrare']),
 })
   /* La scadenza si chiede solo se il permesso c'e', ed e' obbligatoria
@@ -120,6 +141,47 @@ const schema = z.object({
     message: 'Con quale azienda è assunto?',
     path: ['azienda_assunzione'],
   })
+  /* Ogni patente dice COSA e almeno UNA DATA: «B» senza date non
+     risponde alla domanda per cui il campo esiste — fino a quando vale.
+     E ogni DPI spuntato dice QUANDO e' stato consegnato. Gli errori
+     vanno sulla riga che li ha, non in cima al modulo. Solo per gli
+     operai: per gli altri il riquadro non c'e'. */
+  .superRefine((v, ctx) => {
+    if (v.tipo !== 'operaio') return
+    if (v.ha_patenti) {
+      if (v.patenti.length === 0) {
+        ctx.addIssue({ code: 'custom', message: 'Aggiungi almeno una patente', path: ['ha_patenti'] })
+      }
+      v.patenti.forEach((p, i) => {
+        if (p.tipo.trim() === '') {
+          ctx.addIssue({ code: 'custom', message: 'Quale patente?', path: ['patenti', i, 'tipo'] })
+        }
+        if (!p.conseguita_il && !p.scade_il) {
+          ctx.addIssue({
+            code: 'custom',
+            message: 'Serve almeno una data',
+            path: ['patenti', i, 'conseguita_il'],
+          })
+        }
+        if (p.conseguita_il && p.scade_il && p.scade_il < p.conseguita_il) {
+          ctx.addIssue({
+            code: 'custom',
+            message: 'Scade prima di essere conseguita',
+            path: ['patenti', i, 'scade_il'],
+          })
+        }
+      })
+    }
+    v.dpi_consegnati.forEach((d, i) => {
+      if (!d.consegnato_il) {
+        ctx.addIssue({
+          code: 'custom',
+          message: 'Quando è stato consegnato?',
+          path: ['dpi_consegnati', i, 'consegnato_il'],
+        })
+      }
+    })
+  })
   .refine((v) => !v.permesso_soggiorno || v.permesso_scadenza !== '', {
     message: 'Quando scade il permesso?',
     path: ['permesso_scadenza'],
@@ -144,11 +206,12 @@ const VUOTO: Campi = {
   data_nascita: '',
   luogo_nascita: '',
   residenza: '',
-  patente: '',
   note: '',
   permesso_soggiorno: false,
   permesso_scadenza: '',
-  dpi: [],
+  ha_patenti: false,
+  patenti: [],
+  dpi_consegnati: [],
   /* Una risorsa nuova parte NON assunta: il contratto e' il passo in
      piu', e si spunta quando c'e'. Prima il default era «assunto», e
      schede mai toccate risultavano assunte senza data ne' azienda. */
@@ -189,7 +252,7 @@ export function DipendenteForm() {
     reset,
     control,
     setValue,
-    formState: { errors, isDirty },
+    formState: { errors, isDirty, isSubmitted },
   } = useForm<Campi>({ resolver: zodResolver(schema), defaultValues: VUOTO })
 
   /* Il tipo scelto ADESSO, non quello salvato: la tendina dell'utente
@@ -199,6 +262,16 @@ export function DipendenteForm() {
   /* Stessa ragione: la data di scadenza deve comparire nell'istante in
      cui si spunta il permesso, non dopo aver salvato. */
   const haPermesso = useWatch({ control, name: 'permesso_soggiorno' })
+  /* Patenti e DPI con le date (2026-09-25). Le patenti sono righe che si
+     aggiungono e si tolgono; i DPI una lista fissa, e spuntarne uno
+     aggiunge la riga con la sua data da scrivere. */
+  const haPatenti = useWatch({ control, name: 'ha_patenti' })
+  const patenti = useFieldArray({ control, name: 'patenti' })
+  const consegnati = useWatch({ control, name: 'dpi_consegnati' }) ?? []
+  function cambiaDpi(nuovi: { dpi: string; consegnato_il: string }[]) {
+    // Dopo il primo invio l'errore si aggiorna mentre si scrive la data.
+    setValue('dpi_consegnati', nuovi, { shouldDirty: true, shouldValidate: isSubmitted })
+  }
   /* Stessa ragione per l'assunzione: data e azienda compaiono quando
      si spunta. E il servizio, per avvisare subito chi lo lascia vuoto. */
   const statoRapporto = useWatch({ control, name: 'stato_rapporto' })
@@ -239,11 +312,19 @@ export function DipendenteForm() {
       data_nascita: dipendente.data_nascita ?? '',
       luogo_nascita: dipendente.luogo_nascita ?? '',
       residenza: dipendente.residenza ?? '',
-      patente: dipendente.patente ?? '',
       note: dipendente.note ?? '',
       permesso_soggiorno: dipendente.permesso_soggiorno ?? false,
       permesso_scadenza: dipendente.permesso_scadenza ?? '',
-      dpi: dipendente.dpi ?? [],
+      ha_patenti: patentiDi(dipendente.patenti).length > 0,
+      patenti: patentiDi(dipendente.patenti).map((p) => ({
+        tipo: p.tipo,
+        conseguita_il: p.conseguita_il ?? '',
+        scade_il: p.scade_il ?? '',
+      })),
+      dpi_consegnati: dpiConsegnatiDi(dipendente.dpi_consegnati).map((d) => ({
+        dpi: d.dpi,
+        consegnato_il: d.consegnato_il ?? '',
+      })),
       stato_rapporto: dipendente.stato_rapporto ?? 'assunto',
     })
   }, [dipendente, reset])
@@ -289,8 +370,31 @@ export function DipendenteForm() {
            «impiegato» nasconde quei campi, e lasciarci dentro i vecchi
            valori vorrebbe dire un dato che nessuno vede piu' e che
            nessuno puo' piu' correggere. */
-        patente: c.tipo === 'operaio' ? vuotoSeVuoto(c.patente) : null,
-        dpi: c.tipo === 'operaio' ? c.dpi : [],
+        ...(() => {
+          if (c.tipo !== 'operaio') {
+            return { patente: null, patenti: [], dpi: [], dpi_consegnati: [] }
+          }
+          const patenti = c.ha_patenti
+            ? c.patenti.map((p) => ({
+                tipo: p.tipo.trim(),
+                conseguita_il: p.conseguita_il || null,
+                scade_il: p.scade_il || null,
+              }))
+            : []
+          const dpi = c.dpi_consegnati.map((d) => ({
+            dpi: d.dpi,
+            consegnato_il: d.consegnato_il || null,
+          }))
+          /* Le colonne vecchie restano allineate: `patente` coi tipi in
+             fila, `dpi` coi soli nomi. Chi le legge ancora non si
+             accorge del cambio. */
+          return {
+            patenti,
+            patente: patenti.map((p) => p.tipo).join(', ') || null,
+            dpi_consegnati: dpi,
+            dpi: dpi.map((d) => d.dpi),
+          }
+        })(),
 
         /* La data se ne va insieme alla spunta: il database ha un check
            che rifiuta una scadenza senza permesso, e senza questo la
@@ -687,42 +791,185 @@ export function DipendenteForm() {
           <div className="grid gap-4 p-5">
             {tipoScelto === 'operaio' && (
               <>
-                <Campo
-                  etichetta="Patente e abilitazioni"
-                  placeholder="B, CQC, muletto, piattaforma aerea…"
-                  disabled={!puoScrivere}
-                  suggerimento="Scrivile tutte: serve a sapere chi può guidare il furgone o salire sul muletto."
-                  errore={errors.patente?.message}
-                  {...register('patente')}
-                />
+                {/* ── PATENTI E ABILITAZIONI, con le date (2026-09-25) ──
+                    Una spunta, poi una riga per ognuna: il tipo, quando e'
+                    stata presa, quando scade. Righe e non un campo di
+                    testo, perche' la scadenza della CQC e' una data da
+                    controllare, non una parola dentro una frase. */}
+                <div className="grid gap-3 rounded-xl border-2 border-black bg-white p-4">
+                  <label className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      disabled={!puoScrivere}
+                      className="mt-0.5 h-5 w-5 shrink-0 cursor-pointer rounded border-2 border-black accent-amber-400"
+                      {...register('ha_patenti', {
+                        // Spuntando si apre gia' la prima riga: una spunta
+                        // che non mostra niente da compilare sembra rotta.
+                        onChange: (e) => {
+                          if (e.target.checked && patenti.fields.length === 0) {
+                            patenti.append({ tipo: '', conseguita_il: '', scade_il: '' })
+                          }
+                        },
+                      })}
+                    />
+                    <span>
+                      <span className="block text-sm font-extrabold text-black">
+                        Ha patenti o abilitazioni
+                      </span>
+                      <span className="block text-xs font-semibold text-gray-600">
+                        Patente di guida, CQC, muletto, piattaforma aerea: chi può guidare il
+                        furgone o salire sul mezzo, e fino a quando.
+                      </span>
+                    </span>
+                  </label>
+                  {errors.ha_patenti?.message && (
+                    <p className="text-xs font-bold text-rose-700">{errors.ha_patenti.message}</p>
+                  )}
 
-                {/* Spunte e non testo libero: «scarpe», «scarpe antinf.»
+                  {haPatenti && (
+                    <div className="grid gap-3">
+                      {patenti.fields.map((f, i) => (
+                        <div
+                          key={f.id}
+                          className="grid items-start gap-2 border-t-2 border-gray-200 pt-3 sm:grid-cols-[minmax(0,1fr)_9.5rem_9.5rem_auto]"
+                        >
+                          <Campo
+                            etichetta="Tipo"
+                            list="tipi-patente"
+                            placeholder="B, CQC, muletto…"
+                            disabled={!puoScrivere}
+                            errore={errors.patenti?.[i]?.tipo?.message}
+                            {...register(`patenti.${i}.tipo`)}
+                          />
+                          <Campo
+                            etichetta="Conseguita il"
+                            type="date"
+                            disabled={!puoScrivere}
+                            errore={errors.patenti?.[i]?.conseguita_il?.message}
+                            {...register(`patenti.${i}.conseguita_il`)}
+                          />
+                          <Campo
+                            etichetta="Scade il"
+                            type="date"
+                            disabled={!puoScrivere}
+                            errore={errors.patenti?.[i]?.scade_il?.message}
+                            {...register(`patenti.${i}.scade_il`)}
+                          />
+                          {puoScrivere && (
+                            <button
+                              type="button"
+                              onClick={() => patenti.remove(i)}
+                              aria-label="Togli questa patente"
+                              className="neo-press mt-6 h-9 w-9 cursor-pointer rounded-lg border-2 border-black bg-rose-200 text-sm font-black"
+                            >
+                              ×
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      {puoScrivere && (
+                        <Button
+                          dimensione="sm"
+                          className="justify-self-start"
+                          onClick={() =>
+                            patenti.append({ tipo: '', conseguita_il: '', scade_il: '' })
+                          }
+                        >
+                          + Aggiungi un&rsquo;altra
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                  {/* Suggerimenti e non un elenco chiuso: le abilitazioni
+                      di un cantiere sono tante, e una che manca non deve
+                      impedire di scriverla. */}
+                  <datalist id="tipi-patente">
+                    {TIPI_PATENTE.map((t) => (
+                      <option key={t} value={t} />
+                    ))}
+                  </datalist>
+                </div>
+
+                {/* ── DPI CONSEGNATI, ognuno con il suo giorno ──
+                    Spunte e non testo libero: «scarpe», «scarpe antinf.»
                     e «calzature» nella stessa colonna renderebbero
-                    impossibile chiedere chi ha cosa. */}
+                    impossibile chiedere chi ha cosa. Dal 2026-09-25 ogni
+                    spunta chiede QUANDO: la consegna di un DPI e' una cosa
+                    che si deve poter dimostrare con una data. */}
                 <fieldset className="grid gap-2">
                   <legend className="text-xs font-bold uppercase text-black">
                     DPI consegnati
                   </legend>
                   <p className="text-xs font-semibold text-gray-600">
-                    Spunta quelli che gli sono stati dati. Serve a saperlo prima di mandarlo
-                    in cantiere, e a rispondere se qualcuno lo chiede.
+                    Spunta quelli che gli sono stati dati e scrivi il giorno della consegna.
+                    Resta nella scheda, anche quando la persona viene archiviata.
                   </p>
                   <div className="grid gap-2 sm:grid-cols-2">
-                    {DPI.map((d) => (
-                      <label
-                        key={d}
-                        className="flex items-center gap-2 rounded-xl border-2 border-black bg-white px-3 py-2"
-                      >
-                        <input
-                          type="checkbox"
-                          value={d}
-                          disabled={!puoScrivere}
-                          className="h-4 w-4 shrink-0 cursor-pointer rounded border-2 border-black accent-lime-400"
-                          {...register('dpi')}
-                        />
-                        <span className="text-sm font-bold text-black">{d}</span>
-                      </label>
-                    ))}
+                    {/* La lista fissa, piu' quelli gia' registrati che non
+                        ci sono (scritti prima, o tolti dalla lista): un
+                        DPI consegnato non deve sparire dalla scheda perche'
+                        la lista e' cambiata. */}
+                    {[...DPI, ...consegnati.map((c) => c.dpi).filter((n) => !DPI.includes(n))].map(
+                      (d) => {
+                        const i = consegnati.findIndex((c) => c.dpi === d)
+                        const spuntato = i >= 0
+                        const errore = spuntato
+                          ? errors.dpi_consegnati?.[i]?.consegnato_il?.message
+                          : undefined
+                        return (
+                          <div
+                            key={d}
+                            className={cn(
+                              'grid gap-2 rounded-xl border-2 border-black px-3 py-2',
+                              spuntato ? 'bg-lime-50' : 'bg-white',
+                            )}
+                          >
+                            <label className="flex cursor-pointer items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={spuntato}
+                                disabled={!puoScrivere}
+                                onChange={(e) =>
+                                  cambiaDpi(
+                                    e.target.checked
+                                      ? [...consegnati, { dpi: d, consegnato_il: '' }]
+                                      : consegnati.filter((c) => c.dpi !== d),
+                                  )
+                                }
+                                className="h-4 w-4 shrink-0 cursor-pointer rounded border-2 border-black accent-lime-400"
+                              />
+                              <span className="text-sm font-bold text-black">{d}</span>
+                            </label>
+                            {spuntato && (
+                              <label className="grid gap-1">
+                                <span className="text-[10px] font-bold uppercase text-gray-600">
+                                  Consegnato il
+                                </span>
+                                <input
+                                  type="date"
+                                  value={consegnati[i].consegnato_il}
+                                  disabled={!puoScrivere}
+                                  onChange={(e) =>
+                                    cambiaDpi(
+                                      consegnati.map((c, j) =>
+                                        j === i ? { ...c, consegnato_il: e.target.value } : c,
+                                      ),
+                                    )
+                                  }
+                                  className={cn(
+                                    'h-9 rounded-lg border-2 bg-white px-2 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-amber-400',
+                                    errore ? 'border-rose-600' : 'border-black',
+                                  )}
+                                />
+                                {errore && (
+                                  <span className="text-xs font-bold text-rose-700">{errore}</span>
+                                )}
+                              </label>
+                            )}
+                          </div>
+                        )
+                      },
+                    )}
                   </div>
                 </fieldset>
               </>
@@ -799,23 +1046,26 @@ export function DipendenteForm() {
           alte: le due colonne vengono circa pari. */}
       {!nuovo && (
         <div className="grid items-start gap-4 lg:grid-cols-2">
-          <div className="grid gap-4">
-            {id && <RiquadroDocumentiPersona dipendenteId={id} puoScrivere={puoScrivere} />}
+          {id && <RiquadroDocumentiPersona dipendenteId={id} puoScrivere={puoScrivere} />}
 
+          {/* PAGA MENSILE E TARIFFE INSIEME, a destra, dal 2026-09-25:
+              la tariffa oraria Stefania la ricava dalla paga mensile, e
+              le due si leggono una sopra l'altra. I documenti stanno da
+              soli a sinistra. */}
+          <div className="grid gap-4">
             {/* Lo stipendio solo a chi fa le paghe: chi non ha
                 `paghe.read` non vede nemmeno che il riquadro esiste. */}
             {dipendente && puoVederePaghe && (
               <RiquadroStipendio dipendenteId={dipendente.id} puoScrivere={puoScrivere} />
             )}
+            {dipendente && (
+              <Tariffe
+                dipendenteId={dipendente.id}
+                tariffe={dipendente.dipendente_costi}
+                puoScrivere={puoScrivere}
+              />
+            )}
           </div>
-
-          {dipendente && (
-            <Tariffe
-              dipendenteId={dipendente.id}
-              tariffe={dipendente.dipendente_costi}
-              puoScrivere={puoScrivere}
-            />
-          )}
         </div>
       )}
     </div>
