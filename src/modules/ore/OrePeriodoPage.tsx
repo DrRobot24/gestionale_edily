@@ -335,7 +335,11 @@ function Griglia({
           contenuto della pagina. */}
       <colgroup>
         <col className="w-12" />
-        <col className="w-[26rem]" />
+        {/* Sul mese la colonna del nome si stringe: e' bloccata a
+            sinistra (vedi `FERMA`), e 26rem fermi su trenta colonne che
+            scorrono si mangerebbero un terzo dello schermo. I nomi
+            lunghi vanno a capo. */}
+        <col className={giorni.length > 7 ? 'w-72' : 'w-[26rem]'} />
         {giorni.map((g) => (
           <col key={g} className={larghezzaGiorno(giorni.length)} />
         ))}
@@ -344,8 +348,8 @@ function Griglia({
 
       <thead>
         <tr>
-          <th />
-          <th>Persona</th>
+          <th className={cn(FERMA.segno, 'bg-gray-100')} />
+          <th className={cn(FERMA.nome, 'bg-gray-100')}>Persona</th>
           {giorni.map((g) => (
             <th
               key={g}
@@ -401,13 +405,17 @@ function Griglia({
         {senzaOre.length > 0 && (
           <>
             <tr className="border-t-2 border-black bg-gray-50">
-              <td />
+              <td className={cn(FERMA.segno, 'bg-gray-50')} />
               <td
                 colSpan={giorni.length + 2}
                 className="text-[10px] font-black uppercase tracking-wider text-gray-500"
               >
-                Nessuna ora in questo periodo — {senzaOre.length}{' '}
-                {senzaOre.length === 1 ? 'persona' : 'persone'}
+                {/* La cella e' larga quanto tutta la riga: e' la scritta
+                    dentro a restare ferma, non la cella. */}
+                <span className="sticky left-15 bg-gray-50">
+                  Nessuna ora in questo periodo — {senzaOre.length}{' '}
+                  {senzaOre.length === 1 ? 'persona' : 'persone'}
+                </span>
               </td>
             </tr>
 
@@ -463,6 +471,11 @@ function RigaPersona({
      tipo di cosa che nessuno va a cercare aprendo venti righe. */
   const media = lavorati > 0 ? totale / lavorati : 0
 
+  /* Le celle ferme hanno un fondo PIENO: trasparenti, i numeri che ci
+     scorrono sotto si leggerebbero attraverso il nome. Ripetono a mano
+     l'accensione della riga, che su di loro non arriva. */
+  const fondoFermo = aperta ? 'bg-amber-50' : 'bg-white group-hover:bg-amber-50'
+
   return (
     <>
       {/* La riga si accende tutta al passaggio del mouse. Su una
@@ -478,7 +491,7 @@ function RigaPersona({
           spenta && 'text-gray-500',
         )}
       >
-        <td>
+        <td className={cn(FERMA.segno, fondoFermo)}>
           <button
             type="button"
             onClick={() => onApri(riga.dipendente_id, null)}
@@ -494,7 +507,7 @@ function RigaPersona({
           </button>
         </td>
 
-        <td>
+        <td className={cn(FERMA.nome, fondoFermo)}>
           <button
             type="button"
             onClick={() => onApri(riga.dipendente_id, null)}
@@ -584,7 +597,7 @@ function RigaPersona({
 
       {aperta && (
         <tr className="bg-amber-50">
-          <td />
+          <td className={cn(FERMA.segno, 'bg-amber-50')} />
           <td colSpan={giorni.length + 2} className="pb-3">
             <Dettaglio riga={riga} giorni={giorni} giorno={aperta.giorno} onApri={onApri} />
           </td>
@@ -1270,6 +1283,24 @@ function giornoCorto(g: string): string {
   return new Date(a, m - 1, d)
     .toLocaleDateString('it-IT', { weekday: 'short' })
     .replace('.', '')
+}
+
+/**
+ * LE PRIME DUE COLONNE STANNO FERME, dal 2026-09-25: sul mese la
+ * tabella scorre in orizzontale, e scorrendo sparivano i nomi — un 8
+ * il 23 senza sapere di chi e' non dice niente. Chiesto dall'utente.
+ *
+ * Il `+` e' largo 3rem (`w-12`), quindi il nome si ferma a 3rem dal
+ * bordo. La riga nera a destra del nome segna dove finisce la parte
+ * ferma: senza, le colonne che scorrono sotto sembrano tagliate a caso.
+ * E' un'ombra interna e non un `border-r`: la tabella ha i bordi
+ * collassati, e un bordo collassato su una cella ferma resta indietro
+ * mentre la cella scorre. `z-10` le tiene sopra le celle-giorno, che
+ * hanno pallini posizionati.
+ */
+const FERMA = {
+  segno: 'sticky left-0 z-10',
+  nome: 'sticky left-12 z-10 shadow-[inset_-2px_0_0_#000]',
 }
 
 /**
