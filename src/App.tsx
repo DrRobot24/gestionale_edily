@@ -1,35 +1,53 @@
-import type { ReactNode } from 'react'
+import { Suspense, lazy, type ComponentType, type ReactNode } from 'react'
 import { BrowserRouter, Routes, Route, NavLink, Outlet } from 'react-router'
 import { SessionProvider, useSession } from './modules/auth/SessionProvider'
 import { RequireAuth, RequirePermission } from './modules/auth/guards'
 import { LoginPage } from './modules/auth/LoginPage'
 import { MuroWip } from './modules/wip/MuroWip'
-import { CantieriPage } from './modules/cantieri/CantieriPage'
-import { CantiereForm } from './modules/cantieri/CantiereForm'
-import { CantiereScheda } from './modules/cantieri/CantiereScheda'
-import { RapportiniPage } from './modules/rapportini/RapportiniPage'
-import { NuovoRapportino } from './modules/rapportini/NuovoRapportino'
-import { RapportinoPage } from './modules/rapportini/RapportinoPage'
-import { ModificaRapportino } from './modules/rapportini/ModificaRapportino'
-import { DipendentiPage } from './modules/anagrafiche/DipendentiPage'
-import { ClientiPage } from './modules/anagrafiche/ClientiPage'
-import { ClienteForm } from './modules/anagrafiche/ClienteForm'
-import { FornitoriPage } from './modules/anagrafiche/FornitoriPage'
-import { FornitoreForm } from './modules/anagrafiche/FornitoreForm'
 import { Dashboard } from './modules/home/Dashboard'
-import { EconomiaPage } from './modules/economia/EconomiaPage'
-import { MagazzinoPage } from './modules/magazzino/MagazzinoPage'
-import { MieOrePage } from './modules/oreproprie/MieOrePage'
-import { RiepilogoEconomicoPage } from './modules/paghe/RiepilogoEconomicoPage'
-import { OrePeriodoPage } from './modules/ore/OrePeriodoPage'
 import { useOreDaLeggere } from './modules/ore/useOreDaLeggere'
-import { DipendenteForm } from './modules/anagrafiche/DipendenteForm'
-import { EconomiaRisorsaPage } from './modules/anagrafiche/EconomiaRisorsaPage'
 import { useMioDipendente } from './modules/anagrafiche/dipendenti'
 import type { Permission } from './modules/auth/session'
 import { env } from './lib/env'
 import logoEncreade from './assets/logo-encreade.png'
 import { Button, Card, cn } from './ui'
+
+/* ══════════════════════════════════════════════════════════════════
+   LE PAGINE SI SCARICANO QUANDO SERVONO, dal 2026-09-25.
+
+   Prima il programma era un file solo da quasi un mega: al primo
+   accesso il browser scaricava anche le paghe per chi apriva solo i
+   rapportini. Adesso nel file principale restano la home, l'accesso e
+   la cornice; ogni altra pagina e' un pezzo a parte, scaricato la prima
+   volta che la si apre e poi tenuto dal browser.
+
+   Le pagine sono esportate per nome, `lazy` vuole un default: `pigra`
+   fa il ponte.
+   ══════════════════════════════════════════════════════════════════ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function pigra<K extends string>(carica: () => Promise<Record<K, ComponentType<any>>>, nome: K) {
+  return lazy(() => carica().then((m) => ({ default: m[nome] })))
+}
+
+const CantieriPage = pigra(() => import('./modules/cantieri/CantieriPage'), 'CantieriPage')
+const CantiereForm = pigra(() => import('./modules/cantieri/CantiereForm'), 'CantiereForm')
+const CantiereScheda = pigra(() => import('./modules/cantieri/CantiereScheda'), 'CantiereScheda')
+const RapportiniPage = pigra(() => import('./modules/rapportini/RapportiniPage'), 'RapportiniPage')
+const NuovoRapportino = pigra(() => import('./modules/rapportini/NuovoRapportino'), 'NuovoRapportino')
+const RapportinoPage = pigra(() => import('./modules/rapportini/RapportinoPage'), 'RapportinoPage')
+const ModificaRapportino = pigra(() => import('./modules/rapportini/ModificaRapportino'), 'ModificaRapportino')
+const DipendentiPage = pigra(() => import('./modules/anagrafiche/DipendentiPage'), 'DipendentiPage')
+const ClientiPage = pigra(() => import('./modules/anagrafiche/ClientiPage'), 'ClientiPage')
+const ClienteForm = pigra(() => import('./modules/anagrafiche/ClienteForm'), 'ClienteForm')
+const FornitoriPage = pigra(() => import('./modules/anagrafiche/FornitoriPage'), 'FornitoriPage')
+const FornitoreForm = pigra(() => import('./modules/anagrafiche/FornitoreForm'), 'FornitoreForm')
+const EconomiaPage = pigra(() => import('./modules/economia/EconomiaPage'), 'EconomiaPage')
+const MagazzinoPage = pigra(() => import('./modules/magazzino/MagazzinoPage'), 'MagazzinoPage')
+const MieOrePage = pigra(() => import('./modules/oreproprie/MieOrePage'), 'MieOrePage')
+const RiepilogoEconomicoPage = pigra(() => import('./modules/paghe/RiepilogoEconomicoPage'), 'RiepilogoEconomicoPage')
+const OrePeriodoPage = pigra(() => import('./modules/ore/OrePeriodoPage'), 'OrePeriodoPage')
+const DipendenteForm = pigra(() => import('./modules/anagrafiche/DipendenteForm'), 'DipendenteForm')
+const EconomiaRisorsaPage = pigra(() => import('./modules/anagrafiche/EconomiaRisorsaPage'), 'EconomiaRisorsaPage')
 
 /**
  * Una sola lista per il menu E per le rotte.
@@ -454,7 +472,11 @@ function Layout() {
       <div className="flex min-w-0 flex-1 flex-col">
         <BarraMobile voci={visibili} />
         <main className="flex-1 p-6 lg:p-8 print:p-0">
-          <Outlet />
+          {/* Mentre arriva il pezzo di una pagina aperta per la prima
+              volta: una riga, come i caricamenti dei dati. */}
+          <Suspense fallback={<p className="text-sm font-bold text-gray-600">Carico…</p>}>
+            <Outlet />
+          </Suspense>
         </main>
       </div>
     </div>
