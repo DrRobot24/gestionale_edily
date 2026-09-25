@@ -147,8 +147,15 @@ export function Dashboard() {
               clicca. Sul telefono tornano una sotto l'altra, nello
               stesso ordine. */}
           {/* I registri in cima, in una riga sola: la situazione
-              dell'impresa prima della coda. Vedi `IlSuoLavoro`. */}
-          {puoValidare && <IlSuoLavoro compatto />}
+              dell'impresa prima della coda. Vedi `IlSuoLavoro`.
+
+              PER TUTTI QUELLI CHE LI TENGONO, dal 2026-09-25: anche
+              Stefania li aveva a riquadri pieni in fondo alla home, e
+              l'utente li ha voluti come il titolare — «in modalita'
+              chips in alto, meno invasivi e molto chic». Chi non ha
+              `anagrafiche.write` (il tecnico) non li vede comunque:
+              `IlSuoLavoro` sparisce da solo. */}
+          <IlSuoLavoro compatto />
 
           {/* DAL 2026-09-25 UNA SOTTO L'ALTRA, a tutta larghezza. Le due
               colonne del 24 mettevano calendario, giorno aperto e «cos'e'
@@ -282,9 +289,6 @@ export function Dashboard() {
               `paghe.read` senza `rapportini.validate` ed entra. */}
           {can('paghe.read') && !puoValidare && <OreArrivate />}
 
-          {/* I registri a riquadri pieni per chi li tiene e non
-              valida — Stefania. Il titolare li ha in cima, compatti. */}
-          {!puoValidare && <IlSuoLavoro />}
         </div>
       )}
     </div>
