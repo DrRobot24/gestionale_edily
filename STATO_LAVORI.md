@@ -1,6 +1,6 @@
 # Stato lavori — Gestionale Edily
 
-> Aggiornato al **23 settembre 2026**.
+> Aggiornato al **25 settembre 2026**.
 > Questo file raccoglie fatti **verificati contro il database reale**, non dedotti
 > dallo schema. Dove c'è scritto "verificato" vuol dire che è stato provato con
 > una query e ne è stato osservato l'esito.
@@ -11,6 +11,48 @@
 
 Questa è la prima cosa da leggere aprendo il progetto, e vale sia per una chat
 nuova sia per chi ci torna dopo giorni.
+
+**⭐ PROSSIMA SESSIONE — IL CALENDARIO DELLE FESTIVITÀ.** Chiesto dall'utente
+la sera del 25 e rimandato di proposito. Oggi «giorno lavorabile» vuol dire
+lunedì–venerdì (`eFeriale` in `src/lib/giorni.ts`, che documenta già il
+limite): i festivi infrasettimanali — 1/1, 6/1, Pasquetta (mobile), 25/4, 1/5,
+2/6, 15/8, 1/11, 8/12, 25–26/12, più il patrono locale — contano come giorni
+di lavoro. Pesa soprattutto su due cose: la **tariffa della paga globale**
+(paga ÷ giorni lavorabili del mese ÷ ore, `retribuzione.ts` →
+`giorniLavorabili`) e l'**attesa** di calendari, card e invio (un festivo
+feriale risulta «da ricevere»). Da decidere con l'utente: tabella nel database
+(con le festività locali e quelle di un anno aggiunte a mano) o calcolo nel
+codice (fisse + Pasqua); e se il patrono va per impresa. La regola deve valere
+uguale nel frontend e nelle funzioni SQL che contano i giorni.
+
+**Novità del 25 settembre 2026 — la giornata delle PAGHE (tutto l'SQL eseguito).**
+In ordine di peso:
+- **Riepilogo economico** del mese (`/riepilogo-economico`,
+  `riepilogo-economico.sql`): tutte le risorse, ore, assenze, maturato,
+  acconti / rimborsi / trattenute col motivo, da bonificare. Stefania invia
+  (fotografia), Giuseppe firma o rimanda indietro; firmato = archivio
+  (rapportini del mese → contabilizzato, azzurri) e PDF per i bonifici. Solo
+  Giuseppe riapre. **Mai provato su un giro vero:** al primo mese firmato
+  controllare che i calendari diventino azzurri senza errori.
+- **Retribuzione**: Paga globale (importo mensile) OPPURE Paga giornaliera
+  (tariffa oraria), mai insieme. Globale → tariffa = paga ÷ giorni lun–ven del
+  mese ÷ ore della giornata piena, la persona prende la paga intera.
+  Giornaliera → tariffa × ore lavorate, ferie e permessi esclusi.
+- **Orario da contratto** (`orario-contrattuale.sql`): part-time a ore, storico
+  per data, 8 di default. Sostituisce l'8 fisso in invio, controllo ore,
+  rapportino, Le mie ore, foglio presenze, assenze, Economia.
+- **Messa in servizio** (`risorse-servizio-assunzione.sql`): «In servizio
+  dal / Fine servizio» decide chi compare negli elenchi da cui si sceglie;
+  l'assunzione è una spunta dentro, con data, azienda e tipo di contratto.
+  Matricola e livello CCNL fuori dalla scheda. Patenti e DPI con le date
+  (`scheda-patenti-dpi.sql`). Lavori extra: flag contabilizzato e stampa.
+- Home: titolare a tutta larghezza, tecnico con «Rivedi e invia» (riepilogo
+  della giornata prima dell'invio), registri in pillole anche per Stefania.
+- **Difetto chiuso:** «Le mie ore» mostrava a Stefania le ore di Zito (la RLS
+  le fa leggere tutto per `paghe.read`): ora filtra per la propria scheda.
+- **Aperto, da chiedere:** il foglio presenze (`ore_griglia`, CTE `in_forza`)
+  sceglie ancora le persone dalla data di **assunzione**, non dalla messa in
+  servizio: oggi mostra Stefania fra «nessuna ora».
 
 **Novità del 23 settembre 2026 — LE ASSENZE (SQL eseguito dall'utente).**
 L'assenza a giornata intera non sta più nei rapportini: è una riga di
