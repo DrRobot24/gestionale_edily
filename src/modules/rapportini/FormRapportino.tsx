@@ -4,13 +4,13 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Avviso, Button, CampoArea, Campo, CampoSelect, Card, Input, cn } from '../../ui'
 import {
   ASSENZE,
-  ORE_STANDARD,
   schemaRapportino,
   ALTRO_MOTIVO,
   type CampiRapportino,
 } from './campiRapportino'
 import { RiquadroFoto } from './RiquadroFoto'
 import { useAssenze } from './useAssenze'
+import { oreContratto, useOrari } from '../anagrafiche/dipendenti'
 import { RiquadroEconomia, type DatiEconomia } from './RiquadroEconomia'
 
 type Props = {
@@ -203,11 +203,18 @@ export function FormRapportino({
   const disponibili = conIndice.filter((r) => !r.scelto && !assenteOggi(r))
   const assentiNonScelti = conIndice.filter((r) => !r.scelto && assenteOggi(r))
 
+  /* La giornata piena di QUELLA persona, quel giorno: 8, o meno per un
+     part-time (2026-09-25). E' il numero che si propone aggiungendola e
+     quello a cui il permesso arriva. */
+  const { data: orari } = useOrari()
+  const piena = (i: number) =>
+    oreContratto(orari, righe?.[i]?.dipendente_id ?? '', giornoScelto || undefined)
+
   function aggiungi(i: number) {
     setValue(`ore.${i}.presente`, true)
     setValue(`ore.${i}.tipo_assenza`, '')
     setValue(`ore.${i}.ore_assenza`, 0)
-    setValue(`ore.${i}.ore_ordinarie`, ORE_STANDARD)
+    setValue(`ore.${i}.ore_ordinarie`, piena(i))
   }
 
   /** Toglierlo dalla scheda, non segnarlo assente: sono due cose
@@ -510,7 +517,7 @@ export function FormRapportino({
                                   setValue(`ore.${i}.ore_assenza`, 0)
                                   setValue(`ore.${i}.presente`, true)
                                   if (!Number(righe?.[i]?.ore_ordinarie)) {
-                                    setValue(`ore.${i}.ore_ordinarie`, ORE_STANDARD)
+                                    setValue(`ore.${i}.ore_ordinarie`, piena(i))
                                   }
                                   return
                                 }
@@ -534,7 +541,7 @@ export function FormRapportino({
                                 const lavorate = Number(righe?.[i]?.ore_ordinarie) || 0
                                 setValue(
                                   `ore.${i}.ore_assenza`,
-                                  Math.max(0, ORE_STANDARD - lavorate),
+                                  Math.max(0, piena(i) - lavorate),
                                 )
                                 setValue(`ore.${i}.confermata`, false)
                               },

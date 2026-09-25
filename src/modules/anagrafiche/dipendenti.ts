@@ -443,3 +443,94 @@ export function useEliminaStipendio() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['stipendi'] }),
   })
 }
+
+/* ══════════════════════════════════════════════════════════════════
+   L'ORARIO DA CONTRATTO, dal 2026-09-25: tempo pieno a 8 ore, o
+   part-time a meno. Storico per data come le paghe — vale da un giorno
+   in poi, finche' non si cambia — e senza nessuna riga vale 8. Lo
+   scrivono solo Stefania e il titolare (`anagrafiche.write`).
+
+   Stessa regola di `app.ore_contratto` nel database, che la usa per
+   l'invio della giornata e per le assenze nel foglio presenze: le due
+   devono rispondere uguale. Vedi `orario-contrattuale.sql`.
+   ══════════════════════════════════════════════════════════════════ */
+
+export const ORE_PIENE = 8
+
+export type Orario = {
+  id: string
+  dipendente_id: string
+  valido_dal: string
+  ore_giorno: number
+  note: string | null
+}
+
+/** Tutti gli orari dell'azienda: poche righe, una per ogni cambio. Se la
+ *  tabella non c'e' ancora (SQL non eseguito) torna vuoto, e vale 8 per
+ *  tutti come prima. */
+export function useOrari() {
+  const { org } = useSession()
+
+  return useQuery({
+    queryKey: ['orari', org?.id],
+    enabled: Boolean(org?.id),
+    retry: false,
+    queryFn: async (): Promise<Orario[]> => {
+      const { data, error } = await supabase
+        .from('dipendente_orari')
+        .select('id, dipendente_id, valido_dal, ore_giorno, note')
+        .eq('org_id', org!.id)
+        .order('valido_dal', { ascending: false })
+      if (error) {
+        if (error.code === '42P01' || error.code === 'PGRST205') return []
+        throw error
+      }
+      return (data ?? []).map((o) => ({ ...o, ore_giorno: Number(o.ore_giorno) }))
+    },
+  })
+}
+
+/** Le ore di una giornata piena per quella persona quel giorno. */
+export function oreContratto(
+  orari: Orario[] | undefined,
+  dipendenteId: string,
+  giorno: string = new Date().toLocaleDateString('sv-SE'),
+): number {
+  const o = (orari ?? []).find((x) => x.dipendente_id === dipendenteId && x.valido_dal <= giorno)
+  return o ? o.ore_giorno : ORE_PIENE
+}
+
+export function useAggiungiOrario() {
+  const { org } = useSession()
+  const qc = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (o: Omit<Orario, 'id'>) => {
+      const { error } = await supabase.from('dipendente_orari').insert({ ...o, org_id: org!.id })
+      if (error) {
+        if (error.code === '23505') throw new Error('C’è già un orario che parte da quel giorno.')
+        throw error
+      }
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['orari'] }),
+  })
+}
+
+export function useEliminaOrario() {
+  const { org } = useSession()
+  const qc = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { data, error } = await supabase
+        .from('dipendente_orari')
+        .delete()
+        .eq('id', id)
+        .eq('org_id', org!.id)
+        .select('id')
+      if (error) throw error
+      if (!data?.length) throw new Error('Non hai il permesso di cancellare questo orario.')
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['orari'] }),
+  })
+}

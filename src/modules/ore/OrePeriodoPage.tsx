@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Avviso, Badge, Button, Card, Table, Vuoto, cn } from '../../ui'
 import { dataEstesa } from '../../lib/formato'
+import { oreContratto, useOrari } from '../anagrafiche/dipendenti'
 import { eFineSettimana, nomeNonFeriale } from '../../lib/giorni'
 import {
   conPasso,
@@ -471,6 +472,10 @@ function RigaPersona({
      tipo di cosa che nessuno va a cercare aprendo venti righe. */
   const media = lavorati > 0 ? totale / lavorati : 0
 
+  /* Il verde e' la giornata piena DI QUESTA PERSONA (2026-09-25): 8, o
+     meno per un part-time. La cache e' una sola per tutta la griglia. */
+  const { data: orari } = useOrari()
+
   /* Le celle ferme hanno un fondo PIENO: trasparenti, i numeri che ci
      scorrono sotto si leggerebbero attraverso il nome. Ripetono a mano
      l'accensione della riga, che su di loro non arriva. */
@@ -553,6 +558,7 @@ function RigaPersona({
           <Cella
             key={g}
             giorno={g}
+            piena={oreContratto(orari, riga.dipendente_id, g)}
             casella={riga.giorni.get(g)}
             aperta={aperta?.giorno === g}
             onApri={() => onApri(riga.dipendente_id, g)}
@@ -626,6 +632,7 @@ function RigaPersona({
  */
 function Cella({
   giorno,
+  piena,
   casella,
   aperta,
   onApri,
@@ -633,6 +640,8 @@ function Cella({
   /** Serve solo a riconoscere sabato e domenica: una cella vuota non
    *  sa che giorno e', perche' `casella` li' non c'e'. */
   giorno: string
+  /** Le ore di una giornata piena per questa persona quel giorno. */
+  piena: number
   casella: OreGiorno | undefined
   aperta: boolean
   onApri: () => void
@@ -706,7 +715,7 @@ function Cella({
      posto dove la persona e' stata. */
   const quantiCantieri = casella.cantieri.filter((k) => Number(k.ore) > 0).length
   const sparso = quantiCantieri > 1
-  const luce = semaforo(lav, nonFeriale)
+  const luce = semaforo(lav, nonFeriale, piena)
 
   return (
     /* UNA CELLA PIENA DI SABATO NON RESTA GRIGIA: se qualcuno ha
@@ -849,10 +858,10 @@ type Luce = 'verde' | 'giallo' | 'rosso'
  * rosso accuserebbe di un'assenza chi magari ha lavorato. Meglio non
  * dire che dire sbagliato.
  */
-function semaforo(lavorate: number, nonFeriale: boolean): Luce {
+function semaforo(lavorate: number, nonFeriale: boolean, piena: number): Luce {
   if (nonFeriale) return lavorate > 0 ? 'giallo' : 'rosso'
   if (lavorate === 0) return 'rosso'
-  if (lavorate === 8) return 'verde'
+  if (lavorate === piena) return 'verde'
   return 'giallo'
 }
 
@@ -861,8 +870,8 @@ function semaforo(lavorate: number, nonFeriale: boolean): Luce {
    ricopre quasi tutta la griglia; il rosso il piu' carico, perche' e'
    quello da trovare per primo. */
 const SEMAFORO: Record<Luce, { cella: string; detto: string }> = {
-  verde: { cella: 'bg-lime-100', detto: 'otto ore' },
-  giallo: { cella: 'bg-amber-200', detto: 'diverso da otto ore, serve un motivo' },
+  verde: { cella: 'bg-lime-100', detto: 'giornata piena' },
+  giallo: { cella: 'bg-amber-200', detto: 'diverso dalla giornata piena, serve un motivo' },
   rosso: { cella: 'bg-rose-200', detto: 'nessuna ora lavorata' },
 }
 
@@ -1229,11 +1238,12 @@ function Legenda() {
   return (
     <p className="flex flex-wrap items-center gap-x-4 gap-y-1 px-1 text-[11px] font-semibold text-gray-600">
       <span className="inline-flex items-center gap-1">
-        <span className="inline-block h-3 w-3 rounded border-2 border-gray-400 bg-lime-100" /> 8 ore
+        <span className="inline-block h-3 w-3 rounded border-2 border-gray-400 bg-lime-100" /> giornata
+        piena (8 ore, o l&rsquo;orario del part-time)
       </span>
       <span className="inline-flex items-center gap-1">
         <span className="inline-block h-3 w-3 rounded border-2 border-gray-400 bg-amber-200" /> più o
-        meno di 8, serve un motivo
+        meno, serve un motivo
       </span>
       <span className="inline-flex items-center gap-1">
         <span className="inline-block h-3 w-3 rounded border-2 border-gray-400 bg-rose-200" /> 0 ore

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { Avviso, Button, Campo, CampoSelect, Card, cn } from '../../ui'
 import { numero } from '../../lib/formato'
+import { oreContratto, useOrari } from '../anagrafiche/dipendenti'
 import {
   MOTIVI,
   MOTIVI_DI,
@@ -14,7 +15,6 @@ import {
   type TipoGiustificazione,
 } from '../rapportini/useGiustificazioni'
 import {
-  ORE_STANDARD,
   anomaliaDi,
   funzioneMancante,
   useOreGiornata,
@@ -45,6 +45,8 @@ export function ControlloOre({ giorno }: { giorno: string }) {
      lampeggiare il riquadro. */
   const { data: giustificate } = useGiustificazioni(giorno)
   const { data: suRapportini } = useOreSuRapportini(giorno)
+  // Chi e' part-time: il metro e' il suo contratto, non 8 per tutti.
+  const { data: orari } = useOrari()
 
   /* Il file dello schema non e' stato eseguito: e' una cosa da fare, non
      un guasto, e va detta con quel tono. Senza questo ramo la home si
@@ -81,7 +83,7 @@ export function ControlloOre({ giorno }: { giorno: string }) {
 
   const anomalie: { persona: OrePersona; anomalia: Anomalia }[] = []
   for (const persona of data) {
-    const anomalia = anomaliaDi(persona)
+    const anomalia = anomaliaDi(persona, oreContratto(orari, persona.dipendente_id, giorno))
     if (anomalia) anomalie.push({ persona, anomalia })
   }
 
@@ -111,7 +113,7 @@ export function ControlloOre({ giorno }: { giorno: string }) {
     return (
       <Card
         className="flex items-center justify-between gap-3 px-4 py-3"
-        title={`Il conto è sulla persona, su tutti i cantieri. Il metro sono ${ORE_STANDARD} ore.`}
+        title="Il conto è sulla persona, su tutti i cantieri. Il metro è l’orario di ognuno: 8 ore, o meno per un part-time."
       >
         <div className="min-w-0">
           <h2 className="text-xs font-extrabold uppercase tracking-wide text-black">
@@ -140,7 +142,7 @@ export function ControlloOre({ giorno }: { giorno: string }) {
         </h2>
         <p className="text-xs font-semibold text-gray-700">
           Il conto è sulla persona e sulla giornata, su tutti i cantieri dell&rsquo;impresa. Il
-          metro sono {ORE_STANDARD} ore.
+          metro è l&rsquo;orario di ognuno: 8 ore, o meno per un part-time.
         </p>
       </div>
 
@@ -241,8 +243,8 @@ function RigaAnomalia({
         )}
       >
         {straordinario
-          ? `${frase(anomalia.ore)} oltre le ${ORE_STANDARD}: è straordinario da dichiarare.`
-          : `Mancano ${frase(anomalia.ore)} alle ${ORE_STANDARD}.`}
+          ? `${frase(anomalia.ore)} oltre le ${numero(anomalia.metro)}: è straordinario da dichiarare.`
+          : `Mancano ${frase(anomalia.ore)} alle ${numero(anomalia.metro)}.`}
       </p>
 
       {/* Quanto sta fuori dal perimetro di chi guarda. Si dice il quanto

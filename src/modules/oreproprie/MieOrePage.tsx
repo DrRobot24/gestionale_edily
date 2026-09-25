@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { Avviso, Badge, Button, Campo, CampoArea, CampoSelect, Card, Percorso, Table, Vuoto, cn } from '../../ui'
-import { useMioDipendente } from '../anagrafiche/dipendenti'
+import { oreContratto, useMioDipendente, useOrari } from '../anagrafiche/dipendenti'
 import { ASSENZE, oggi, versoHome } from '../rapportini/campiRapportino'
 import { data as fmtData, giornoPiu } from '../../lib/formato'
 import { eFineSettimana, nomeNonFeriale } from '../../lib/giorni'
@@ -32,6 +32,7 @@ import {
 
 export function MieOrePage() {
   const { data: mio, isPending: caricoMio } = useMioDipendente()
+  const { data: orari } = useOrari()
 
   /* La giornata puo' arrivare dall'indirizzo, e deve.
   
@@ -81,6 +82,9 @@ export function MieOrePage() {
     )
   }
 
+  // La giornata piena del suo contratto: 8, o meno se e' part-time.
+  const piena = oreContratto(orari, mio.id, giorno)
+
   return (
     <div className="mx-auto grid max-w-4xl gap-4">
       <Percorso indietro={{ etichetta: 'Home', a: versoHome(giorno) }} qui={[{ etichetta: 'Le mie ore' }]} />
@@ -93,8 +97,12 @@ export function MieOrePage() {
         </p>
       </div>
 
+      {/* La chiave comprende la giornata piena: se l'orario arriva dopo
+          il primo disegno, il modulo riparte con quella giusta invece di
+          restare sull'8 di partenza. */}
       <FormGiornata
-        key={giorno}
+        key={`${giorno}-${piena}`}
+        piena={piena}
         giorno={giorno}
         onCambiaGiorno={setGiorno}
         giornata={giornata ?? null}
@@ -113,6 +121,7 @@ export function MieOrePage() {
 /* ── il form di una giornata ────────────────────────────────────── */
 
 function FormGiornata({
+  piena,
   giorno,
   onCambiaGiorno,
   giornata,
@@ -122,6 +131,8 @@ function FormGiornata({
   transizione,
   elimina,
 }: {
+  /** Le ore di una giornata piena per chi scrive: 8, o meno se part-time. */
+  piena: number
   giorno: string
   onCambiaGiorno: (g: string) => void
   giornata: ReturnType<typeof useGiornataPersonale>['data']
@@ -160,7 +171,7 @@ function FormGiornata({
      valore e non si azzera niente. */
   const festivo = eFineSettimana(giorno)
   const [ordinarie, setOrdinarie] = useState(
-    String(giornata?.ore_ordinarie ?? (festivo ? 0 : 8)),
+    String(giornata?.ore_ordinarie ?? (festivo ? 0 : piena)),
   )
   const [straordinarie, setStraordinarie] = useState(String(giornata?.ore_straordinarie ?? 0))
   const [assenza, setAssenza] = useState(String(giornata?.ore_assenza ?? 0))

@@ -482,7 +482,11 @@ begin
   where d.org_id = p_org
     and d.attivo
     and d.tipo = 'operaio'
-    and (d.data_assunzione is null or d.data_assunzione <= p_giorno)
+    -- IN SERVIZIO quel giorno (2026-09-25): conta la messa in servizio,
+    -- non l'assunzione — si lavora anche in prova, senza contratto. Chi
+    -- non ha la data di servizio non e' in forza e non si pretende.
+    and d.data_impiego is not null
+    and d.data_impiego <= p_giorno
     and (d.data_cessazione is null or d.data_cessazione >= p_giorno)
     and not exists (
       select 1
@@ -522,18 +526,25 @@ begin
       using errcode = 'P0001';
   end if;
 
-  -- 4. IL CONTROLLO DELLE 8 ORE
+  -- 4. IL CONTROLLO DELLE ORE DA CONTRATTO
+  --
+  -- Otto per chi e' a tempo pieno, meno per un part-time (2026-09-25):
+  -- il metro di ognuno e' `app.ore_contratto`, alla data della giornata.
+  -- Prima era un 8 fisso, e un part-time da quattro ore avrebbe fermato
+  -- l'invio tutti i giorni.
   select
     string_agg(
       format('· %s: %s%s',
         g.nominativo,
         case
-          when g.ore_ordinarie > 8 then
-            format('%s oltre le 8 da dichiarare come straordinario',
-                   public.ore_in_lettere(g.ore_ordinarie - 8))
+          when g.ore_ordinarie > app.ore_contratto(g.dipendente_id, p_giorno) then
+            format('%s oltre le %s da dichiarare come straordinario',
+                   public.ore_in_lettere(g.ore_ordinarie - app.ore_contratto(g.dipendente_id, p_giorno)),
+                   trim_scale(app.ore_contratto(g.dipendente_id, p_giorno)))
           else
-            format('%s in meno delle 8, segna il motivo (permesso, malattia, ferie)',
-                   public.ore_in_lettere(8 - (g.ore_ordinarie + g.ore_assenza)))
+            format('%s in meno delle %s, segna il motivo (permesso, malattia, ferie)',
+                   public.ore_in_lettere(app.ore_contratto(g.dipendente_id, p_giorno) - (g.ore_ordinarie + g.ore_assenza)),
+                   trim_scale(app.ore_contratto(g.dipendente_id, p_giorno)))
         end,
         case
           when (g.ore_ordinarie + g.ore_straordinarie) - g.ore_visibili > 0 then
@@ -556,9 +567,9 @@ begin
         and gi.dipendente_id = g.dipendente_id
     )
     and (
-      g.ore_ordinarie > 8
+      g.ore_ordinarie > app.ore_contratto(g.dipendente_id, p_giorno)
       or (
-        g.ore_ordinarie + g.ore_assenza < 8
+        g.ore_ordinarie + g.ore_assenza < app.ore_contratto(g.dipendente_id, p_giorno)
         and not (g.assenze is not null and g.ore_assenza = 0)
       )
     );
@@ -608,7 +619,7 @@ revoke all on function public.invia_foglio_giornata(uuid, date) from public;
 grant execute on function public.invia_foglio_giornata(uuid, date) to authenticated;
 
 comment on function public.invia_foglio_giornata(uuid, date) is
-  'Invia al titolare tutte le bozze di una giornata, dopo cinque controlli in fila: ogni cantiere attivo ha la sua scheda, chi compila ha scritto le proprie ore (o e assente), nessun operaio in forza e rimasto fuori (ore, assenza o giustificazione), le ore di ognuno tornano a otto, nessuna scheda e ancora da correggere. Definita in assenze.sql.';
+  'Invia al titolare tutte le bozze di una giornata, dopo cinque controlli in fila: ogni cantiere attivo ha la sua scheda, chi compila ha scritto le proprie ore (o e assente), nessun operaio in forza e rimasto fuori (ore, assenza o giustificazione), le ore di ognuno tornano a quelle del suo contratto (otto, o meno per un part-time), nessuna scheda e ancora da correggere. Definita in assenze.sql.';
 
 
 -- =====================================================================

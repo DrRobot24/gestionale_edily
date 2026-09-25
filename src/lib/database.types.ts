@@ -933,6 +933,39 @@ export type Database = {
           },
         ]
       }
+      dipendente_orari: {
+        Row: {
+          created_at: string
+          dipendente_id: string
+          id: string
+          note: string | null
+          ore_giorno: number
+          org_id: string
+          scritto_da: string | null
+          valido_dal: string
+        }
+        Insert: {
+          created_at?: string
+          dipendente_id: string
+          id?: string
+          note?: string | null
+          ore_giorno: number
+          org_id: string
+          scritto_da?: string | null
+          valido_dal: string
+        }
+        Update: {
+          created_at?: string
+          dipendente_id?: string
+          id?: string
+          note?: string | null
+          ore_giorno?: number
+          org_id?: string
+          scritto_da?: string | null
+          valido_dal?: string
+        }
+        Relationships: []
+      }
       dipendenti: {
         Row: {
           attivo: boolean

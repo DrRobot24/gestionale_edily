@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { Avviso, Badge, Button, Campo, CampoArea, CampoSelect, Card, Percorso, cn } from '../../ui'
 import { usePermission } from '../auth/usePermission'
 import { RiquadroDocumentiPersona } from './RiquadroDocumentiPersona'
+import { RiquadroOrario } from './RiquadroOrario'
 import { RiquadroRetribuzione } from './RiquadroRetribuzione'
 import { useMembri } from '../cantieri/assegnazioni'
 import {
@@ -1043,7 +1044,12 @@ export function DipendenteForm() {
           alte: le due colonne vengono circa pari. */}
       {!nuovo && (
         <div className="grid items-start gap-4 lg:grid-cols-2">
-          {id && <RiquadroDocumentiPersona dipendenteId={id} puoScrivere={puoScrivere} />}
+          <div className="grid gap-4">
+            {id && <RiquadroDocumentiPersona dipendenteId={id} puoScrivere={puoScrivere} />}
+            {/* L'orario da contratto, sotto i documenti: tempo pieno o
+                part-time. Vedi `RiquadroOrario`. */}
+            {id && <RiquadroOrario dipendenteId={id} puoScrivere={puoScrivere} />}
+          </div>
 
           {/* LA RETRIBUZIONE, a destra: paga mensile OPPURE tariffa
               oraria, in un riquadro solo dal 2026-09-25 — vedi

@@ -19,7 +19,8 @@ import { lavorate, type OreGiorno } from '../ore/useOrePeriodo'
    consulente) e il MONTE ferie/permessi con il saldo di partenza.
    ══════════════════════════════════════════════════════════════════ */
 
-/** Le ore di una giornata piena: una giornata di ferie vale otto ore. */
+/** Le ore di una giornata piena A TEMPO PIENO. Per chi e' part-time il
+ *  giorno vale il suo orario: vedi `oreContratto` (2026-09-25). */
 export const ORE_GIORNO = 8
 
 export type MeseRisorsa = {

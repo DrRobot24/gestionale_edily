@@ -27,7 +27,8 @@ import type { Stipendio } from './dipendenti'
 
    dove le ORE RETRIBUITE sono quelle EFFETTIVE — ordinarie piu'
    straordinarie — piu' quelle di ferie, permessi e assenze giustificate
-   (una giornata intera vale 8, come nel foglio presenze). L'esempio
+   (una giornata intera vale le ore del contratto — 8, o meno per un
+   part-time — come nel foglio presenze). L'esempio
    dell'utente: 2000 € in un mese da 20 giorni di 8 ore → 2000 ÷ 20 =
    100 € al giorno → ÷ 8 = 12,50 €/h. Con giornate tutte da 8 e' lo
    stesso conto; con una giornata da 6 conta 6, perche' le ore sono

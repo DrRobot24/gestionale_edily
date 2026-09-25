@@ -63,7 +63,8 @@ export function useOreGiornata(giorno: string) {
   })
 }
 
-export type Anomalia = { tipo: 'straordinario' | 'mancano'; ore: number }
+/** `metro`: le ore da contratto di quella persona, su cui si e' misurato. */
+export type Anomalia = { tipo: 'straordinario' | 'mancano'; ore: number; metro: number }
 
 /**
  * Cosa non torna nelle ore di una persona, se qualcosa non torna.
@@ -77,6 +78,9 @@ export type Anomalia = { tipo: 'straordinario' | 'mancano'; ore: number }
  * vanno bene; sei ore lavorate con scritto solo "permesso" lasciano due
  * ore senza risposta.
  *
+ * IL METRO E' IL CONTRATTO DELLA PERSONA, dal 2026-09-25: otto per chi
+ * e' a tempo pieno, meno per un part-time. Vedi `oreContratto`.
+ *
  * Chi non compare su nessun rapportino della giornata non entra qui
  * dentro affatto: la funzione restituisce solo chi ha almeno una riga.
  * Un operaio che quel giorno non e' stato messo da nessuna parte non ha
@@ -84,14 +88,14 @@ export type Anomalia = { tipo: 'straordinario' | 'mancano'; ore: number }
  * riempirebbe la schermata di allarmi il mattino, prima che il tecnico
  * abbia compilato qualcosa.
  */
-export function anomaliaDi(p: OrePersona): Anomalia | null {
+export function anomaliaDi(p: OrePersona, metro: number = ORE_STANDARD): Anomalia | null {
   const ordinarie = Number(p.ore_ordinarie)
-  if (ordinarie > ORE_STANDARD) {
-    return { tipo: 'straordinario', ore: ordinarie - ORE_STANDARD }
+  if (ordinarie > metro) {
+    return { tipo: 'straordinario', ore: ordinarie - metro, metro }
   }
 
   const coperte = ordinarie + Number(p.ore_assenza)
-  if (coperte >= ORE_STANDARD) return null
+  if (coperte >= metro) return null
 
   /* Un motivo scritto senza le ore e' una riga compilata prima che
      `ore_assenza` esistesse, e vuol dire assenza a giornata intera. Si
@@ -100,7 +104,7 @@ export function anomaliaDi(p: OrePersona): Anomalia | null {
      leggere anche quelli veri. */
   if (p.assenze && Number(p.ore_assenza) === 0) return null
 
-  return { tipo: 'mancano', ore: ORE_STANDARD - coperte }
+  return { tipo: 'mancano', ore: metro - coperte, metro }
 }
 
 /** La funzione nel database non c'e' ancora: e' un file dello schema

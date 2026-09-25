@@ -1,8 +1,7 @@
 import { useNavigate } from 'react-router'
 import { Button, Card } from '../../ui'
 import { numero } from '../../lib/formato'
-import { useMioDipendente } from '../anagrafiche/dipendenti'
-import { ORE_STANDARD } from '../rapportini/useOreGiornata'
+import { oreContratto, useMioDipendente, useOrari } from '../anagrafiche/dipendenti'
 import { useGiornataPersonale } from '../oreproprie/orePersonali'
 
 /* ══════════════════════════════════════════════════════════════════
@@ -44,6 +43,7 @@ export function MieOre({ giorno }: { giorno: string }) {
   const navigate = useNavigate()
   const { data: mio, isPending: caricoMio } = useMioDipendente()
   const { data: giornata, isPending: caricoOre } = useGiornataPersonale(giorno)
+  const { data: orari } = useOrari()
 
   if (caricoMio) {
     return (
@@ -83,7 +83,9 @@ export function MieOre({ giorno }: { giorno: string }) {
   const straordinarie = Number(giornata?.ore_straordinarie ?? 0)
   const assenza = Number(giornata?.ore_assenza ?? 0)
   const coperte = ordinarie + assenza
-  const mancano = Math.max(0, ORE_STANDARD - coperte)
+  // La giornata piena del SUO contratto: 8, o meno se e' part-time.
+  const piena = oreContratto(orari, mio.id, giorno)
+  const mancano = Math.max(0, piena - coperte)
 
   /* UNA RIGA, dal 2026-09-24, come «Ore della giornata»: titolo e
      stato a sinistra, il numero a destra. Il pulsante per compilarle
@@ -102,7 +104,7 @@ export function MieOre({ giorno }: { giorno: string }) {
             {caricoOre
               ? 'Carico…'
               : `${assenza > 0 ? `${numero(assenza)} h coperte da un motivo · ` : ''}${
-                  mancano > 0 ? `ne mancano ${numero(mancano)} alle ${ORE_STANDARD}` : 'giornata completa'
+                  mancano > 0 ? `ne mancano ${numero(mancano)} alle ${numero(piena)}` : 'giornata completa'
                 }`}
           </p>
         </div>

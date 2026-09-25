@@ -213,8 +213,12 @@ begin
 
     -- LE ASSENZE A GIORNATA INTERA, da `assenze.sql` (2026-09-23). Chi
     -- era assente non sta piu' su nessun rapportino: sta qui, con zero
-    -- ore lavorate e otto coperte dal motivo. Nella griglia la cella
-    -- dice 0 con la sigla del motivo sotto.
+    -- ore lavorate e la giornata intera coperta dal motivo. Nella
+    -- griglia la cella dice 0.
+    --
+    -- LA GIORNATA INTERA E' QUELLA DEL SUO CONTRATTO, dal 2026-09-25:
+    -- otto per chi e' a tempo pieno, quattro per un part-time da
+    -- quattro. Vedi `orario-contrattuale.sql`.
     --
     -- L'assenza non ha uno stato suo: viaggia con la giornata. Esce
     -- quando la giornata e' VALIDATA — almeno una scheda firmata e
@@ -227,7 +231,7 @@ begin
       0::numeric,
       0::numeric,
       0::numeric,
-      8::numeric,
+      app.ore_contratto(a.dipendente_id, a.data),
       a.motivo,
       a.nota,
       null::uuid,

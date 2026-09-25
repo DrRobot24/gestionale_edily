@@ -4,9 +4,8 @@ import { data as fmtData, euro, giornoPiu, numero } from '../../lib/formato'
 import { Avviso, Button, Campo, Card, Cifra, Percorso, RigaTotale, Table, cn } from '../../ui'
 import { oggi } from '../rapportini/campiRapportino'
 import { tabellaMancante } from '../rapportini/useGiustificazioni'
-import { useDipendente } from './dipendenti'
+import { oreContratto, useDipendente, useOrari } from './dipendenti'
 import {
-  ORE_GIORNO,
   contoFerie,
   perMese,
   usePercepito,
@@ -41,7 +40,10 @@ const MESI = [
 ]
 
 /** Ore in giorni da otto, per le colonne che si leggono a giornate. */
-const giorni = (ore: number) => (ore === 0 ? '—' : numero(ore / ORE_GIORNO))
+/* In giorni della SUA giornata piena: otto ore a tempo pieno, quattro per
+   un part-time da quattro (2026-09-25). */
+const giorni = (ore: number, oreGiorno: number) =>
+  ore === 0 ? '—' : numero(ore / oreGiorno)
 const oreONiente = (ore: number) => (ore === 0 ? '—' : numero(ore))
 
 export function EconomiaRisorsaPage() {
@@ -51,6 +53,8 @@ export function EconomiaRisorsaPage() {
   const [anno, setAnno] = useState(annoCorrente)
 
   const { data: persona } = useDipendente(id)
+  const { data: orari } = useOrari()
+  const oreGiorno = oreContratto(orari, id ?? '', adesso)
   const nome = persona ? `${persona.cognome} ${persona.nome}` : '…'
 
   const inizioAnno = `${anno}-01-01`
@@ -140,6 +144,7 @@ export function EconomiaRisorsaPage() {
           monte={monte ?? null}
           giornate={dalSaldo ?? []}
           oggi={adesso}
+          oreGiorno={oreGiorno}
         />
       )}
 
@@ -181,10 +186,10 @@ export function EconomiaRisorsaPage() {
                     <Cifra className={m.oreStraordinarie > 0 ? 'text-rose-700' : ''}>
                       {oreONiente(m.oreStraordinarie)}
                     </Cifra>
-                    <Cifra>{giorni(m.ferie)}</Cifra>
-                    <Cifra>{giorni(m.malattia)}</Cifra>
+                    <Cifra>{giorni(m.ferie, oreGiorno)}</Cifra>
+                    <Cifra>{giorni(m.malattia, oreGiorno)}</Cifra>
                     <Cifra>{oreONiente(m.permesso)}</Cifra>
-                    <Cifra>{giorni(m.altre)}</Cifra>
+                    <Cifra>{giorni(m.altre, oreGiorno)}</Cifra>
                     {/* Dal Riepilogo economico: la cifra c'e' solo a
                         mese firmato dal titolare. */}
                     <Cifra>
@@ -203,10 +208,10 @@ export function EconomiaRisorsaPage() {
                   <Cifra>{totale.giorniLavorati || '—'}</Cifra>
                   <Cifra>{oreONiente(totale.oreOrdinarie)}</Cifra>
                   <Cifra>{oreONiente(totale.oreStraordinarie)}</Cifra>
-                  <Cifra>{giorni(totale.ferie)}</Cifra>
-                  <Cifra>{giorni(totale.malattia)}</Cifra>
+                  <Cifra>{giorni(totale.ferie, oreGiorno)}</Cifra>
+                  <Cifra>{giorni(totale.malattia, oreGiorno)}</Cifra>
                   <Cifra>{oreONiente(totale.permesso)}</Cifra>
-                  <Cifra>{giorni(totale.altre)}</Cifra>
+                  <Cifra>{giorni(totale.altre, oreGiorno)}</Cifra>
                   <Cifra>{percepitoAnno > 0 ? euro(percepitoAnno) : '—'}</Cifra>
                 </RigaTotale>
               </tbody>
@@ -230,11 +235,13 @@ function FeriePermessi({
   monte,
   giornate,
   oggi: adesso,
+  oreGiorno,
 }: {
   dipendenteId: string
   monte: MonteFerie | null
   giornate: Parameters<typeof contoFerie>[1]
   oggi: string
+  oreGiorno: number
 }) {
   const [modifica, setModifica] = useState(false)
 
@@ -263,12 +270,19 @@ function FeriePermessi({
         </Button>
       </div>
       <div className="grid gap-4 p-5 sm:grid-cols-2">
-        <Conto titolo="Ferie" conto={ferie} annuo={monte.ferie_annue_ore} saldiAl={monte.saldi_al} />
+        <Conto
+          titolo="Ferie"
+          conto={ferie}
+          annuo={monte.ferie_annue_ore}
+          saldiAl={monte.saldi_al}
+          oreGiorno={oreGiorno}
+        />
         <Conto
           titolo="Permessi"
           conto={permessi}
           annuo={monte.permessi_annui_ore}
           saldiAl={monte.saldi_al}
+          oreGiorno={oreGiorno}
         />
       </div>
     </Card>
@@ -280,11 +294,13 @@ function Conto({
   conto,
   annuo,
   saldiAl,
+  oreGiorno,
 }: {
   titolo: string
   conto: ReturnType<typeof contoFerie>
   annuo: number
   saldiAl: string
+  oreGiorno: number
 }) {
   const negativo = conto.residuo < 0
   return (
@@ -300,7 +316,7 @@ function Conto({
       <p className="numerico text-2xl font-black text-black">
         {numero(conto.residuo)} h
         <span className="ml-2 text-sm font-bold text-gray-600">
-          ({numero(conto.residuo / ORE_GIORNO)} gg)
+          ({numero(conto.residuo / oreGiorno)} gg)
         </span>
       </p>
       <p className="mt-2 text-xs font-semibold text-gray-700">
