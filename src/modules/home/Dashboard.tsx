@@ -149,11 +149,19 @@ export function Dashboard() {
               dell'impresa prima della coda. Vedi `IlSuoLavoro`. */}
           {puoValidare && <IlSuoLavoro compatto />}
 
+          {/* DAL 2026-09-25 UNA SOTTO L'ALTRA, a tutta larghezza. Le due
+              colonne del 24 mettevano calendario, giorno aperto e «cos'e'
+              successo» nella striscia stretta di destra, e a sinistra la
+              sola coda — che vuota e' una riga: pagina tutta spostata a
+              destra, «ma che stiamo scherzando?». Ora la coda sta in cima
+              (vuota occupa una riga) e le consegne si dividono dentro il
+              loro riquadro: calendario stretto a sinistra, giorno largo a
+              destra. */}
           {puoValidare && (
-            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_24rem] lg:items-start">
+            <>
               <GiornateDaValidare />
               <ConsegneDalCampo />
-            </div>
+            </>
           )}
 
           {/* Le consegne dal campo STANNO SOTTO la coda da validare, e

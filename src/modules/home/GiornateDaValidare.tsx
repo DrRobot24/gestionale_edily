@@ -64,8 +64,8 @@ export function GiornateDaValidare() {
 
   if ((!schede || schede.length === 0) && personali.length === 0) {
     return (
-      <Card className="p-5">
-        <h2 className="mb-1 text-lg font-extrabold text-black">Da validare</h2>
+      <Card className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-5 py-3">
+        <h2 className="text-lg font-extrabold text-black">Da validare</h2>
         <p className="text-sm font-semibold text-gray-600">
           Nessuna giornata in attesa. La coda è pulita.
         </p>

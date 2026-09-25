@@ -90,6 +90,8 @@ export function ConsegneDalCampo() {
   const [giornoAperto, setGiornoAperto] = useDataInIndirizzo('aperto')
   const [meseScelto, setMese] = useDataInIndirizzo('mese')
   const mese = meseScelto ?? giornoAperto ?? oggi()
+  /* Il giorno a destra: quello aperto, oppure oggi. */
+  const mostrato = giornoAperto ?? oggi()
 
   const { data, isPending, error } = useConsegneDelMese(mese)
   const { data: scollegati } = useTecniciScollegati()
@@ -143,12 +145,16 @@ export function ConsegneDalCampo() {
       {isPending && <p className="text-sm font-bold text-gray-600">Carico le consegne…</p>}
 
       {!isPending && tecnici.length > 0 && (
-        /* SEMPRE IN COLONNA, dal 2026-09-24: il riquadro sta nella
-           colonna stretta a destra della coda da firmare, e il
-           dettaglio del giorno scende sotto il calendario. Non c'e'
-           piu' il segnaposto «clicca una giornata»: occupava mezzo
-           riquadro per dire che li' non c'era niente. */
-        <div className="grid gap-4">
+        /* CALENDARIO A SINISTRA, GIORNO A DESTRA, dal 2026-09-25. Il
+           riquadro ha tutta la larghezza della home: il calendario
+           resta stretto, il giorno — che e' la parte da leggere — si
+           prende il resto. Sul telefono tornano in colonna.
+
+           E A DESTRA C'E' SEMPRE UN GIORNO: se non se n'e' aperto uno
+           e' oggi. Niente segnaposto «clicca una giornata» e niente
+           mezza pagina vuota: la domanda del mattino e' «oggi com'e'
+           andata», e la risposta c'e' senza click. */
+        <div className="grid gap-4 xl:grid-cols-[22rem_minmax(0,1fr)] xl:items-start">
           {/* I calendari restano in colonna anche con piu' tecnici: due
               affiancati qui dentro rimangerebbero lo spazio al
               dettaglio, che e' proprio cio' che si stava correggendo.
@@ -164,42 +170,38 @@ export function ConsegneDalCampo() {
                 rapportini={data!.rapportini}
                 ore={data!.ore}
                 assenti={data!.assenti}
-                giornoAperto={giornoAperto}
-                onApriGiorno={(g) => setGiornoAperto(giornoAperto === g ? null : g)}
+                giornoAperto={mostrato}
+                onApriGiorno={(g) => setGiornoAperto(g === oggi() ? null : g)}
               />
             ))}
           </div>
 
-          <div className="min-w-0">
-            {giornoAperto && (
-              /* DUE RIQUADRI, e rispondono a due domande diverse sullo
-                 stesso giorno.
+          {/* DUE RIQUADRI, e rispondono a due domande diverse sullo
+            stesso giorno.
 
-                 Sopra «cosa manca», che e' il perimetro del tecnico:
-                 quante schede ha consegnato, se ha dichiarato le sue
-                 ore, cosa resta in bozza. Sotto «cos'e' successo», che
-                 e' la giornata intera — tutti i cantieri, tutte le
-                 persone, anche cio' che e' gia' firmato e quindi non
-                 manca piu' a nessuno.
+            Sopra «cosa manca», che e' il perimetro del tecnico:
+            quante schede ha consegnato, se ha dichiarato le sue
+            ore, cosa resta in bozza. Sotto «cos'e' successo», che
+            e' la giornata intera — tutti i cantieri, tutte le
+            persone, anche cio' che e' gia' firmato e quindi non
+            manca piu' a nessuno.
 
-                 Il secondo e' nato il 2026-09-22 da «perche' non ci
-                 sono le frecce dal POV titolare?»: la risposta non
-                 erano le frecce — non avrebbero mosso niente in quella
-                 home — ma il fatto che «cos'e' successo giovedi' 17?»
-                 non avesse un posto dove essere chiesta. */
-              <div className="grid gap-4">
-                <DettaglioGiorno
-                  giorno={giornoAperto}
-                  tecnici={tecnici}
-                  attese={data!.attese}
-                  rapportini={data!.rapportini}
-                  ore={data!.ore}
-                  assenti={data!.assenti}
-                  onChiudi={() => setGiornoAperto(null)}
-                />
-                <LaGiornataDi giorno={giornoAperto} />
-              </div>
-            )}
+            Il secondo e' nato il 2026-09-22 da «perche' non ci
+            sono le frecce dal POV titolare?»: la risposta non
+            erano le frecce — non avrebbero mosso niente in quella
+            home — ma il fatto che «cos'e' successo giovedi' 17?»
+            non avesse un posto dove essere chiesta. */}
+          <div className="grid min-w-0 gap-4">
+            <DettaglioGiorno
+              giorno={mostrato}
+              tecnici={tecnici}
+              attese={data!.attese}
+              rapportini={data!.rapportini}
+              ore={data!.ore}
+              assenti={data!.assenti}
+              onChiudi={giornoAperto ? () => setGiornoAperto(null) : undefined}
+            />
+            <LaGiornataDi giorno={mostrato} />
           </div>
         </div>
       )}
@@ -386,19 +388,22 @@ function DettaglioGiorno({
   rapportini: ConsegnaRapportino[]
   ore: ConsegnaOre[]
   assenti: Set<string>
-  onChiudi: () => void
+  /** Assente quando si sta gia' guardando oggi: non c'e' dove tornare. */
+  onChiudi?: () => void
 }) {
   return (
     <Card className="overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b-2 border-black bg-sky-300 px-5 py-3">
         <h3 className="text-base font-extrabold capitalize text-black">{dataEstesa(giorno)}</h3>
-        <button
-          type="button"
-          onClick={onChiudi}
-          className="neo-press cursor-pointer rounded-lg border-2 border-black bg-white px-2.5 py-1 text-xs font-extrabold"
-        >
-          Chiudi
-        </button>
+        {onChiudi && (
+          <button
+            type="button"
+            onClick={onChiudi}
+            className="neo-press cursor-pointer rounded-lg border-2 border-black bg-white px-2.5 py-1 text-xs font-extrabold"
+          >
+            Torna a oggi
+          </button>
+        )}
       </div>
 
       <ul className="divide-y-2 divide-black">
