@@ -37,7 +37,7 @@ export function AssentiDelGiorno({
   bloccata: boolean
 }) {
   const { data: assenze, error, isPending } = useAssenze(giorno)
-  const { data: persone } = useDipendenti({ soloAttivi: true })
+  const { data: persone } = useDipendenti({ soloAttivi: true, inServizioIl: giorno })
   const { data: mio } = useMioDipendente()
   const { data: suRapportini } = useOreSuRapportini(giorno)
   const segna = useSegnaAssenza(giorno)

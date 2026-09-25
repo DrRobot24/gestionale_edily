@@ -41,7 +41,9 @@ export function IlSuoLavoro({ compatto = false }: { compatto?: boolean } = {}) {
 
   const { data: clienti } = useClienti()
   const { data: cantieri } = useCantieri()
-  const { data: operai } = useDipendenti()
+  // Le risorse IN SERVIZIO oggi, non tutte quelle in anagrafica: e' il
+  // principio del 2026-09-25, vedi `inServizio`.
+  const { data: operai } = useDipendenti({ inServizioIl: new Date().toLocaleDateString('sv-SE') })
   const { data: fornitori } = useFornitori()
   const { data: giacenze } = useGiacenze()
 
@@ -76,7 +78,7 @@ export function IlSuoLavoro({ compatto = false }: { compatto?: boolean } = {}) {
       a: '/anagrafiche/operai',
       quanti: operai?.length,
       colore: 'bg-sky-300',
-      nota: 'In forza',
+      nota: 'In servizio',
     },
     {
       etichetta: 'Fornitori',

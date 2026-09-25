@@ -21,7 +21,10 @@ export function ModificaRapportino() {
   const { data: cantieri } = useCantieri()
   // Solo gli operai: tecnico e impiegati le ore le dichiarano nel
   // foglio personale, e il database rifiuta le loro righe qui.
-  const { data: dipendenti } = useDipendenti({ soloOperai: true })
+  // E solo chi e' in servizio il giorno della scheda (vedi
+  // `inServizio`). Chi c'era e non lo e' piu' resta lo stesso, dalle
+  // righe salvate: vedi `righeUnite`.
+  const { data: dipendenti } = useDipendenti({ soloOperai: true, inServizioIl: r?.data })
 
   const salva = useMutation({
     mutationFn: async (campi: CampiRapportino) => {
@@ -232,8 +235,8 @@ type Attivo = { id: string; nome: string; cognome: string }
  * omonimi in azienda non sono un caso di scuola, e sbagliare qui
  * sposterebbe le ore di uno sull'altro.
  *
- * Chi era sul rapportino ma nel frattempo e' stato archiviato resta in
- * elenco: ha lavorato davvero quel giorno, e toglierlo cancellerebbe le
+ * Chi era sul rapportino ma nel frattempo e' stato archiviato, o non e'
+ * piu' in servizio, resta in elenco: ha lavorato davvero quel giorno, e toglierlo cancellerebbe le
  * sue ore al primo salvataggio.
  */
 function righeUnite(salvate: RigaSalvata[], attivi: Attivo[]) {
@@ -269,7 +272,7 @@ function righeUnite(salvate: RigaSalvata[], attivi: Attivo[]) {
       rigaId: s.id,
       dipendente_id: s.dipendente_id,
       nominativo: s.dipendenti
-        ? `${s.dipendenti.cognome} ${s.dipendenti.nome} (archiviato)`
+        ? `${s.dipendenti.cognome} ${s.dipendenti.nome} (fuori servizio)`
         : 'Dipendente rimosso',
       presente: !s.tipo_assenza,
       ore_ordinarie: Number(s.ore_ordinarie),

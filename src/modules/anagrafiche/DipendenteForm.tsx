@@ -42,8 +42,10 @@ const DPI = [
   'Mascherina / respiratore',
 ]
 
-const STATI_RAPPORTO = [
-  ['assunto', 'Assunto — contratto attivo'],
+/* Perche' non e' assunto. L'assunzione e' una spunta a parte (vedi
+   «In servizio e assunzione» nel modulo): qui restano le due ragioni
+   per cui si e' in servizio senza contratto. */
+const NON_ASSUNTO = [
   ['in_prova', 'In prova'],
   ['da_inquadrare', 'Da inquadrare — contratto ancora da fare'],
 ] as const
@@ -64,6 +66,7 @@ const schema = z.object({
   data_impiego: z.string(),
   data_assunzione: z.string(),
   data_cessazione: z.string(),
+  azienda_assunzione: z.string(),
   telefono: z.string(),
   email: z.string().refine((v) => v === '' || /.+@.+\..+/.test(v), 'Email non valida'),
   user_id: z.string(),
@@ -90,8 +93,34 @@ const schema = z.object({
      vuoto con l'assunzione piena invece passa: lo riempie il trigger
      con la data di assunzione, che e' l'unica cosa certa. */
   .refine((v) => !v.data_impiego || !v.data_assunzione || v.data_impiego <= v.data_assunzione, {
-    message: 'L’impiego non può cominciare dopo l’assunzione',
+    message: 'Il servizio non può cominciare dopo l’assunzione',
     path: ['data_impiego'],
+  })
+  /* IL PERIODO DI SERVIZIO, e l'assunzione che ci sta dentro
+     (2026-09-25). Il database ha gli stessi check; qui servono a dirlo
+     con una frase. */
+  .refine((v) => !v.data_cessazione || !v.data_impiego || v.data_cessazione >= v.data_impiego, {
+    message: 'La fine del servizio viene prima dell’inizio',
+    path: ['data_cessazione'],
+  })
+  .refine(
+    (v) =>
+      v.stato_rapporto !== 'assunto' ||
+      !v.data_cessazione ||
+      !v.data_assunzione ||
+      v.data_assunzione <= v.data_cessazione,
+    { message: 'L’assunzione non può cominciare dopo la fine del servizio', path: ['data_assunzione'] },
+  )
+  /* Assunto vuol dire un contratto: DA QUANDO e CON CHI. Una spunta
+     senza queste due cose non risponde a nessuna delle domande per cui
+     esiste. */
+  .refine((v) => v.stato_rapporto !== 'assunto' || v.data_assunzione !== '', {
+    message: 'Da quando è assunto?',
+    path: ['data_assunzione'],
+  })
+  .refine((v) => v.stato_rapporto !== 'assunto' || v.azienda_assunzione.trim() !== '', {
+    message: 'Con quale azienda è assunto?',
+    path: ['azienda_assunzione'],
   })
   .refine((v) => !v.permesso_soggiorno || v.permesso_scadenza !== '', {
     message: 'Quando scade il permesso?',
@@ -112,6 +141,7 @@ const VUOTO: Campi = {
   data_impiego: '',
   data_assunzione: '',
   data_cessazione: '',
+  azienda_assunzione: '',
   telefono: '',
   email: '',
   user_id: '',
@@ -123,7 +153,10 @@ const VUOTO: Campi = {
   permesso_soggiorno: false,
   permesso_scadenza: '',
   dpi: [],
-  stato_rapporto: 'assunto' as const,
+  /* Una risorsa nuova parte NON assunta: il contratto e' il passo in
+     piu', e si spunta quando c'e'. Prima il default era «assunto», e
+     schede mai toccate risultavano assunte senza data ne' azienda. */
+  stato_rapporto: 'in_prova' as const,
 }
 
 /** L'intestazione di un riquadro. Quattro gruppi di campi hanno bisogno
@@ -159,6 +192,7 @@ export function DipendenteForm() {
     handleSubmit,
     reset,
     control,
+    setValue,
     formState: { errors, isDirty },
   } = useForm<Campi>({ resolver: zodResolver(schema), defaultValues: VUOTO })
 
@@ -169,6 +203,15 @@ export function DipendenteForm() {
   /* Stessa ragione: la data di scadenza deve comparire nell'istante in
      cui si spunta il permesso, non dopo aver salvato. */
   const haPermesso = useWatch({ control, name: 'permesso_soggiorno' })
+  /* Stessa ragione per l'assunzione: data e azienda compaiono quando
+     si spunta. E il servizio, per avvisare subito chi lo lascia vuoto. */
+  const statoRapporto = useWatch({ control, name: 'stato_rapporto' })
+  const assunto = statoRapporto === 'assunto'
+  const inServizioDal = useWatch({ control, name: 'data_impiego' })
+  /* Togliendo la spunta si torna alla ragione di prima, se c'era: chi
+     la rimette e la toglie per sbaglio non deve perdere «da
+     inquadrare». */
+  const [nonAssunto, setNonAssunto] = useState<'in_prova' | 'da_inquadrare'>('in_prova')
 
   /* Come si chiama quello che si sta creando. La scheda non fa piu'
      solo operai — Stefania ci registra sé stessa e il tecnico — e
@@ -195,6 +238,7 @@ export function DipendenteForm() {
       data_impiego: dipendente.data_impiego ?? '',
       data_assunzione: dipendente.data_assunzione ?? '',
       data_cessazione: dipendente.data_cessazione ?? '',
+      azienda_assunzione: dipendente.azienda_assunzione ?? '',
       telefono: dipendente.telefono ?? '',
       email: dipendente.email ?? '',
       user_id: dipendente.user_id ?? '',
@@ -228,7 +272,12 @@ export function DipendenteForm() {
         livello_ccnl: vuotoSeVuoto(c.livello_ccnl),
         tipo_contratto: vuotoSeVuoto(c.tipo_contratto),
         data_impiego: vuotoSeVuoto(c.data_impiego),
-        data_assunzione: vuotoSeVuoto(c.data_assunzione),
+        /* Data e azienda dell'assunzione se ne vanno insieme alla
+           spunta: una data rimasta li' direbbe «assunto» a chiunque
+           legga la colonna, contro la spunta tolta. */
+        data_assunzione: c.stato_rapporto === 'assunto' ? vuotoSeVuoto(c.data_assunzione) : null,
+        azienda_assunzione:
+          c.stato_rapporto === 'assunto' ? vuotoSeVuoto(c.azienda_assunzione) : null,
         data_cessazione: vuotoSeVuoto(c.data_cessazione),
         telefono: vuotoSeVuoto(c.telefono),
         email: vuotoSeVuoto(c.email),
@@ -392,26 +441,13 @@ export function DipendenteForm() {
         <Card className="overflow-hidden">
           <Titolo>Inquadramento</Titolo>
           <div className="grid gap-4 p-5">
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2">
             <Campo
               etichetta="Matricola"
               disabled={!puoScrivere}
               errore={errors.matricola?.message}
               {...register('matricola')}
             />
-            <CampoSelect
-              etichetta="Stato del rapporto"
-              disabled={!puoScrivere}
-              suggerimento="Serve a sapere chi non ha ancora un contratto attivo."
-              errore={errors.stato_rapporto?.message}
-              {...register('stato_rapporto')}
-            >
-              {STATI_RAPPORTO.map(([v, etichetta]) => (
-                <option key={v} value={v}>
-                  {etichetta}
-                </option>
-              ))}
-            </CampoSelect>
             <CampoSelect
               etichetta="Livello CCNL"
               disabled={!puoScrivere}
@@ -468,33 +504,111 @@ export function DipendenteForm() {
             </CampoSelect>
           </div>
 
-          {/* Tre date nell'ordine in cui succedono. L'impiego viene
-              prima dell'assunzione: un operaio in prova lavora gia', e
-              il contratto arriva dopo. */}
-          <div className="grid gap-4 sm:grid-cols-3">
+          {/* IN SERVIZIO E ASSUNZIONE, ridisegnato il 2026-09-25 sul
+              principio dell'utente: «la messa in servizio e' il
+              requisito fondamentale affinche' una risorsa sia
+              disponibile e spunti nelle anagrafiche; l'assunzione e' una
+              messa in servizio ancora piu' profonda, perche' sancisce
+              l'arrivo di un contratto».
+
+              Quindi prima il PERIODO DI SERVIZIO, che decide se la
+              risorsa esiste negli elenchi da cui si sceglie — squadre,
+              assenti, anagrafica. Poi, dentro, l'ASSUNZIONE: una spunta,
+              e solo spuntandola compaiono da quando e con quale azienda.
+              Si puo' essere in servizio senza essere assunti — in prova,
+              o per il tempo di un progetto — non il contrario.
+
+              «In servizio» e non «impiego»: la parola «impiegato» la usa
+              gia' il tipo di risorsa, e le due cose si confondevano. */}
+          <div className="grid gap-4 sm:grid-cols-2">
             <Campo
-              etichetta="Data impiego"
+              etichetta="In servizio dal"
               type="date"
               disabled={!puoScrivere}
-              suggerimento="Il primo giorno di lavoro"
+              suggerimento="Il primo giorno di lavoro, in cantiere o in ufficio"
               errore={errors.data_impiego?.message}
               {...register('data_impiego')}
             />
             <Campo
-              etichetta="Data assunzione"
+              etichetta="Fine servizio"
               type="date"
               disabled={!puoScrivere}
-              errore={errors.data_assunzione?.message}
-              {...register('data_assunzione')}
-            />
-            <Campo
-              etichetta="Data cessazione"
-              type="date"
-              disabled={!puoScrivere}
-              suggerimento="Da compilare solo quando lascia l’azienda"
+              suggerimento="Vuota se non c’è una scadenza"
               errore={errors.data_cessazione?.message}
               {...register('data_cessazione')}
             />
+          </div>
+
+          {/* Si dice SUBITO cosa comporta lasciarla vuota: la scheda si
+              salva lo stesso, ma poi la persona non si trova piu' da
+              nessuna parte, e senza questo avviso sembrerebbe sparita
+              per un errore. */}
+          {!inServizioDal && (
+            <Avviso tono="info">
+              Senza la data di messa in servizio questa risorsa non compare negli elenchi: né
+              in Risorse, né nelle squadre dei rapportini, né fra gli assenti.
+            </Avviso>
+          )}
+
+          <div className="grid gap-3 rounded-xl border-2 border-black bg-white p-4">
+            <label className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                disabled={!puoScrivere}
+                checked={assunto}
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    if (statoRapporto !== 'assunto') setNonAssunto(statoRapporto)
+                    setValue('stato_rapporto', 'assunto', { shouldDirty: true })
+                  } else {
+                    setValue('stato_rapporto', nonAssunto, { shouldDirty: true })
+                  }
+                }}
+                className="mt-0.5 h-5 w-5 shrink-0 cursor-pointer rounded border-2 border-black accent-amber-400"
+              />
+              <span>
+                <span className="block text-sm font-extrabold text-black">Assunto</span>
+                <span className="block text-xs font-semibold text-gray-600">
+                  C&rsquo;è un contratto. Da spuntare quando arriva: si può essere in servizio
+                  senza, in prova o per il tempo di un progetto.
+                </span>
+              </span>
+            </label>
+
+            {assunto ? (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Campo
+                  etichetta="Assunto dal"
+                  type="date"
+                  disabled={!puoScrivere}
+                  errore={errors.data_assunzione?.message}
+                  {...register('data_assunzione')}
+                />
+                {/* Testo libero per ora: diventera' una tendina di ditte
+                    quando l'elenco ci sara' (utente, 2026-09-25). */}
+                <Campo
+                  etichetta="Assunto con"
+                  placeholder="L’azienda che ha fatto il contratto"
+                  disabled={!puoScrivere}
+                  errore={errors.azienda_assunzione?.message}
+                  {...register('azienda_assunzione')}
+                />
+              </div>
+            ) : (
+              <CampoSelect
+                etichetta="Perché non è assunto"
+                disabled={!puoScrivere}
+                className="sm:w-80"
+                errore={errors.stato_rapporto?.message}
+                {...register('stato_rapporto')}
+              >
+                {NON_ASSUNTO.map(([v, etichetta]) => (
+                  <option key={v} value={v}>
+                    {etichetta}
+                  </option>
+                ))}
+              </CampoSelect>
+            )}
           </div>
 
           {/* IL PERMESSO DI SOGGIORNO, e la sua scadenza.

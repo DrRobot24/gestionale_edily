@@ -5,6 +5,7 @@ import { Avviso, Badge, Button, Rubrica, Vuoto, cn } from '../../ui'
 import { usePermission } from '../auth/usePermission'
 import {
   stipendioVigente,
+  inServizio,
   tariffaVigente,
   useDipendenti,
   useStipendi,
@@ -99,10 +100,22 @@ const COLONNE_SENZA_STIPENDIO =
 
 export function DipendentiPage() {
   const navigate = useNavigate()
-  const [conArchiviati, setConArchiviati] = useState(false)
+  /* «Mostra anche chi non e' in servizio»: gli archiviati e chi e' fuori
+     dal periodo di servizio. Di partenza no — vedi `inElenco`. */
+  const [conTutti, setConTutti] = useState(false)
   const puoScrivere = usePermission('anagrafiche.write')
 
-  const { data: dipendenti, isPending, error } = useDipendenti({ soloAttivi: !conArchiviati })
+  const { data: tutti, isPending, error } = useDipendenti({ soloAttivi: !conTutti })
+  const oggi = new Date().toLocaleDateString('sv-SE')
+  /* L'ELENCO E' DI CHI E' IN SERVIZIO, dal 2026-09-25: «la messa in
+     servizio e' il requisito fondamentale affinche' una risorsa sia
+     disponibile e spunti nelle anagrafiche» (utente). Si tiene anche chi
+     comincia nei prossimi giorni: e' gia' deciso, e Stefania gli sta
+     preparando la scheda. Resta fuori chi non ha la data o ha finito. */
+  const inElenco = (d: { data_impiego: string | null; data_cessazione: string | null }) =>
+    Boolean(d.data_impiego) && (!d.data_cessazione || d.data_cessazione >= oggi)
+  const dipendenti = conTutti ? tutti : tutti?.filter(inElenco)
+  const nascosti = conTutti ? 0 : (tutti?.length ?? 0) - (dipendenti?.length ?? 0)
   // Lo stipendio solo a chi fa le paghe: per gli altri la colonna non
   // esiste, e la query non parte nemmeno.
   const vedePaghe = usePermission('paghe.read')
@@ -110,8 +123,8 @@ export function DipendentiPage() {
   const COLONNE = vedePaghe ? COLONNE_CON_STIPENDIO : COLONNE_SENZA_STIPENDIO
 
   if (isPending) return <p className="text-sm font-bold text-gray-600">Carico le risorse…</p>
-  if (error) {
-    return <Avviso tono="errore">Non riesco a leggere le risorse: {error.message}</Avviso>
+  if (error || !dipendenti) {
+    return <Avviso tono="errore">Non riesco a leggere le risorse: {error?.message}</Avviso>
   }
 
   return (
@@ -120,7 +133,16 @@ export function DipendentiPage() {
         <div>
           <h1 className="text-2xl font-extrabold text-black">Risorse</h1>
           <p className="text-xs font-semibold text-gray-600">
-            {dipendenti.length} in elenco · operai, tecnici e impiegati
+            {dipendenti.length} {conTutti ? 'in elenco' : 'in servizio'} · operai, tecnici e
+            impiegati
+            {/* Si dice quanti ne restano fuori: una scheda appena creata
+                senza data che sparisce dall'elenco sembrerebbe persa. */}
+            {nascosti > 0 && (
+              <span className="text-gray-500">
+                {' · '}
+                {nascosti} {nascosti === 1 ? 'non è in servizio' : 'non sono in servizio'}
+              </span>
+            )}
           </p>
         </div>
 
@@ -129,10 +151,10 @@ export function DipendentiPage() {
             <input
               type="checkbox"
               className="h-4 w-4 cursor-pointer accent-amber-400"
-              checked={conArchiviati}
-              onChange={(e) => setConArchiviati(e.target.checked)}
+              checked={conTutti}
+              onChange={(e) => setConTutti(e.target.checked)}
             />
-            Mostra archiviati
+            Mostra anche fuori servizio e archiviati
           </label>
 
           {puoScrivere && (
@@ -161,7 +183,7 @@ export function DipendentiPage() {
               <span>Cognome</span>
               <span>Nome</span>
               <span>Mansione</span>
-              <span>Impiego</span>
+              <span>In servizio</span>
               <span>Assunzione</span>
               {vedePaghe && <span className="text-right">Paga mensile</span>}
               <span className="text-right">Costo orario</span>
@@ -180,6 +202,17 @@ export function DipendentiPage() {
                dell'assunzione, al posto della data che manca. */
             const allarmi: { testo: string; colore: 'errore' | 'attesa' }[] = []
             if (!d.attivo) allarmi.push({ testo: 'archiviato', colore: 'attesa' })
+            /* Fuori servizio si vede solo accendendo «mostra anche»: e
+               allora va detto, se no la riga sembra una risorsa come le
+               altre. */
+            else if (!inServizio(d, oggi))
+              allarmi.push({
+                testo:
+                  d.data_impiego && d.data_impiego > oggi
+                    ? `in servizio dal ${fmtData(d.data_impiego)}`
+                    : 'fuori servizio',
+                colore: 'attesa',
+              })
             if (permesso === 'scaduto')
               allarmi.push({ testo: 'permesso scaduto', colore: 'errore' })
             if (permesso === 'in-scadenza' && d.permesso_scadenza)
@@ -222,11 +255,26 @@ export function DipendentiPage() {
 
                 <Data valore={d.data_impiego} />
 
-                <span className="hidden lg:block">
-                  {d.data_assunzione ? (
-                    <span className="numerico text-sm font-semibold text-gray-800">
-                      {fmtData(d.data_assunzione)}
-                    </span>
+                <span className="hidden min-w-0 lg:block">
+                  {d.stato_rapporto === 'assunto' && d.data_assunzione ? (
+                    <>
+                      <span className="numerico block text-sm font-semibold text-gray-800">
+                        {fmtData(d.data_assunzione)}
+                      </span>
+                      {/* Con chi, sotto la data (2026-09-25). */}
+                      {d.azienda_assunzione && (
+                        <span className="block truncate text-[11px] font-bold text-gray-500">
+                          {d.azienda_assunzione}
+                        </span>
+                      )}
+                    </>
+                  ) : d.stato_rapporto === 'assunto' ? (
+                    /* Segnata assunta senza data: sono le schede nate
+                       quando «assunto» era il valore di partenza. Va
+                       sistemata, e qui e' dove Stefania se ne accorge. */
+                    <Badge colore="attesa" className="px-2 py-0.5 text-[10px]">
+                      assunto: mancano i dati
+                    </Badge>
                   ) : d.stato_rapporto === 'da_inquadrare' ? (
                     <Badge colore="errore" className="px-2 py-0.5 text-[10px]">
                       da inquadrare

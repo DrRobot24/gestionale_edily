@@ -15,7 +15,7 @@ import { useSession } from '../auth/SessionProvider'
 
 const CAMPI =
   'id, matricola, nome, cognome, codice_fiscale, mansione, livello_ccnl, tipo_contratto, ' +
-  'data_impiego, data_assunzione, data_cessazione, telefono, email, attivo, user_id, tipo, ' +
+  'data_impiego, data_assunzione, data_cessazione, azienda_assunzione, telefono, email, attivo, user_id, tipo, ' +
   // La scheda della persona, dal 2026-09-18: vedi `scheda-personale.sql`.
   'data_nascita, luogo_nascita, residenza, patente, note, ' +
   'permesso_soggiorno, permesso_scadenza, dpi, stato_rapporto'
@@ -46,6 +46,39 @@ export function tariffaVigente(tariffe: Tariffa[] | null, aData = new Date().toL
 }
 
 /**
+ * IN SERVIZIO a una data: la messa in servizio c'e', e' cominciata, e
+ * la fine non e' ancora passata.
+ *
+ * E' IL PRINCIPIO DEL 2026-09-25, parole dell'utente: «la messa in
+ * servizio e' il requisito fondamentale affinche' una risorsa sia
+ * disponibile e spunti nelle anagrafiche». Chi non e' in servizio non
+ * si sceglie: non entra in una squadra, non si segna assente, non sta
+ * nell'elenco delle Risorse.
+ *
+ * NON E' NELLA RLS, ed e' voluto: vale per gli elenchi da cui si
+ * sceglie, non per lo storico. Un rapportino di marzo firmato deve
+ * continuare a dire il nome di chi c'era, anche se oggi e' uscito.
+ *
+ * L'assunzione qui non conta: si puo' essere in servizio senza contratto
+ * (in prova, o per un progetto), e il servizio basta.
+ */
+export function inServizio(
+  d: { data_impiego: string | null; data_cessazione: string | null },
+  giorno: string = new Date().toLocaleDateString('sv-SE'),
+): boolean {
+  if (!d.data_impiego || d.data_impiego > giorno) return false
+  return !d.data_cessazione || d.data_cessazione >= giorno
+}
+
+/**
+ * @param inServizioIl  Solo chi e' in servizio in quel giorno: vedi
+ *   `inServizio`. Il giorno e' quello di cui si parla — il rapportino,
+ *   la giornata degli assenti — e non oggi: una squadra di martedi'
+ *   scorso e' fatta da chi c'era martedi' scorso.
+ *
+ *   Si filtra qui e non nella query per non sdoppiare la chiave della
+ *   cache: l'anagrafica e' una sola, e ogni giorno ne e' una vista.
+ *
  * @param soloOperai  Chi puo' stare nella squadra di un cantiere.
  *
  *   Serve al form del rapportino, e non e' un filtro cosmetico: dal
@@ -58,7 +91,11 @@ export function tariffaVigente(tariffe: Tariffa[] | null, aData = new Date().toL
  *   ricostruisce dall'anagrafica e tornavano tutti. Una porta che si
  *   chiude e si riapre da sola.
  */
-export function useDipendenti({ soloAttivi = true, soloOperai = false } = {}) {
+export function useDipendenti({
+  soloAttivi = true,
+  soloOperai = false,
+  inServizioIl,
+}: { soloAttivi?: boolean; soloOperai?: boolean; inServizioIl?: string } = {}) {
   const { org } = useSession()
 
   return useQuery({
@@ -73,6 +110,7 @@ export function useDipendenti({ soloAttivi = true, soloOperai = false } = {}) {
       if (error) throw error
       return data
     },
+    select: inServizioIl ? (righe) => righe.filter((d) => inServizio(d, inServizioIl)) : undefined,
   })
 }
 
@@ -117,12 +155,16 @@ export type DatiDipendente = {
   mansione: string | null
   livello_ccnl: string | null
   tipo_contratto: string | null
-  /** Il primo giorno di lavoro, dal 2026-09-24. Puo' venire PRIMA
+  /** «In servizio dal»: il primo giorno di lavoro. Puo' venire PRIMA
    *  dell'assunzione — prova, da inquadrare — mai dopo: lo impone un
-   *  check, e un trigger la riempie con l'assunzione se manca. */
+   *  check, e un trigger la riempie con l'assunzione se manca. Senza,
+   *  la risorsa non compare negli elenchi: vedi `inServizio`. */
   data_impiego: string | null
   data_assunzione: string | null
+  /** «Fine servizio». Vuota = nessuna scadenza. */
   data_cessazione: string | null
+  /** Con quale azienda e' assunto, dal 2026-09-25. Testo libero. */
+  azienda_assunzione: string | null
   telefono: string | null
   email: string | null
 

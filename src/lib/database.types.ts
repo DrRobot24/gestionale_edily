@@ -936,6 +936,7 @@ export type Database = {
       dipendenti: {
         Row: {
           attivo: boolean
+          azienda_assunzione: string | null
           codice_fiscale: string | null
           cognome: string
           created_at: string
@@ -966,6 +967,7 @@ export type Database = {
         }
         Insert: {
           attivo?: boolean
+          azienda_assunzione?: string | null
           codice_fiscale?: string | null
           cognome: string
           created_at?: string
@@ -996,6 +998,7 @@ export type Database = {
         }
         Update: {
           attivo?: boolean
+          azienda_assunzione?: string | null
           codice_fiscale?: string | null
           cognome?: string
           created_at?: string
