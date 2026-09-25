@@ -3,7 +3,13 @@ import { useNavigate } from 'react-router'
 import { Avviso, Button, Card, Input, Select, Table, Vuoto, cn } from '../../ui'
 import { data as fmtData } from '../../lib/formato'
 import { oggi } from '../rapportini/campiRapportino'
-import { filtra, useOreEconomia, type NotaConCantiere } from '../cantieri/noteContabili'
+import { useSession } from '../auth/SessionProvider'
+import {
+  filtra,
+  useOreEconomia,
+  useSegnaContabilizzata,
+  type NotaConCantiere,
+} from '../cantieri/noteContabili'
 
 /* ══════════════════════════════════════════════════════════════════
    I lavori extra di tutti i cantieri, insieme.
@@ -23,6 +29,17 @@ import { filtra, useOreEconomia, type NotaConCantiere } from '../cantieri/noteCo
    per decisione dell'utente: la contabilita' dei lavori extra la fa lui
    fuori dal gestionale. Qui resta il racconto di cosa e' stato fatto,
    che e' l'unica cosa che al gestionale serviva davvero registrare.
+
+   CONTABILIZZATO SI' O NO, dal 2026-09-25. Chi scrive i lavori extra
+   segna, riga per riga, quali sono gia' passati nel conto da presentare
+   al cliente: e' la domanda che prima si teneva a memoria — «questo
+   l'ho gia' messo in conto?». Il filtro «Da contabilizzare» fa di
+   questa pagina la lista di cio' che resta da fatturare.
+
+   E SI STAMPA, lo stesso giorno: e' il documento che si porta al
+   cliente o in riunione. Quello che esce e' cio' che si vede — periodo,
+   cantiere, ricerca e filtro applicati — con un'intestazione che lo
+   dice, senza menu, filtri e pulsanti.
    ══════════════════════════════════════════════════════════════════ */
 
 /** Il primo del mese di una data, in formato YYYY-MM-DD. */
@@ -36,6 +53,19 @@ function ultimoDelMese(d: Date): string {
 }
 
 type Periodo = 'mese' | 'scorso' | 'tutto' | 'scelto'
+
+type Stato = 'tutti' | 'da' | 'fatti'
+
+const STATI: Record<Stato, string> = {
+  tutti: 'Tutti',
+  da: 'Da contabilizzare',
+  fatti: 'Contabilizzati',
+}
+
+/** Il giorno locale di un timestamp, per scriverlo come le altre date. */
+function giornoDi(ts: string): string {
+  return new Date(ts).toLocaleDateString('sv-SE')
+}
 
 function intervallo(p: Periodo): { da: string; a: string } {
   const ora = new Date()
@@ -52,6 +82,10 @@ function intervallo(p: Periodo): { da: string; a: string } {
 
 export function EconomiaPage() {
   const navigate = useNavigate()
+  const { can, org } = useSession()
+  /* Segna chi scrive i lavori extra: il tecnico e il titolare, come la
+     policy di update. L'amministrazione legge lo stato e non lo cambia. */
+  const puoSegnare = can('rapportini.create') || can('rapportini.validate')
 
   const [periodo, setPeriodo] = useState<Periodo>('mese')
   const [scelto, setScelto] = useState(() => intervallo('mese'))
@@ -59,16 +93,22 @@ export function EconomiaPage() {
 
   const [cantiere, setCantiere] = useState('')
   const [cerca, setCerca] = useState('')
+  const [stato, setStato] = useState<Stato>('tutti')
 
-  const { data: note, isPending, error } = useOreEconomia(da, a)
+  const { data, isPending, error } = useOreEconomia(da, a)
+  const conFlag = data?.conContabilizzazione ?? false
 
   if (error) {
     return <Avviso tono="errore">Non riesco a leggere i lavori extra: {error.message}</Avviso>
   }
 
-  const tutte = note ?? []
+  const tutte = data?.note ?? []
   const perCantiere = cantiere ? tutte.filter((n) => n.cantiere_id === cantiere) : tutte
-  const viste = filtra(perCantiere, cerca)
+  const perStato =
+    !conFlag || stato === 'tutti'
+      ? perCantiere
+      : perCantiere.filter((n) => (stato === 'fatti') === Boolean(n.contabilizzata_il))
+  const viste = filtra(perStato, cerca)
 
   // I cantieri della tendina escono da cio' che c'e' davvero nel
   // periodo: un elenco di tutti i cantieri dell'impresa farebbe scegliere
@@ -83,16 +123,42 @@ export function EconomiaPage() {
   }
 
   return (
-    <div className="mx-auto grid max-w-7xl gap-4">
-      <div>
-        <h1 className="text-2xl font-extrabold text-black">Lavori extra</h1>
-        <p className="text-sm font-semibold text-gray-600">
-          Le lavorazioni fuori progetto di tutti i cantieri. Si segnano compilando il
-          rapportino della giornata; qui si guardano insieme.
-        </p>
+    <div className="mx-auto grid max-w-7xl gap-4 print:max-w-none print:gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-3 print:hidden">
+        <div>
+          <h1 className="text-2xl font-extrabold text-black">Lavori extra</h1>
+          <p className="text-sm font-semibold text-gray-600">
+            Le lavorazioni fuori progetto di tutti i cantieri. Si segnano compilando il
+            rapportino della giornata; qui si guardano insieme.
+          </p>
+        </div>
+        <Button
+          variante="primario"
+          onClick={() => window.print()}
+          disabled={isPending || viste.length === 0}
+        >
+          Stampa
+        </Button>
       </div>
 
-      <Card className="grid gap-3 p-5">
+      {/* L'INTESTAZIONE DELLA STAMPA, invisibile a schermo. Un foglio
+          che gira senza dire di chi e', di quale periodo e con quali
+          filtri e' un foglio che fa nascere domande: «sono tutti?». */}
+      <div className="hidden border-b-2 border-black pb-2 print:block">
+        <p className="text-xs font-bold uppercase tracking-wide text-gray-700">
+          {org?.ragioneSociale}
+        </p>
+        <h1 className="text-xl font-extrabold text-black">Lavori extra</h1>
+        <p className="text-xs font-semibold text-black">
+          Dal {fmtData(da)} al {fmtData(a)}
+          {cantiere && ` · ${cantieri.get(cantiere) ?? ''}`}
+          {conFlag && stato !== 'tutti' && ` · ${STATI[stato]}`}
+          {cerca.trim() && ` · ricerca «${cerca.trim()}»`}
+        </p>
+        <p className="text-[10px] font-semibold text-gray-600">Stampato il {fmtData(oggi())}</p>
+      </div>
+
+      <Card className="grid gap-3 p-5 print:hidden">
         <div className="flex flex-wrap items-center gap-2">
           {(
             [
@@ -166,9 +232,30 @@ export function EconomiaPage() {
             className="py-2 text-sm"
           />
         </div>
+
+        {/* Il filtro sullo stato: «Da contabilizzare» e' la lista di
+            cio' che resta da mettere in conto, ed e' quella che si
+            stampa per il cliente. */}
+        {conFlag && (
+          <div className="flex flex-wrap items-center gap-2">
+            {(Object.keys(STATI) as Stato[]).map((valore) => (
+              <button
+                key={valore}
+                type="button"
+                onClick={() => setStato(valore)}
+                className={cn(
+                  'neo-press cursor-pointer rounded-xl border-2 border-black px-3 py-1.5 text-xs font-extrabold',
+                  stato === valore ? 'bg-amber-400 shadow-neo-xs' : 'bg-white',
+                )}
+              >
+                {STATI[valore]}
+              </button>
+            ))}
+          </div>
+        )}
       </Card>
 
-      <Riepilogo note={viste} scelto={cantiere} onScegli={setCantiere} />
+      <Riepilogo note={viste} scelto={cantiere} onScegli={setCantiere} conFlag={conFlag} />
 
       {isPending ? (
         <p className="text-sm font-bold text-gray-600">Carico i lavori extra…</p>
@@ -178,7 +265,7 @@ export function EconomiaPage() {
           della giornata, nel riquadro sotto la squadra.
         </Vuoto>
       ) : viste.length === 0 ? (
-        <Vuoto>Nessuna lavorazione corrisponde a quello che hai cercato.</Vuoto>
+        <Vuoto>Nessuna lavorazione corrisponde ai filtri scelti.</Vuoto>
       ) : (
         <Table>
           <thead>
@@ -186,7 +273,8 @@ export function EconomiaPage() {
               <th>Giorno</th>
               <th>Cantiere</th>
               <th>Lavorazione</th>
-              <th />
+              {conFlag && <th className="whitespace-nowrap">Contabilizzato</th>}
+              <th className="print:hidden" />
             </tr>
           </thead>
           <tbody>
@@ -214,7 +302,12 @@ export function EconomiaPage() {
                     <span className="block text-xs font-semibold text-gray-500">{n.note}</span>
                   )}
                 </td>
-                <td className="text-right">
+                {conFlag && (
+                  <td className="whitespace-nowrap">
+                    <Contabilizzata nota={n} puoSegnare={puoSegnare} />
+                  </td>
+                )}
+                <td className="text-right print:hidden">
                   {n.cantiere_id && (
                     <Button dimensione="sm" onClick={() => navigate(`/cantieri/${n.cantiere_id}`)}>
                       Apri
@@ -246,13 +339,18 @@ function Riepilogo({
   note,
   scelto,
   onScegli,
+  conFlag,
 }: {
   note: NotaConCantiere[]
   /** Il cantiere filtrato adesso, `''` quando sono tutti. */
   scelto: string
   onScegli: (id: string) => void
+  /** La colonna del contabilizzato esiste: si puo' contare. */
+  conFlag: boolean
 }) {
   if (note.length === 0) return null
+
+  const daContabilizzare = note.filter((n) => !n.contabilizzata_il).length
 
   /* L'ID VIAGGIA INSIEME AL NOME, e prima non lo faceva: la mappa
      teneva solo nome e conteggio, che basta a scrivere una riga ma non
@@ -280,9 +378,18 @@ function Riepilogo({
             {note.length} {note.length === 1 ? 'lavorazione' : 'lavorazioni'}
           </p>
         </div>
-        <p className="text-xs font-semibold text-lime-900">
-          su {righe.length} {righe.length === 1 ? 'cantiere' : 'cantieri'}
-        </p>
+        <div className="text-right">
+          <p className="text-xs font-semibold text-lime-900">
+            su {righe.length} {righe.length === 1 ? 'cantiere' : 'cantieri'}
+          </p>
+          {/* Si dice solo se ce n'e': «0 da contabilizzare» e' rumore,
+              e la tabella lo mostra gia' tutta verde. */}
+          {conFlag && daContabilizzare > 0 && (
+            <p className="text-sm font-extrabold text-black">
+              {daContabilizzare} da contabilizzare
+            </p>
+          )}
+        </div>
       </div>
 
       {/* LE CHIPS FILTRANO, dal 2026-09-22: «dammi la possibilita' di
@@ -345,5 +452,83 @@ function Riepilogo({
         </ul>
       )}
     </Card>
+  )
+}
+
+/**
+ * Lo stato di un lavoro extra, e l'interruttore per cambiarlo.
+ *
+ * Un QUADRATINO DA SPUNTARE, non un menu: e' un si'/no, e deve potersi
+ * cambiare con un tocco dal telefono. Spuntato e' verde e dice quando;
+ * vuoto dice «da contabilizzare» per esteso, perche' e' la riga che
+ * chiede ancora qualcosa.
+ *
+ * Chi non puo' segnare vede lo stesso aspetto senza il pulsante: lo
+ * stato gli serve, il gesto no.
+ */
+function Contabilizzata({
+  nota,
+  puoSegnare,
+}: {
+  nota: NotaConCantiere
+  puoSegnare: boolean
+}) {
+  const segna = useSegnaContabilizzata()
+  const fatta = Boolean(nota.contabilizzata_il)
+
+  const aspetto = (
+    <>
+      <span
+        aria-hidden="true"
+        className={cn(
+          'flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 border-black text-xs font-black',
+          fatta ? 'bg-black text-lime-300' : 'bg-white',
+        )}
+      >
+        {fatta && '✓'}
+      </span>
+      <span className="text-left leading-tight">
+        <span className="block text-xs font-extrabold">
+          {fatta ? 'Contabilizzato' : 'Da contabilizzare'}
+        </span>
+        {nota.contabilizzata_il && (
+          <span className="block text-[10px] font-semibold text-black/70">
+            il {fmtData(giornoDi(nota.contabilizzata_il))}
+          </span>
+        )}
+      </span>
+    </>
+  )
+
+  const classi = cn(
+    'inline-flex items-center gap-2 rounded-xl border-2 border-black px-2.5 py-1.5',
+    fatta ? 'bg-lime-300' : 'bg-white',
+  )
+
+  if (!puoSegnare) return <span className={classi}>{aspetto}</span>
+
+  return (
+    <div>
+      <button
+        type="button"
+        role="checkbox"
+        aria-checked={fatta}
+        disabled={segna.isPending}
+        onClick={() => segna.mutate({ id: nota.id, si: !fatta })}
+        title={
+          fatta
+            ? 'Premi per rimetterlo fra quelli da contabilizzare'
+            : 'Premi quando è stato messo in conto'
+        }
+        className={cn(classi, 'neo-press cursor-pointer shadow-neo-xs print:shadow-none')}
+      >
+        {aspetto}
+      </button>
+      {segna.isError && (
+        <p className="mt-1 max-w-48 whitespace-normal text-[10px] font-bold text-rose-700 print:hidden">
+          Non salvato: {(segna.error as Error).message}
+        </p>
+      )}
+    </div>
   )
 }

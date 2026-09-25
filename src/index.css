@@ -82,3 +82,42 @@
     @apply outline-none ring-2 ring-amber-400 ring-offset-1;
   }
 }
+
+/* ══════════════════════════════════════════════════════════════════
+   Stampa. Nata il 2026-09-25 per i Lavori extra, vale per ogni pagina.
+
+   Un foglio A4 bianco: via le ombre (su carta sono macchie nere
+   spostate), via il fondo grigio, e i colori di fondo si STAMPANO — il
+   verde di «Contabilizzato» e' un'informazione, non un ornamento, e i
+   browser di serie lo butterebbero via per risparmiare inchiostro.
+
+   Le righe di una tabella non si spezzano fra due pagine, e
+   l'intestazione si ripete in cima a ogni foglio. Menu e pulsanti li
+   toglie chi li disegna, con `print:hidden`.
+   ══════════════════════════════════════════════════════════════════ */
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+
+  body {
+    background: white;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  *,
+  *::before,
+  *::after {
+    box-shadow: none !important;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  tr {
+    break-inside: avoid;
+  }
+}

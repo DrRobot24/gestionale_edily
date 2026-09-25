@@ -438,7 +438,7 @@ function Layout() {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <BarraMobile voci={visibili} />
-        <main className="flex-1 p-6 lg:p-8">
+        <main className="flex-1 p-6 lg:p-8 print:p-0">
           <Outlet />
         </main>
       </div>
@@ -452,7 +452,7 @@ function Barra({ voci }: { voci: Voce[] }) {
   const { app, org, orgs, setOrgAttiva, logout } = useSession()
 
   return (
-    <aside className="hidden w-64 shrink-0 flex-col border-r-2 border-black bg-gray-900 lg:flex">
+    <aside className="hidden w-64 shrink-0 flex-col border-r-2 border-black bg-gray-900 lg:flex print:hidden">
       <div className="flex items-center gap-3 border-b-2 border-black px-5 py-6">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-2 border-black bg-amber-400 shadow-neo-sm">
           <span className="text-xs font-extrabold text-black">EG</span>
@@ -527,7 +527,7 @@ function BarraMobile({ voci }: { voci: Voce[] }) {
   const { org, logout } = useSession()
 
   return (
-    <header className="border-b-2 border-black bg-gray-900 lg:hidden">
+    <header className="border-b-2 border-black bg-gray-900 lg:hidden print:hidden">
       <div className="flex items-center gap-3 px-4 py-3">
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border-2 border-black bg-amber-400">
           <span className="text-[10px] font-extrabold text-black">EG</span>

@@ -1535,6 +1535,8 @@ export type Database = {
       note_contabili: {
         Row: {
           cantiere_id: string
+          contabilizzata_da: string | null
+          contabilizzata_il: string | null
           created_at: string
           data: string
           descrizione: string
@@ -1547,6 +1549,8 @@ export type Database = {
         }
         Insert: {
           cantiere_id: string
+          contabilizzata_da?: string | null
+          contabilizzata_il?: string | null
           created_at?: string
           data?: string
           descrizione: string
@@ -1559,6 +1563,8 @@ export type Database = {
         }
         Update: {
           cantiere_id?: string
+          contabilizzata_da?: string | null
+          contabilizzata_il?: string | null
           created_at?: string
           data?: string
           descrizione?: string

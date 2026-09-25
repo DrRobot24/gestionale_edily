@@ -174,7 +174,27 @@ export function filtra<T extends NotaContabile>(note: T[], cerca: string): T[] {
 
 export type NotaConCantiere = NotaContabile & {
   cantiere: { codice: string; denominazione: string } | null
+  /** Quando e' stata segnata contabilizzata; `null` = non ancora. */
+  contabilizzata_il: string | null
 }
+
+export type LavoriExtra = {
+  note: NotaConCantiere[]
+  /**
+   * `false` finche' `note-contabili-contabilizzata.sql` non e' stato
+   * eseguito: la colonna non esiste, e la pagina nasconde il flag
+   * invece di cadere tutta con un errore.
+   */
+  conContabilizzazione: boolean
+}
+
+type RigaEconomia = NotaContabile & {
+  cantieri: { codice: string; denominazione: string } | { codice: string; denominazione: string }[] | null
+  contabilizzata_il?: string | null
+}
+
+const CAMPI_ECONOMIA =
+  'id, cantiere_id, data, descrizione, note, scritta_da, created_at, cantieri ( codice, denominazione )'
 
 /**
  * Tutti i lavori extra dell'azienda in un intervallo di date.
@@ -187,6 +207,11 @@ export type NotaConCantiere = NotaContabile & {
  * Il perimetro lo decide la RLS e non questa query: il tecnico vede le
  * note dei cantieri suoi, chi ha `rapportini.read_all` le vede tutte.
  * Stessa pagina, due risposte diverse, e nessun `if` nel frontend.
+ *
+ * LA COLONNA DEL CONTABILIZZATO PUO' NON ESSERCI ANCORA (2026-09-25): lo
+ * SQL si esegue a mano, e il frontend su Vercel puo' arrivare prima. Se
+ * la prima lettura torna 42703 — colonna inesistente — si rilegge senza,
+ * e la pagina funziona come prima.
  */
 export function useOreEconomia(da: string, a: string) {
   const { org } = useSession()
@@ -196,20 +221,28 @@ export function useOreEconomia(da: string, a: string) {
     // prefisso: senza, questa pagina resterebbe indietro.
     queryKey: ['note-contabili', 'economia', org?.id, da, a],
     enabled: Boolean(org?.id),
-    queryFn: async (): Promise<NotaConCantiere[]> => {
-      const { data, error } = await supabase
-        .from('note_contabili')
-        .select(
-          'id, cantiere_id, data, descrizione, note, scritta_da, created_at, cantieri ( codice, denominazione )',
-        )
-        .eq('org_id', org!.id)
-        .gte('data', da)
-        .lte('data', a)
-        .order('data', { ascending: false })
+    queryFn: async (): Promise<LavoriExtra> => {
+      const leggi = (campi: string) =>
+        supabase
+          .from('note_contabili')
+          .select(campi)
+          .eq('org_id', org!.id)
+          .gte('data', da)
+          .lte('data', a)
+          .order('data', { ascending: false })
 
-      if (error) throw error
+      let conContabilizzazione = true
+      let risposta = await leggi(`${CAMPI_ECONOMIA}, contabilizzata_il`)
+      if (risposta.error?.code === '42703') {
+        conContabilizzazione = false
+        risposta = await leggi(CAMPI_ECONOMIA)
+      }
+      if (risposta.error) throw risposta.error
 
-      return (data ?? []).map((n) => {
+      // La select e' composta a runtime, quindi i tipi di PostgREST non
+      // la sanno leggere: la forma la si dichiara qui.
+      const righe = (risposta.data ?? []) as unknown as RigaEconomia[]
+      const note = righe.map((n): NotaConCantiere => {
         // PostgREST annida una relazione molti-a-uno come oggetto, ma i
         // tipi generati la danno a volte come array: si normalizza qui
         // invece di fidarsi, come si fa gia' altrove.
@@ -223,8 +256,54 @@ export function useOreEconomia(da: string, a: string) {
           scritta_da: n.scritta_da,
           created_at: n.created_at,
           cantiere: c ? { codice: c.codice, denominazione: c.denominazione } : null,
+          contabilizzata_il: n.contabilizzata_il ?? null,
         }
       })
+
+      return { note, conContabilizzazione }
+    },
+  })
+}
+
+/**
+ * Segna un lavoro extra come contabilizzato, o lo rimette fra quelli da
+ * contabilizzare.
+ *
+ * Si scrive la DATA e chi l'ha segnato, non un si'/no: vedi
+ * `note-contabili-contabilizzata.sql`. Togliendo il segno si svuotano
+ * tutte e due, perche' una data rimasta li' direbbe il contrario del
+ * flag.
+ *
+ * Chi puo' farlo lo decide la RLS: la stessa policy che lascia
+ * correggere la nota — il tecnico sui cantieri suoi, il titolare
+ * ovunque.
+ */
+export function useSegnaContabilizzata() {
+  const { org, app } = useSession()
+  const qc = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ id, si }: { id: string; si: boolean }) => {
+      const { data, error } = await supabase
+        .from('note_contabili')
+        .update(
+          si
+            ? { contabilizzata_il: new Date().toISOString(), contabilizzata_da: app!.userId }
+            : { contabilizzata_il: null, contabilizzata_da: null },
+        )
+        .eq('id', id)
+        .eq('org_id', org!.id)
+        .select('id')
+      if (error) throw error
+      // La RLS che rifiuta un update non da' errore: aggiorna zero
+      // righe. Senza questo controllo il pulsante direbbe «fatto» e la
+      // riga tornerebbe com'era al primo aggiornamento.
+      if (!data || data.length === 0) {
+        throw new Error('non hai il permesso di segnare questo lavoro extra')
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['note-contabili'] })
     },
   })
 }
