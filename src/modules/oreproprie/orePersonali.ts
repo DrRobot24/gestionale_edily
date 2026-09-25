@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
 import { useSession } from '../auth/SessionProvider'
+import { useMioDipendente } from '../anagrafiche/dipendenti'
 
 /* ══════════════════════════════════════════════════════════════════
    Il foglio ore di chi non le presta a un cantiere solo.
@@ -65,16 +66,25 @@ export function totaleOre(g: {
 /**
  * Il mio foglio ore, dal piu' recente.
  *
- * Non serve filtrare per dipendente: la RLS mostra gia' solo le proprie
- * righe a chi non valida. Chi valida le vede tutte, ed e' voluto — la
- * stessa query serve la coda del titolare.
+ * SI FILTRA SEMPRE PER LA MIA SCHEDA, e non ci si fida della RLS per
+ * farlo. Fino al 2026-09-25 qui c'era scritto il contrario — «la RLS
+ * mostra gia' solo le proprie righe a chi non valida» — ed era vero
+ * solo finche' «Le mie ore» l'apriva il tecnico. La RLS di
+ * `ore_personali` fa leggere TUTTO anche a chi ha `paghe.read`, perche'
+ * le ore le deve elaborare: quando Stefania ha avuto la sua scheda, nella
+ * sua pagina sono comparse le giornate di Zito. La RLS dice cosa si PUO'
+ * leggere; cosa e' MIO lo dice questa query.
+ *
+ * Finche' la scheda non e' nota la query non parte: senza, per un
+ * attimo leggerebbe tutto.
  */
 export function useOrePersonali(limite = 60) {
   const { org } = useSession()
+  const { data: mio } = useMioDipendente()
 
   return useQuery({
-    queryKey: ['ore-personali', org?.id, limite],
-    enabled: Boolean(org?.id),
+    queryKey: ['ore-personali', org?.id, mio?.id, limite],
+    enabled: Boolean(org?.id && mio?.id),
     queryFn: async () => {
       const { data, error } = await supabase
         .from('ore_personali')
@@ -83,6 +93,7 @@ export function useOrePersonali(limite = 60) {
         // illeggibile.
         .select(`${CAMPI}, dipendenti ( nome, cognome, tipo )`)
         .eq('org_id', org!.id)
+        .eq('dipendente_id', mio!.id)
         .order('data', { ascending: false })
         .limit(limite)
 
@@ -92,18 +103,28 @@ export function useOrePersonali(limite = 60) {
   })
 }
 
-/** La giornata di una data precisa, per il form. */
+/**
+ * La MIA giornata di una data precisa, per il form.
+ *
+ * Filtrata per la mia scheda come `useOrePersonali`, e qui conta ancora
+ * di piu': senza, a chi ha `paghe.read` il form si sarebbe aperto sulla
+ * giornata di un altro, e salvandola ne avrebbe copiato i numeri sulla
+ * propria. Con due righe nello stesso giorno, poi, `maybeSingle` va in
+ * errore.
+ */
 export function useGiornataPersonale(giorno: string | undefined) {
   const { org } = useSession()
+  const { data: mio } = useMioDipendente()
 
   return useQuery({
-    queryKey: ['ore-personali', 'giorno', giorno, org?.id],
-    enabled: Boolean(giorno && org?.id),
+    queryKey: ['ore-personali', 'giorno', giorno, org?.id, mio?.id],
+    enabled: Boolean(giorno && org?.id && mio?.id),
     queryFn: async () => {
       const { data, error } = await supabase
         .from('ore_personali')
         .select(CAMPI)
         .eq('org_id', org!.id)
+        .eq('dipendente_id', mio!.id)
         .eq('data', giorno!)
         // `maybeSingle` e non `single`: una giornata non ancora
         // compilata NON e' un errore, e' il caso normale di ogni
