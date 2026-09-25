@@ -1,7 +1,7 @@
 import { useLocation, useNavigate } from 'react-router'
 import { apriDa } from '../rapportini/percorso'
 import { Avviso, Badge, Card, cn } from '../../ui'
-import { numero } from '../../lib/formato'
+import { dataEstesa, numero } from '../../lib/formato'
 import { useOreGriglia, lavorate, type OreGiorno } from '../ore/useOrePeriodo'
 import { useRapportini } from '../rapportini/useRapportini'
 import { StatoRapportino } from '../rapportini/stato'
@@ -80,9 +80,6 @@ export function LaGiornataDi({ giorno }: { giorno: string }) {
      cantieri ha tre righe e una persona sola. */
   const persone = new Set(righeOre.filter((o) => lavorate(o) > 0).map((o) => o.dipendente_id))
   const oreTotali = righeOre.reduce((t, o) => t + lavorate(o), 0)
-  const particolari = righeOre.filter(
-    (o) => Number(o.ore_assenza) > 0 || o.tipo_assenza || o.giustificazione,
-  )
 
   return (
     <Card className="overflow-hidden">
@@ -175,26 +172,59 @@ export function LaGiornataDi({ giorno }: { giorno: string }) {
             )
           })}
 
-          {/* SOLO I CASI PARTICOLARI, dal 2026-09-23. Prima qui c'era
-              «Chi c'era», tutti i presenti con le loro ore: l'utente l'ha
-              tolto perche' ripeteva cio' che si legge nei rapportini e
-              nel Foglio presenze. Restano le persone di cui c'e'
-              qualcosa da sapere: un'assenza (ferie, permesso, malattia)
-              o una giustificazione scritta dal tecnico. */}
-          {particolari.length > 0 && (
-            <li className="bg-gray-50 px-5 py-3">
-              <p className="mb-2 text-[10px] font-extrabold uppercase tracking-wide text-gray-600">
-                Assenze e permessi
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {particolari.map((o) => (
-                  <CasoParticolare key={o.dipendente_id} riga={o} />
-                ))}
-              </div>
-            </li>
-          )}
+          {/* Le assenze e i permessi non stanno piu' qui: dal
+              2026-09-25 sono sotto il calendario, uno per riga. Vedi
+              `AssenzeDelGiorno`. */}
         </ul>
       )}
+    </Card>
+  )
+}
+
+/* ── assenze e permessi ─────────────────────────────────────────── */
+
+/**
+ * Chi quel giorno non ha fatto una giornata normale, e perche'.
+ *
+ * SOLO I CASI PARTICOLARI, dal 2026-09-23: prima c'era «Chi c'era»,
+ * tutti i presenti con le loro ore, tolto perche' ripeteva i rapportini
+ * e il Foglio presenze. Restano le persone di cui c'e' qualcosa da
+ * sapere: un'assenza (ferie, permesso, malattia) o una giustificazione
+ * scritta dal tecnico.
+ *
+ * IN COLONNA E SOTTO IL CALENDARIO, dal 2026-09-25. Prima erano pillole
+ * affiancate in fondo a «Cos'e' successo», l'ultima cosa che l'occhio
+ * raggiungeva; l'utente le voleva «in verticale, cosi' mi arrivano
+ * prima all'occhio», nello spazio vuoto sotto il calendario. Una
+ * persona per riga: il nome a sinistra, il motivo a destra.
+ *
+ * Stessa lettura di `LaGiornataDi`, stessa chiave: la cache la
+ * condividono, nessuna query in piu'.
+ */
+export function AssenzeDelGiorno({ giorno }: { giorno: string }) {
+  const { data: ore } = useOreGriglia({ passo: 'settimana', dal: giorno, al: giorno })
+
+  const particolari = (ore ?? [])
+    .filter((o) => o.data === giorno)
+    .filter((o) => Number(o.ore_assenza) > 0 || o.tipo_assenza || o.giustificazione)
+    .sort((x, y) => x.nominativo.localeCompare(y.nominativo, 'it'))
+
+  // Nessuno assente: il riquadro sparisce, non dice «nessuno».
+  if (particolari.length === 0) return null
+
+  return (
+    <Card className="overflow-hidden">
+      <div className="border-b-2 border-black bg-white px-4 py-3">
+        <p className="text-sm font-extrabold uppercase tracking-wide text-black">
+          Assenze e permessi
+        </p>
+        <p className="text-xs font-semibold capitalize text-gray-600">{dataEstesa(giorno)}</p>
+      </div>
+      <ul className="divide-y-2 divide-black">
+        {particolari.map((o) => (
+          <CasoParticolare key={o.dipendente_id} riga={o} />
+        ))}
+      </ul>
     </Card>
   )
 }
@@ -205,24 +235,28 @@ function CasoParticolare({ riga: o }: { riga: OreGiorno }) {
   const assenza = Number(o.ore_assenza)
   const motivo = o.tipo_assenza ?? o.giustificazione?.motivo ?? 'assente'
   const tutto = lavorate(o) === 0
+  const nota = o.nota_assenza ?? o.giustificazione?.descrizione
 
   return (
-    <span
-      className={cn(
-        'rounded-full border-2 border-black px-2.5 py-0.5 text-[11px] font-bold',
-        tutto ? 'bg-gray-200 text-gray-700' : 'bg-amber-100 text-black',
-      )}
-      title={o.nota_assenza ?? o.giustificazione?.descrizione ?? undefined}
-    >
-      {o.nominativo}
-      {' · '}
-      <span className="uppercase">{motivo}</span>
-      {assenza > 0 && !tutto && (
-        <>
-          {' · '}
-          <span className="numerico">{numero(assenza)} h</span>
-        </>
-      )}
-    </span>
+    <li className="flex items-start justify-between gap-3 px-4 py-2.5">
+      <div className="min-w-0">
+        <p className="text-sm font-bold text-black">{o.nominativo}</p>
+        {nota && <p className="text-xs font-semibold text-gray-600">{nota}</p>}
+      </div>
+      <span
+        className={cn(
+          'shrink-0 rounded-full border-2 border-black px-2.5 py-0.5 text-[11px] font-extrabold uppercase',
+          tutto ? 'bg-gray-200 text-gray-700' : 'bg-amber-100 text-black',
+        )}
+      >
+        {motivo}
+        {assenza > 0 && !tutto && (
+          <>
+            {' · '}
+            <span className="numerico">{numero(assenza)} h</span>
+          </>
+        )}
+      </span>
+    </li>
   )
 }

@@ -15,7 +15,7 @@ import {
   type TecnicoInCampo,
 } from './useConsegneDelMese'
 import { ASPETTO_GIORNATA, statoGiornataTecnico, type StatoGiornata } from './statoGiornata'
-import { LaGiornataDi } from './LaGiornataDi'
+import { AssenzeDelGiorno, LaGiornataDi } from './LaGiornataDi'
 
 /* ══════════════════════════════════════════════════════════════════
    COSA DEVO ANCORA RICEVERE DAL CAMPO.
@@ -174,6 +174,8 @@ export function ConsegneDalCampo() {
                 onApriGiorno={(g) => setGiornoAperto(g === oggi() ? null : g)}
               />
             ))}
+            {/* Sotto il calendario, uno per riga: vedi `AssenzeDelGiorno`. */}
+            <AssenzeDelGiorno giorno={mostrato} />
           </div>
 
           {/* DUE RIQUADRI, e rispondono a due domande diverse sullo
