@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router'
 import { supabase } from '../../lib/supabase'
@@ -11,6 +12,7 @@ import { oggi } from '../rapportini/campiRapportino'
 import { useMioDipendente } from '../anagrafiche/dipendenti'
 import { useGiornataPersonale, totaleOre } from '../oreproprie/orePersonali'
 import { AssentiDelGiorno } from './AssentiDelGiorno'
+import { RiepilogoGiornata } from './RiepilogoGiornata'
 import { cantiereAtteso, useConsegneDelMese } from './useConsegneDelMese'
 
 /* ══════════════════════════════════════════════════════════════════
@@ -115,8 +117,13 @@ export function CantieriDelGiorno({
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['rapportini'] })
+      setRivedo(false)
     },
   })
+
+  /* Il riepilogo della giornata, aperto al posto delle card: vedi
+     `RiepilogoGiornata`. Si chiude da solo quando l'invio riesce. */
+  const [rivedo, setRivedo] = useState(false)
 
   const { data: cantieri, isPending: caricoCantieri, error: erroreCantieri } = useCantieri()
   const { data: rapportini, isPending: caricoRapportini } = useRapportini()
@@ -259,6 +266,16 @@ export function CantieriDelGiorno({
   // Se sono tutte gia' partite non c'e' piu' niente da spedire: il
   // pulsante resterebbe acceso a non fare nulla.
   const daSpedire = schede.some((s) => s.rapportino?.stato === 'bozza')
+  const puoInviare = complete && daSpedire && !mancanoLeMieOre
+  /* Perche' non parte, detto nel riepilogo: le stesse ragioni del
+     pulsante, in una frase. */
+  const perche = !complete
+    ? `Mancano ancora ${schede.length - compilate} ${schede.length - compilate === 1 ? 'scheda' : 'schede'}: la giornata parte quando ci sono tutte.`
+    : mancanoLeMieOre
+      ? 'Mancano le tue ore: scrivile, poi potrai inviare.'
+      : !daSpedire
+        ? 'La giornata è già stata inviata.'
+        : null
 
   return (
     <div className="grid gap-4">
@@ -297,13 +314,19 @@ export function CantieriDelGiorno({
               Compila le tue ore
             </Button>
           )}
-          <Button
-            variante="primario"
-            disabled={!complete || !daSpedire || mancanoLeMieOre || invia.isPending}
-            onClick={() => invia.mutate()}
-          >
-            {invia.isPending ? 'Invio…' : 'Invia il foglio della giornata'}
-          </Button>
+          {/* RIVEDI PRIMA DI INVIARE, dal 2026-09-25: il pulsante apre la
+              giornata intera, e l'invio sta in fondo al riepilogo. Si puo'
+              rivedere anche prima che sia completa — per vedere a che
+              punto si e' — ma solo quando c'e' almeno una scheda. */}
+          {!rivedo && (
+            <Button
+              variante={puoInviare ? 'primario' : 'secondario'}
+              disabled={compilate === 0}
+              onClick={() => setRivedo(true)}
+            >
+              {puoInviare ? 'Rivedi e invia' : 'Rivedi la giornata'}
+            </Button>
+          )}
         </div>
       </Card>
 
@@ -320,6 +343,27 @@ export function CantieriDelGiorno({
         </Avviso>
       )}
 
+      {rivedo ? (
+        <RiepilogoGiornata
+          giorno={giorno}
+          schede={schede.map((s) => ({
+            cantiere: {
+              id: s.cantiere.id,
+              codice: s.cantiere.codice,
+              denominazione: s.cantiere.denominazione,
+            },
+            rapportinoId: s.rapportino?.id ?? null,
+          }))}
+          mieOre={miaGiornata}
+          conScheda={Boolean(mio)}
+          puoInviare={puoInviare}
+          perche={perche}
+          inCorso={invia.isPending}
+          onInvia={() => invia.mutate()}
+          onChiudi={() => setRivedo(false)}
+        />
+      ) : (
+      <>
       {/* Le card restano card — il verde della card e' il segno che il
           rapportino c'e', l'utente ci tiene — ma a meta' altezza e senza
           pulsante: e' tutta la card a portare al cantiere. Sette
@@ -353,6 +397,8 @@ export function CantieriDelGiorno({
           (s) => s.rapportino?.stato === 'validato' || s.rapportino?.stato === 'contabilizzato',
         )}
       />
+      </>
+      )}
     </div>
   )
 }

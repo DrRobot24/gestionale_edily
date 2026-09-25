@@ -52,6 +52,32 @@ export function useRapportino(id: string | undefined) {
   })
 }
 
+/**
+ * Piu' rapportini completi in una lettura sola: squadra, ore, note.
+ * Serve al riepilogo della giornata del tecnico prima dell'invio
+ * (2026-09-25), che li mostra tutti insieme.
+ */
+export function useRapportiniCompleti(ids: string[]) {
+  const { org } = useSession()
+  const chiave = [...ids].sort().join(',')
+
+  return useQuery({
+    queryKey: ['rapportini', 'completi', org?.id, chiave],
+    enabled: Boolean(org?.id) && ids.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('rapportini')
+        .select(SELECT)
+        .in('id', ids)
+        .eq('org_id', org!.id)
+      if (error) throw error
+      return data
+    },
+  })
+}
+
+export type RapportinoCompleto = NonNullable<ReturnType<typeof useRapportino>['data']>
+
 type Transizione = {
   id: string
   stato: RapportinoStato
