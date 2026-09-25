@@ -148,12 +148,15 @@ export type DatiDipendente = {
    *  Tecnico e impiegato dichiarano le proprie in `ore_personali`, e un
    *  trigger li rifiuta nelle ore di un cantiere. */
   tipo: TipoRisorsa
-  matricola: string | null
+  /** Non piu' nel modulo dal 2026-09-25: facoltativo, cosi' salvando la
+   *  scheda non si cancella quello che c'e'. */
+  matricola?: string | null
   nome: string
   cognome: string
   codice_fiscale: string | null
   mansione: string | null
-  livello_ccnl: string | null
+  /** Come la matricola: fuori dal modulo, conservato. */
+  livello_ccnl?: string | null
   tipo_contratto: string | null
   /** «In servizio dal»: il primo giorno di lavoro. Puo' venire PRIMA
    *  dell'assunzione — prova, da inquadrare — mai dopo: lo impone un

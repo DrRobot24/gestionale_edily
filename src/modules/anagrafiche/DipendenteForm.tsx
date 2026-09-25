@@ -21,10 +21,10 @@ import {
 
 const CONTRATTI = ['Tempo indeterminato', 'Tempo determinato', 'Apprendistato', 'Stagionale']
 
-/** I livelli del CCNL Edilizia industria. Testo libero nel database, ma
- *  proposti in lista: i livelli sono questi e digitarli a mano produce
- *  solo "4", "IV" e "quarto" nella stessa colonna. */
-const LIVELLI = ['1', '2', '3', '4', '5', '6', '7']
+/* MATRICOLA E LIVELLO CCNL SONO USCITI DALLA SCHEDA il 2026-09-25, su
+   indicazione dell'utente. Le colonne restano nel database — le legge
+   wbs-office, e chi ce le ha le conserva — ma il modulo non le mostra e
+   non le riscrive: `DatiDipendente` le ha facoltative apposta. */
 
 /** I DPI che si consegnano davvero in un cantiere edile. Spunte e non
  *  testo libero: «scarpe», «scarpe antinf.» e «calzature» nella stessa
@@ -55,13 +55,11 @@ const vuotoSeVuoto = (v: string) => (v.trim() === '' ? null : v.trim())
 const schema = z.object({
   cognome: z.string().min(1, 'Serve il cognome'),
   nome: z.string().min(1, 'Serve il nome'),
-  matricola: z.string(),
   codice_fiscale: z
     .string()
     .refine((v) => v === '' || v.trim().length === 16, 'Il codice fiscale ha 16 caratteri'),
   tipo: z.enum(['operaio', 'tecnico', 'impiegato']),
   mansione: z.string(),
-  livello_ccnl: z.string(),
   tipo_contratto: z.string(),
   data_impiego: z.string(),
   data_assunzione: z.string(),
@@ -132,11 +130,9 @@ type Campi = z.infer<typeof schema>
 const VUOTO: Campi = {
   cognome: '',
   nome: '',
-  matricola: '',
   codice_fiscale: '',
   tipo: 'operaio' as const,
   mansione: '',
-  livello_ccnl: '',
   tipo_contratto: '',
   data_impiego: '',
   data_assunzione: '',
@@ -229,11 +225,9 @@ export function DipendenteForm() {
     reset({
       cognome: dipendente.cognome,
       nome: dipendente.nome,
-      matricola: dipendente.matricola ?? '',
       codice_fiscale: dipendente.codice_fiscale ?? '',
       tipo: dipendente.tipo ?? 'operaio',
       mansione: dipendente.mansione ?? '',
-      livello_ccnl: dipendente.livello_ccnl ?? '',
       tipo_contratto: dipendente.tipo_contratto ?? '',
       data_impiego: dipendente.data_impiego ?? '',
       data_assunzione: dipendente.data_assunzione ?? '',
@@ -265,12 +259,13 @@ export function DipendenteForm() {
       dati: {
         cognome: c.cognome.trim(),
         nome: c.nome.trim(),
-        matricola: vuotoSeVuoto(c.matricola),
         codice_fiscale: vuotoSeVuoto(c.codice_fiscale)?.toUpperCase() ?? null,
         tipo: c.tipo,
         mansione: vuotoSeVuoto(c.mansione),
-        livello_ccnl: vuotoSeVuoto(c.livello_ccnl),
-        tipo_contratto: vuotoSeVuoto(c.tipo_contratto),
+        /* Il tipo di contratto esiste solo se c'e' un contratto: se ne
+           va con la spunta dell'assunzione, come la data e l'azienda. */
+        tipo_contratto:
+          c.stato_rapporto === 'assunto' ? vuotoSeVuoto(c.tipo_contratto) : null,
         data_impiego: vuotoSeVuoto(c.data_impiego),
         /* Data e azienda dell'assunzione se ne vanno insieme alla
            spunta: una data rimasta li' direbbe «assunto» a chiunque
@@ -442,28 +437,6 @@ export function DipendenteForm() {
           <Titolo>Inquadramento</Titolo>
           <div className="grid gap-4 p-5">
           <div className="grid gap-4 sm:grid-cols-2">
-            <Campo
-              etichetta="Matricola"
-              disabled={!puoScrivere}
-              errore={errors.matricola?.message}
-              {...register('matricola')}
-            />
-            <CampoSelect
-              etichetta="Livello CCNL"
-              disabled={!puoScrivere}
-              errore={errors.livello_ccnl?.message}
-              {...register('livello_ccnl')}
-            >
-              <option value="">—</option>
-              {LIVELLI.map((l) => (
-                <option key={l} value={l}>
-                  {l}
-                </option>
-              ))}
-            </CampoSelect>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
             {/* IL TIPO decide, la mansione racconta.
 
                 «Muratore» e «geometra» dicono il mestiere; questo campo
@@ -489,19 +462,6 @@ export function DipendenteForm() {
               errore={errors.mansione?.message}
               {...register('mansione')}
             />
-            <CampoSelect
-              etichetta="Tipo contratto"
-              disabled={!puoScrivere}
-              errore={errors.tipo_contratto?.message}
-              {...register('tipo_contratto')}
-            >
-              <option value="">—</option>
-              {CONTRATTI.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </CampoSelect>
           </div>
 
           {/* IN SERVIZIO E ASSUNZIONE, ridisegnato il 2026-09-25 sul
@@ -576,7 +536,7 @@ export function DipendenteForm() {
             </label>
 
             {assunto ? (
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-4 sm:grid-cols-3">
                 <Campo
                   etichetta="Assunto dal"
                   type="date"
@@ -593,6 +553,21 @@ export function DipendenteForm() {
                   errore={errors.azienda_assunzione?.message}
                   {...register('azienda_assunzione')}
                 />
+                {/* Qui e non fra i campi generali (2026-09-25): un tipo
+                    di contratto senza contratto non ha senso. */}
+                <CampoSelect
+                  etichetta="Tipo contratto"
+                  disabled={!puoScrivere}
+                  errore={errors.tipo_contratto?.message}
+                  {...register('tipo_contratto')}
+                >
+                  <option value="">—</option>
+                  {CONTRATTI.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </CampoSelect>
               </div>
             ) : (
               <CampoSelect
