@@ -2,7 +2,7 @@ import { Fragment, useState } from 'react'
 import { data as fmtData, euro, numero } from '../../lib/formato'
 import { Avviso, Badge, Button, Campo, CampoSelect, Card, Cifra, RigaTotale, Table, Vuoto, cn } from '../../ui'
 import { useSession } from '../auth/SessionProvider'
-import { useDipendenti, useStipendi } from '../anagrafiche/dipendenti'
+import { oreContratto, useDipendenti, useOrari, useStipendi } from '../anagrafiche/dipendenti'
 import { limitiMese, rigaDelMese, storicoRegimi } from '../anagrafiche/retribuzione'
 import { useDataInIndirizzo } from '../home/useDataInIndirizzo'
 import { useGiornateInSospeso, useOreGriglia } from '../ore/useOrePeriodo'
@@ -80,6 +80,7 @@ export function RiepilogoEconomicoPage() {
   /* Dal vivo, solo finche' e' in bozza. */
   const persone = useDipendenti({ soloAttivi: false })
   const stipendi = useStipendi({ abilitato: true })
+  const { data: orari } = useOrari()
   const ore = useOreGriglia({ passo: 'mese', dal, al }, !fotografato)
   const sospeso = useGiornateInSospeso({ passo: 'mese', dal, al })
   const movimenti = useMovimenti(anno, mese)
@@ -123,7 +124,7 @@ export function RiepilogoEconomicoPage() {
       )
       .map((d) => {
         const storico = storicoRegimi(stipendi.data, d.dipendente_costi, d.id)
-        const r = rigaDelMese(storico, ore.data, d.id, dal)
+        const r = rigaDelMese(storico, ore.data, d.id, dal, oreContratto(orari, d.id, al))
         const suoi = (movimenti.data ?? []).filter((m) => m.dipendente_id === d.id)
         const somma = (t: TipoMovimento) =>
           suoi.filter((m) => m.tipo === t).reduce((s, m) => s + m.importo, 0)
@@ -134,7 +135,7 @@ export function RiepilogoEconomicoPage() {
 
         if (t.origine === 'manca' && r.ore_lavorate > 0)
           avvisiRiga.set(d.id, 'Né paga globale né giornaliera: il lavoro vale zero')
-        else if (t.origine === 'in-attesa')
+        else if (r.senzaOre)
           avvisiRiga.set(d.id, 'Paga globale, ma nessuna ora validata nel mese')
 
         return {
@@ -148,13 +149,13 @@ export function RiepilogoEconomicoPage() {
           ore_permessi: r.ore_permessi,
           ore_altre: r.ore_altre,
           regime:
-            t.origine === 'calcolata' || t.origine === 'in-attesa'
+            t.origine === 'calcolata'
               ? 'globale'
               : t.origine === 'manuale'
                 ? 'giornaliera'
                 : null,
-          paga_globale: t.origine === 'calcolata' || t.origine === 'in-attesa' ? t.paga : null,
-          tariffa: t.origine === 'calcolata' || t.origine === 'manuale' ? t.euroOra : null,
+          paga_globale: t.origine === 'calcolata' ? t.paga : null,
+          tariffa: t.origine === 'manca' ? null : t.euroOra,
           maturato: r.maturato,
           acconti,
           rimborsi,

@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
 import { useSession } from '../auth/SessionProvider'
+import { eFeriale } from '../../lib/giorni'
 import type { OreGiorno } from '../ore/useOrePeriodo'
 import type { Stipendio } from './dipendenti'
 
@@ -20,30 +21,31 @@ import type { Stipendio } from './dipendenti'
    mensile, `dipendente_costi` per la tariffa scritta a mano. Passare
    dall'uno all'altro e' aggiungere una riga dell'altro tipo.
 
-   ── IL CALCOLO, con la paga mensile ────────────────────────────────
-   Deciso con l'utente, quattro risposte:
+   ── IL CALCOLO, con la paga globale ────────────────────────────────
+   Corretto dall'utente il 2026-09-25, guardando 44,44 €/h in una scheda:
 
-     tariffa del mese = paga mensile ÷ ore retribuite del mese
+     tariffa del mese = paga globale ÷ (giorni lavorabili del mese
+                                        × ore della giornata piena)
 
-   dove le ORE RETRIBUITE sono quelle EFFETTIVE — ordinarie piu'
-   straordinarie — piu' quelle di ferie, permessi e assenze giustificate
-   (una giornata intera vale le ore del contratto — 8, o meno per un
-   part-time — come nel foglio presenze). L'esempio
-   dell'utente: 2000 € in un mese da 20 giorni di 8 ore → 2000 ÷ 20 =
-   100 € al giorno → ÷ 8 = 12,50 €/h. Con giornate tutte da 8 e' lo
-   stesso conto; con una giornata da 6 conta 6, perche' le ore sono
-   quelle vere.
+   L'esempio dell'utente: 2000 € in un mese da 23 giorni lavorabili →
+   2000 ÷ 23 = 86,96 € al giorno → ÷ 8 ore = 10,87 €/h.
 
-   Quindi il costo del mese resta la paga intera: chi lavora meno giorni
-   costa di piu' all'ora, non prende di meno. Lo straordinario costa
-   come l'ordinario. Le ore di trasferta non entrano: non sono ne' lavoro
-   in cantiere ne' assenza, e il foglio presenze non le conta.
+   I GIORNI LAVORABILI sono i feriali, dal lunedi' al venerdi', contati
+   sul calendario del mese — non i giorni che la persona ha lavorato.
+   Stessa regola di `eFeriale`: i festivi infrasettimanali non si
+   tolgono (vedi `lib/giorni.ts`). LA GIORNATA PIENA e' l'orario da
+   contratto: 8 a tempo pieno, meno per un part-time.
 
-   SOLO LE GIORNATE VALIDATE DAL TITOLARE, perche' escono da
-   `ore_griglia` come nel foglio presenze. Il mese in corso da' una
-   tariffa PROVVISORIA, che si muove man mano che le giornate vengono
-   firmate e diventa definitiva a fine mese (utente: «provvisoria, si
-   aggiorna»).
+   La prima versione (stesso giorno) divideva per le ore VALIDATE del
+   mese — una risposta data prima, «giorni lavorati», presa alla
+   lettera — e a meta' settembre, con 45 ore firmate, dava 44,44 €/h.
+   Adesso la tariffa di un mese si conosce dal primo giorno e non si
+   muove.
+
+   QUELLO CHE PRENDE resta la paga intera: «quello che conta e' che
+   quella risorsa prende quell'importo nel mese di riferimento». La
+   tariffa e' il costo di un'ora, e serve a pesare le ore sui cantieri.
+   Lo straordinario costa come l'ordinario.
 
    ── DOVE NON STA ───────────────────────────────────────────────────
    La tariffa calcolata non si scrive nel database: si ricava ogni volta
@@ -122,16 +124,27 @@ export function oreRetribuite(
 }
 
 export type TariffaDelMese =
-  /** Scritta a mano da Stefania. */
+  /** Scritta a mano da Stefania: paga giornaliera. */
   | { origine: 'manuale'; euroOra: number }
-  /** Calcolata dalla paga mensile. `provvisoria` finche' il mese non e'
-   *  finito. */
-  | { origine: 'calcolata'; euroOra: number; paga: number; ore: number; provvisoria: boolean }
-  /** Paga mensile, ma nessuna ora validata nel mese: non si puo'
-   *  dividere per zero, e zero euro l'ora sarebbe falso. */
-  | { origine: 'in-attesa'; paga: number }
+  /** Calcolata dalla paga globale: paga ÷ (giorni × ore al giorno). */
+  | { origine: 'calcolata'; euroOra: number; paga: number; giorni: number; oreGiorno: number }
   /** Ne' paga ne' tariffa. */
   | { origine: 'manca' }
+
+/** I giorni lavorabili del mese che contiene `giorno`: dal lunedi' al
+ *  venerdi', sul calendario. */
+export function giorniLavorabili(giorno: string): number {
+  const { dal, al } = limitiMese(giorno)
+  let n = 0
+  const d = new Date(`${dal}T00:00:00`)
+  for (;;) {
+    const iso = d.toLocaleDateString('sv-SE')
+    if (iso > al) break
+    if (eFeriale(iso)) n += 1
+    d.setDate(d.getDate() + 1)
+  }
+  return n
+}
 
 /**
  * La tariffa oraria di una persona per il mese che contiene `giorno`.
@@ -142,26 +155,25 @@ export type TariffaDelMese =
  */
 export function tariffaDelMese(
   storico: Regime[],
-  righe: OreGiorno[] | undefined,
-  dipendenteId: string,
   giorno: string,
+  /** La giornata piena da contratto: 8, o meno per un part-time. */
+  oreGiorno: number = 8,
 ): TariffaDelMese {
   const oggi = new Date().toLocaleDateString('sv-SE')
-  const { dal, al } = limitiMese(giorno)
+  const { al } = limitiMese(giorno)
   const riferimento = al < oggi ? al : oggi
   const regime = regimeVigente(storico, riferimento)
 
   if (!regime) return { origine: 'manca' }
   if (regime.tipo === 'tariffa') return { origine: 'manuale', euroOra: regime.importo }
 
-  const ore = oreRetribuite(righe, dipendenteId, dal, al).totale
-  if (ore <= 0) return { origine: 'in-attesa', paga: regime.importo }
+  const giorni = giorniLavorabili(giorno)
   return {
     origine: 'calcolata',
-    euroOra: regime.importo / ore,
+    euroOra: regime.importo / (giorni * oreGiorno),
     paga: regime.importo,
-    ore,
-    provvisoria: al >= oggi,
+    giorni,
+    oreGiorno,
   }
 }
 
@@ -223,15 +235,18 @@ export type RigaEconomica = {
   tariffa: TariffaDelMese
   /** Quanto ha maturato nel mese, prima di acconti e trattenute. */
   maturato: number
+  /** A paga globale, ma nel mese nessuna ora validata: il maturato resta
+   *  a zero finche' non arriva la prima giornata firmata. */
+  senzaOre: boolean
 }
 
 /**
  * Il mese di una persona: ore, assenze e quanto ha maturato.
  *
  * IL MATURATO SEGUE IL REGIME (utente, 2026-09-25):
- *   paga globale      la paga intera — chi lavora meno giorni costa di
- *                     piu' all'ora, non prende di meno. Zero finche' nel
- *                     mese non c'e' nessuna ora validata.
+ *   paga globale      la paga intera: «quello che conta e' che prende
+ *                     quell'importo nel mese». Zero finche' nel mese non
+ *                     c'e' nessuna ora validata.
  *   paga giornaliera  tariffa × ore effettivamente lavorate: le ore di
  *                     ferie e permesso a tariffa non si pagano.
  */
@@ -240,6 +255,7 @@ export function rigaDelMese(
   righe: OreGiorno[] | undefined,
   dipendenteId: string,
   giorno: string,
+  oreGiorno: number = 8,
 ): RigaEconomica {
   const { dal, al } = limitiMese(giorno)
   const giorniLavorati = new Set<string>()
@@ -252,6 +268,7 @@ export function rigaDelMese(
     ore_altre: 0,
     tariffa: { origine: 'manca' },
     maturato: 0,
+    senzaOre: false,
   }
 
   for (const o of righe ?? []) {
@@ -264,10 +281,13 @@ export function rigaDelMese(
     if (ass > 0) r[`ore_${categoriaAssenza(o.tipo_assenza)}`] += ass
   }
   r.giorni = giorniLavorati.size
-  r.tariffa = tariffaDelMese(storico, righe, dipendenteId, giorno)
+  r.tariffa = tariffaDelMese(storico, giorno, oreGiorno)
 
-  if (r.tariffa.origine === 'calcolata') r.maturato = r.tariffa.paga
-  else if (r.tariffa.origine === 'manuale') r.maturato = r.tariffa.euroOra * r.ore_lavorate
+  const retribuite = r.ore_lavorate + r.ore_ferie + r.ore_permessi + r.ore_altre
+  if (r.tariffa.origine === 'calcolata') {
+    r.senzaOre = retribuite <= 0
+    r.maturato = r.senzaOre ? 0 : r.tariffa.paga
+  } else if (r.tariffa.origine === 'manuale') r.maturato = r.tariffa.euroOra * r.ore_lavorate
 
   // Al centesimo: e' un importo che finisce in un bonifico.
   r.maturato = Math.round(r.maturato * 100) / 100

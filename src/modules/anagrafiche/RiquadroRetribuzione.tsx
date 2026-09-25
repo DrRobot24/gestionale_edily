@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { data as fmtData, euro, numero } from '../../lib/formato'
 import { Avviso, Button, Campo, Card, Cifra, Table, cn } from '../../ui'
-import { useOreGriglia } from '../ore/useOrePeriodo'
 import {
+  oreContratto,
   useAggiungiStipendio,
   useAggiungiTariffa,
   useEliminaStipendio,
+  useOrari,
   useStipendi,
 } from './dipendenti'
 import {
@@ -192,7 +193,7 @@ function NuovoRegime({
       </div>
       <p className="text-xs font-semibold text-gray-700">
         {tipo === 'paga'
-          ? 'Un importo al mese: quello che entra in tasca alla persona in un mese regolare. Dipende dai giorni lavorati e dalle ore di ognuno: la tariffa oraria la calcola il programma, importo ÷ ore del mese, comprese ferie e permessi.'
+          ? 'Un importo al mese: quello che entra in tasca alla persona in un mese regolare. La tariffa oraria la calcola il programma: importo ÷ giorni lavorabili del mese ÷ ore della giornata piena.'
           : 'Una tariffa oraria: il mese vale le ore fatte davvero a quella tariffa. Lo straordinario costa uguale.'}
       </p>
 
@@ -235,25 +236,16 @@ function NuovoRegime({
 
 /* ── la tariffa calcolata, mese per mese ──────────────────────────── */
 
-/** Tre mesi, il corrente e i due prima: `ore_griglia` legge al massimo
- *  92 giorni, e tre mesi ci stanno sempre. */
+/** Il mese corrente e i due prima, con il conto per esteso: la tariffa
+ *  di un mese si conosce dal primo giorno, e cambia solo coi giorni
+ *  lavorabili del calendario. */
 function TariffeCalcolate({ dipendenteId, storico }: { dipendenteId: string; storico: Regime[] }) {
+  const { data: orari } = useOrari()
   const oggi = new Date().toLocaleDateString('sv-SE')
   const [a, m] = oggi.split('-').map(Number)
   const mesi = [0, 1, 2].map((indietro) =>
     new Date(a, m - 1 - indietro, 1).toLocaleDateString('sv-SE'),
   )
-  const dal = mesi[2]
-  const al = limitiMese(oggi).al
-  const { data: righe, isPending, error } = useOreGriglia({ passo: 'mese', dal, al })
-
-  if (error) {
-    return (
-      <Avviso tono="info">
-        Non riesco a leggere le ore per calcolare la tariffa: {(error as Error).message}
-      </Avviso>
-    )
-  }
 
   return (
     <div className="grid gap-2 rounded-xl border-2 border-black bg-lime-50 p-4">
@@ -261,54 +253,43 @@ function TariffeCalcolate({ dipendenteId, storico }: { dipendenteId: string; sto
         Tariffa oraria calcolata
       </p>
       <p className="text-[11px] font-semibold text-gray-600">
-        Paga globale ÷ ore del mese: quelle lavorate più ferie, permessi e assenze. Solo le
-        giornate già validate dal titolare: il mese in corso si aggiorna fino alla fine.
+        Paga globale ÷ giorni lavorabili del mese (dal lunedì al venerdì) ÷ ore della giornata
+        piena. Cambia di mese in mese con il calendario; quello che la persona prende resta la
+        paga globale.
       </p>
-      {isPending ? (
-        <p className="text-sm font-semibold text-gray-600">Carico le ore…</p>
-      ) : (
-        <ul className="grid gap-1">
-          {mesi.map((mese) => {
-            const t = tariffaDelMese(storico, righe, dipendenteId, mese)
-            const nome = new Date(`${mese}T00:00:00`).toLocaleDateString('it-IT', {
-              month: 'long',
-              year: 'numeric',
-            })
-            return (
-              <li
-                key={mese}
-                className="flex flex-wrap items-baseline justify-between gap-2 border-t border-lime-200 pt-1 first:border-t-0 first:pt-0"
-              >
-                <span className="text-sm font-bold capitalize text-black">{nome}</span>
-                {t.origine === 'calcolata' ? (
-                  <span className="text-sm font-semibold text-gray-700">
-                    <span className="numerico">{euro(t.paga)}</span> ÷{' '}
-                    <span className="numerico">{numero(t.ore)}</span> h ={' '}
-                    <strong className="numerico text-base font-black text-black">
-                      {euro(t.euroOra)}/h
-                    </strong>
-                    {t.provvisoria && (
-                      <span className="ml-1.5 text-[10px] font-extrabold uppercase text-amber-700">
-                        provvisoria
-                      </span>
-                    )}
-                  </span>
-                ) : t.origine === 'in-attesa' ? (
-                  <span className="text-xs font-semibold text-gray-500">
-                    nessuna ora validata
-                  </span>
-                ) : t.origine === 'manuale' ? (
-                  <span className="text-xs font-semibold text-gray-500">
-                    paga giornaliera: <span className="numerico">{euro(t.euroOra)}/h</span>
-                  </span>
-                ) : (
-                  <span className="text-xs font-semibold text-gray-500">—</span>
-                )}
-              </li>
-            )
-          })}
-        </ul>
-      )}
+      <ul className="grid gap-1">
+        {mesi.map((mese) => {
+          const t = tariffaDelMese(storico, mese, oreContratto(orari, dipendenteId, limitiMese(mese).al))
+          const nome = new Date(`${mese}T00:00:00`).toLocaleDateString('it-IT', {
+            month: 'long',
+            year: 'numeric',
+          })
+          return (
+            <li
+              key={mese}
+              className="flex flex-wrap items-baseline justify-between gap-2 border-t border-lime-200 pt-1 first:border-t-0 first:pt-0"
+            >
+              <span className="text-sm font-bold capitalize text-black">{nome}</span>
+              {t.origine === 'calcolata' ? (
+                <span className="text-sm font-semibold text-gray-700">
+                  <span className="numerico">{euro(t.paga)}</span> ÷{' '}
+                  <span className="numerico">{t.giorni}</span> gg ÷{' '}
+                  <span className="numerico">{numero(t.oreGiorno)}</span> h ={' '}
+                  <strong className="numerico text-base font-black text-black">
+                    {euro(t.euroOra)}/h
+                  </strong>
+                </span>
+              ) : t.origine === 'manuale' ? (
+                <span className="text-xs font-semibold text-gray-500">
+                  paga giornaliera: <span className="numerico">{euro(t.euroOra)}/h</span>
+                </span>
+              ) : (
+                <span className="text-xs font-semibold text-gray-500">—</span>
+              )}
+            </li>
+          )
+        })}
+      </ul>
     </div>
   )
 }

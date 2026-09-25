@@ -3,10 +3,11 @@ import { useNavigate } from 'react-router'
 import { data as fmtData, euro } from '../../lib/formato'
 import { Avviso, Badge, Button, Rubrica, Vuoto, cn } from '../../ui'
 import { usePermission } from '../auth/usePermission'
-import { useOreGriglia } from '../ore/useOrePeriodo'
-import { limitiMese, regimeVigente, storicoRegimi, tariffaDelMese } from './retribuzione'
+import { regimeVigente, storicoRegimi, tariffaDelMese } from './retribuzione'
 import {
   inServizio,
+  oreContratto,
+  useOrari,
   patentiDi,
   useDipendenti,
   useStipendi,
@@ -121,13 +122,9 @@ export function DipendentiPage() {
   // esiste, e la query non parte nemmeno.
   const vedePaghe = usePermission('paghe.read')
   const { data: stipendi } = useStipendi({ abilitato: vedePaghe })
-  /* Le ore validate del mese in corso, per la tariffa di chi e' a paga
-     mensile (2026-09-25): paga ÷ ore del mese. Vedi `retribuzione.ts`.
-     `ore_griglia` chiede `paghe.read`, come la paga. */
-  const { data: oreMese } = useOreGriglia(
-    { passo: 'mese', ...limitiMese(new Date().toLocaleDateString('sv-SE')) },
-    vedePaghe,
-  )
+  /* L'orario da contratto di ognuno, per la tariffa di chi e' a paga
+     globale: paga ÷ (giorni lavorabili × ore al giorno). */
+  const { data: orari } = useOrari()
   const COLONNE = vedePaghe ? COLONNE_CON_STIPENDIO : COLONNE_SENZA_STIPENDIO
 
   if (isPending) return <p className="text-sm font-bold text-gray-600">Carico le risorse…</p>
@@ -205,7 +202,7 @@ export function DipendentiPage() {
             const storico = storicoRegimi(vedePaghe ? stipendi : [], d.dipendente_costi, d.id)
             const regime = regimeVigente(storico, oggi)
             const s = regime?.tipo === 'paga' ? regime : null
-            const t = tariffaDelMese(storico, oreMese, d.id, oggi)
+            const t = tariffaDelMese(storico, oggi, oreContratto(orari, d.id, oggi))
             const tipo = TIPI[d.tipo] ?? TIPI.operaio
             const permesso = d.permesso_soggiorno ? statoScadenza(d.permesso_scadenza) : null
 
@@ -335,8 +332,7 @@ export function DipendentiPage() {
                     nel consuntivo del cantiere, ed e' il lavoro di
                     Stefania accorgersene da qui. */}
                 {/* Con la paga mensile la tariffa e' CALCOLATA sul mese in
-                    corso, e lo si scrive sotto: e' un numero che si muove
-                    fino a fine mese, e va letto cosi'. */}
+                    corso, e lo si scrive sotto. */}
                 {t.origine === 'manca' ? (
                   <span
                     className="numerico justify-self-end rounded-md border-2 border-black bg-rose-300 px-2 py-0.5 text-xs font-black text-black"
@@ -344,21 +340,12 @@ export function DipendentiPage() {
                   >
                     MANCA
                   </span>
-                ) : t.origine === 'in-attesa' ? (
-                  <span
-                    className="justify-self-end text-right text-[11px] font-bold leading-tight text-gray-500"
-                    title="A paga globale: la tariffa si calcola quando ci sono giornate validate nel mese"
-                  >
-                    in attesa
-                    <br />
-                    delle ore
-                  </span>
-                ) : (
+) : (
                   <span
                     className="numerico justify-self-end text-right text-sm font-black leading-tight text-black"
                     title={
                       t.origine === 'calcolata'
-                        ? `${euro(t.paga)} ÷ ${t.ore} ore del mese${t.provvisoria ? ' (provvisoria)' : ''}`
+                        ? `${euro(t.paga)} ÷ ${t.giorni} giorni lavorabili ÷ ${t.oreGiorno} ore`
                         : 'Paga giornaliera: tariffa inserita a mano'
                     }
                   >
