@@ -28,6 +28,7 @@ import { EconomiaRisorsaPage } from './modules/anagrafiche/EconomiaRisorsaPage'
 import { useMioDipendente } from './modules/anagrafiche/dipendenti'
 import type { Permission } from './modules/auth/session'
 import { env } from './lib/env'
+import logoEncreade from './assets/logo-encreade.png'
 import { Button, Card, cn } from './ui'
 
 /**
@@ -530,6 +531,23 @@ function Barra({ voci }: { voci: Voce[] }) {
         <Button dimensione="sm" onClick={logout} className="w-full">
           Esci
         </Button>
+      </div>
+
+      {/* CHI LO SVILUPPA, in fondo e in piccolo (2026-09-25): il nome in
+          cima e' quello del cliente, «Edily Gestionale»; ENCREADE firma
+          sotto, come si firma un lavoro e non come si intesta. */}
+      <div className="flex items-center gap-2.5 border-t-2 border-black px-5 py-3">
+        <img
+          src={logoEncreade}
+          alt=""
+          className="h-9 w-9 shrink-0 rounded-lg border-2 border-black object-cover"
+        />
+        <div className="min-w-0 leading-tight">
+          <p className="text-[9px] font-bold uppercase tracking-wider text-gray-500">
+            Sviluppato da
+          </p>
+          <p className="text-xs font-extrabold tracking-wide text-white">ENCREADE</p>
+        </div>
       </div>
     </aside>
   )

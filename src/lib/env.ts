@@ -36,7 +36,9 @@ const listaEmail = z
 const schema = z.object({
   VITE_SUPABASE_URL: z.string().url(),
   VITE_SUPABASE_ANON_KEY: z.string().min(20),
-  VITE_APP_NAME: z.string().default('ENCREADE Gestionale'),
+  // «Edily Gestionale» dal 2026-09-25: il nome e' del cliente. ENCREADE
+  // firma in fondo alla barra laterale, come chi l'ha sviluppato.
+  VITE_APP_NAME: z.string().default('Edily Gestionale'),
 
   /* Il muro "Lavori in corso". Acceso, chiunque apra l'indirizzo trova
      il cartello e nient'altro; passano solo le email elencate qui
