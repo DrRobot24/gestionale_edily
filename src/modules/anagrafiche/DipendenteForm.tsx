@@ -3,16 +3,13 @@ import { useFieldArray, useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useNavigate, useParams } from 'react-router'
 import { z } from 'zod'
-import { data as fmtData, euro } from '../../lib/formato'
-import { Avviso, Badge, Button, Campo, CampoArea, CampoSelect, Card, Cifra, Percorso, Table, cn } from '../../ui'
+import { Avviso, Badge, Button, Campo, CampoArea, CampoSelect, Card, Percorso, cn } from '../../ui'
 import { usePermission } from '../auth/usePermission'
 import { RiquadroDocumentiPersona } from './RiquadroDocumentiPersona'
-import { RiquadroStipendio } from './RiquadroStipendio'
+import { RiquadroRetribuzione } from './RiquadroRetribuzione'
 import { useMembri } from '../cantieri/assegnazioni'
 import {
-  tariffaVigente,
   useDipendenti,
-  useAggiungiTariffa,
   useArchiviaDipendente,
   useDipendente,
   useEliminaDipendente,
@@ -1048,232 +1045,19 @@ export function DipendenteForm() {
         <div className="grid items-start gap-4 lg:grid-cols-2">
           {id && <RiquadroDocumentiPersona dipendenteId={id} puoScrivere={puoScrivere} />}
 
-          {/* PAGA MENSILE E TARIFFE INSIEME, a destra, dal 2026-09-25:
-              la tariffa oraria Stefania la ricava dalla paga mensile, e
-              le due si leggono una sopra l'altra. I documenti stanno da
-              soli a sinistra. */}
-          <div className="grid gap-4">
-            {/* Lo stipendio solo a chi fa le paghe: chi non ha
-                `paghe.read` non vede nemmeno che il riquadro esiste. */}
-            {dipendente && puoVederePaghe && (
-              <RiquadroStipendio dipendenteId={dipendente.id} puoScrivere={puoScrivere} />
-            )}
-            {dipendente && (
-              <Tariffe
-                dipendenteId={dipendente.id}
-                tariffe={dipendente.dipendente_costi}
-                puoScrivere={puoScrivere}
-              />
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-/* ══════════════════════════════════════════════════════════════════ */
-
-type Tariffa = {
-  id: string
-  valido_dal: string
-  costo_orario: number
-  costo_orario_straordinario: number | null
-  tariffa_vendita_oraria: number | null
-  note: string | null
-}
-
-function Tariffe({
-  dipendenteId,
-  tariffe,
-  puoScrivere,
-}: {
-  dipendenteId: string
-  tariffe: Tariffa[]
-  puoScrivere: boolean
-}) {
-  const [apri, setApri] = useState(false)
-  const aggiungi = useAggiungiTariffa()
-  const vigente = tariffaVigente(tariffe)
-
-  const ordinate = [...tariffe].sort((a, b) => b.valido_dal.localeCompare(a.valido_dal))
-
-  return (
-    <Card className="grid gap-3 p-5">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h2 className="text-lg font-extrabold text-black">Tariffe</h2>
-          <p className="text-xs font-semibold text-gray-600">
-            Non si modificano: se ne aggiunge una nuova con la data da cui vale. Così i
-            rapportini vecchi continuano a costare quello che costavano.
-          </p>
-        </div>
-        {puoScrivere && !apri && (
-          <Button dimensione="sm" onClick={() => setApri(true)}>
-            Nuova tariffa
-          </Button>
-        )}
-      </div>
-
-      {tariffe.length === 0 && (
-        <Avviso tono="errore">
-          Nessuna tariffa: le ore di questa persona valgono zero euro nel consuntivo dei
-          cantieri.
-        </Avviso>
-      )}
-
-      {apri && (
-        <FormTariffa
-          onAnnulla={() => setApri(false)}
-          inCorso={aggiungi.isPending}
-          errore={aggiungi.error ? (aggiungi.error as Error).message : undefined}
-          onSalva={(t) =>
-            aggiungi.mutate(
-              { ...t, dipendente_id: dipendenteId },
-              { onSuccess: () => setApri(false) },
-            )
-          }
-        />
-      )}
-
-      {tariffe.length > 0 && (
-        <Table>
-          <thead>
-            <tr>
-              <th>Valida dal</th>
-              <th className="text-right">Ordinario</th>
-              <th className="text-right">Straordinario</th>
-              <th>Note</th>
-            </tr>
-          </thead>
-          <tbody>
-            {ordinate.map((t) => (
-              <tr key={t.id} className={t.id === vigente?.id ? 'bg-lime-100' : undefined}>
-                <td className="numerico font-bold">
-                  {fmtData(t.valido_dal)}
-                  {t.id === vigente?.id && (
-                    <span className="ml-2 text-[10px] font-bold uppercase text-gray-600">
-                      in vigore
-                    </span>
-                  )}
-                </td>
-                <Cifra>{euro(t.costo_orario)}</Cifra>
-                <Cifra className="text-gray-600">{euro(t.costo_orario_straordinario)}</Cifra>
-                <td className="text-gray-600">{t.note ?? '—'}</td>
-              </tr>
-            ))}
-          </tbody>
-        </Table>
-      )}
-    </Card>
-  )
-}
-
-const schemaTariffa = z.object({
-  valido_dal: z.string().min(1, 'Serve la data di decorrenza'),
-  costo_orario: z.coerce.number().positive('Deve essere maggiore di zero'),
-  costo_orario_straordinario: z.string(),
-  note: z.string(),
-})
-
-type CampiTariffa = z.infer<typeof schemaTariffa>
-
-function FormTariffa({
-  onSalva,
-  onAnnulla,
-  inCorso,
-  errore,
-}: {
-  onSalva: (t: {
-    valido_dal: string
-    costo_orario: number
-    costo_orario_straordinario: number | null
-    tariffa_vendita_oraria: number | null
-    note: string | null
-  }) => void
-  onAnnulla: () => void
-  inCorso: boolean
-  errore?: string
-}) {
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<CampiTariffa>({
-    resolver: zodResolver(schemaTariffa),
-    defaultValues: {
-      valido_dal: new Date().toLocaleDateString('sv-SE'),
-      costo_orario: 0,
-      costo_orario_straordinario: '',
-      note: '',
-    },
-  })
-
-  const numeroOpzionale = (v: string) => (v.trim() === '' ? null : Number(v))
-
-  return (
-    <div className="grid gap-3 rounded-xl border-2 border-black bg-amber-50 p-4">
-      {errore && <Avviso tono="errore">{errore}</Avviso>}
-
-      {/* Tre per riga solo su schermo largo: il riquadro sta in mezza
-          pagina accanto ai documenti, e a quattro colonne il campo data
-          non ci stava — finiva sotto il costo orario.
-
-          IL PREZZO DI VENDITA NON C'E' PIU', dal 2026-09-24: «togli
-          vendita, non serve». La colonna resta nel database (e'
-          condiviso, e le tariffe vecchie la hanno valorizzata), ma qui
-          non si chiede e non si mostra: le tariffe nuove la scrivono
-          vuota. */}
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        <Campo
-          etichetta="Valida dal"
-          type="date"
-          errore={errors.valido_dal?.message}
-          {...register('valido_dal')}
-        />
-        <Campo
-          etichetta="Costo orario €"
-          type="number"
-          step="0.01"
-          min="0"
-          className="numerico"
-          errore={errors.costo_orario?.message}
-          {...register('costo_orario')}
-        />
-        <Campo
-          etichetta="Straordinario €"
-          type="number"
-          step="0.01"
-          min="0"
-          className="numerico"
-          errore={errors.costo_orario_straordinario?.message}
-          {...register('costo_orario_straordinario')}
-        />
-      </div>
-
-      <Campo etichetta="Note" placeholder="Rinnovo CCNL, scatto di anzianità…" {...register('note')} />
-
-      <div className="flex gap-2">
-        <Button
-          variante="primario"
-          dimensione="sm"
-          disabled={inCorso}
-          onClick={handleSubmit((c) =>
-            onSalva({
-              valido_dal: c.valido_dal,
-              costo_orario: c.costo_orario,
-              costo_orario_straordinario: numeroOpzionale(c.costo_orario_straordinario),
-              tariffa_vendita_oraria: null,
-              note: c.note.trim() === '' ? null : c.note.trim(),
-            }),
+          {/* LA RETRIBUZIONE, a destra: paga mensile OPPURE tariffa
+              oraria, in un riquadro solo dal 2026-09-25 — vedi
+              `RiquadroRetribuzione`. Solo a chi fa le paghe: chi non ha
+              `paghe.read` non vede nemmeno che il riquadro esiste. */}
+          {dipendente && puoVederePaghe && (
+            <RiquadroRetribuzione
+              dipendenteId={dipendente.id}
+              tariffe={dipendente.dipendente_costi}
+              puoScrivere={puoScrivere}
+            />
           )}
-        >
-          {inCorso ? 'Salvo…' : 'Aggiungi tariffa'}
-        </Button>
-        <Button dimensione="sm" onClick={onAnnulla} disabled={inCorso}>
-          Annulla
-        </Button>
-      </div>
+        </div>
+      )}
     </div>
   )
 }

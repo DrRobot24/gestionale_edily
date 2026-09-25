@@ -24,29 +24,6 @@ const CAMPI =
 
 const CAMPI_CON_COSTI = `${CAMPI}, dipendente_costi ( id, valido_dal, costo_orario, costo_orario_straordinario, tariffa_vendita_oraria, note )`
 
-type Tariffa = {
-  id: string
-  valido_dal: string
-  costo_orario: number
-  costo_orario_straordinario: number | null
-  tariffa_vendita_oraria: number | null
-  note: string | null
-}
-
-/**
- * La tariffa in vigore a una certa data: l'ultima che comincia entro
- * quella data. Non basta prendere la piu' recente in assoluto, perche'
- * si possono inserire in anticipo le tariffe del prossimo anno.
- */
-export function tariffaVigente(tariffe: Tariffa[] | null, aData = new Date().toLocaleDateString('sv-SE')) {
-  if (!tariffe?.length) return null
-  return (
-    tariffe
-      .filter((t) => t.valido_dal <= aData)
-      .sort((a, b) => b.valido_dal.localeCompare(a.valido_dal))[0] ?? null
-  )
-}
-
 /**
  * IN SERVIZIO a una data: la messa in servizio c'e', e' cominciata, e
  * la fine non e' ancora passata.
@@ -424,21 +401,6 @@ export function useStipendi({
       return data
     },
   })
-}
-
-/** Lo stipendio in vigore oggi: l'ultimo gia' cominciato. Come
- *  `tariffaVigente`, uno inserito in anticipo non conta finche' non
- *  arriva la sua data. */
-export function stipendioVigente(
-  stipendi: Stipendio[] | undefined,
-  dipendenteId: string,
-  aData = new Date().toLocaleDateString('sv-SE'),
-) {
-  return (
-    (stipendi ?? [])
-      .filter((s) => s.dipendente_id === dipendenteId && s.valido_dal <= aData)
-      .sort((a, b) => b.valido_dal.localeCompare(a.valido_dal))[0] ?? null
-  )
 }
 
 export function useAggiungiStipendio() {

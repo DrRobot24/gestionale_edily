@@ -3,11 +3,11 @@ import { useNavigate } from 'react-router'
 import { data as fmtData, euro } from '../../lib/formato'
 import { Avviso, Badge, Button, Rubrica, Vuoto, cn } from '../../ui'
 import { usePermission } from '../auth/usePermission'
+import { useOreGriglia } from '../ore/useOrePeriodo'
+import { limitiMese, regimeVigente, storicoRegimi, tariffaDelMese } from './retribuzione'
 import {
-  stipendioVigente,
   inServizio,
   patentiDi,
-  tariffaVigente,
   useDipendenti,
   useStipendi,
   type TipoRisorsa,
@@ -121,6 +121,13 @@ export function DipendentiPage() {
   // esiste, e la query non parte nemmeno.
   const vedePaghe = usePermission('paghe.read')
   const { data: stipendi } = useStipendi({ abilitato: vedePaghe })
+  /* Le ore validate del mese in corso, per la tariffa di chi e' a paga
+     mensile (2026-09-25): paga ÷ ore del mese. Vedi `retribuzione.ts`.
+     `ore_griglia` chiede `paghe.read`, come la paga. */
+  const { data: oreMese } = useOreGriglia(
+    { passo: 'mese', ...limitiMese(new Date().toLocaleDateString('sv-SE')) },
+    vedePaghe,
+  )
   const COLONNE = vedePaghe ? COLONNE_CON_STIPENDIO : COLONNE_SENZA_STIPENDIO
 
   if (isPending) return <p className="text-sm font-bold text-gray-600">Carico le risorse…</p>
@@ -192,8 +199,13 @@ export function DipendentiPage() {
           }
         >
           {(d) => {
-            const t = tariffaVigente(d.dipendente_costi)
-            const s = vedePaghe ? stipendioVigente(stipendi, d.id) : null
+            /* PAGA MENSILE OPPURE TARIFFA, mai tutte e due: vale la riga
+               piu' recente fra le due (2026-09-25). Chi non vede le paghe
+               non ha la paga, e vede la tariffa scritta come prima. */
+            const storico = storicoRegimi(vedePaghe ? stipendi : [], d.dipendente_costi, d.id)
+            const regime = regimeVigente(storico, oggi)
+            const s = regime?.tipo === 'paga' ? regime : null
+            const t = tariffaDelMese(storico, oreMese, d.id, oggi)
             const tipo = TIPI[d.tipo] ?? TIPI.operaio
             const permesso = d.permesso_soggiorno ? statoScadenza(d.permesso_scadenza) : null
 
@@ -314,7 +326,7 @@ export function DipendentiPage() {
                     )}
                     title={s ? `Paga mensile pattuita dal ${fmtData(s.valido_dal)}` : undefined}
                   >
-                    {s ? euro(s.importo_mensile) : '—'}
+                    {s ? euro(s.importo) : '—'}
                   </span>
                 )}
 
@@ -322,15 +334,42 @@ export function DipendentiPage() {
                     tariffa le ore di questa persona valgono zero euro
                     nel consuntivo del cantiere, ed e' il lavoro di
                     Stefania accorgersene da qui. */}
-                <span
-                  className={cn(
-                    'numerico justify-self-end text-sm font-black text-black',
-                    !t && 'rounded-md border-2 border-black bg-rose-300 px-2 py-0.5 text-xs',
-                  )}
-                  title={t ? 'Costo orario vigente' : 'Costo orario da inserire'}
-                >
-                  {t ? `${euro(t.costo_orario)}/h` : 'MANCA'}
-                </span>
+                {/* Con la paga mensile la tariffa e' CALCOLATA sul mese in
+                    corso, e lo si scrive sotto: e' un numero che si muove
+                    fino a fine mese, e va letto cosi'. */}
+                {t.origine === 'manca' ? (
+                  <span
+                    className="numerico justify-self-end rounded-md border-2 border-black bg-rose-300 px-2 py-0.5 text-xs font-black text-black"
+                    title="Né paga mensile né tariffa: da inserire"
+                  >
+                    MANCA
+                  </span>
+                ) : t.origine === 'in-attesa' ? (
+                  <span
+                    className="justify-self-end text-right text-[11px] font-bold leading-tight text-gray-500"
+                    title="A paga mensile: la tariffa si calcola quando ci sono giornate validate nel mese"
+                  >
+                    in attesa
+                    <br />
+                    delle ore
+                  </span>
+                ) : (
+                  <span
+                    className="numerico justify-self-end text-right text-sm font-black leading-tight text-black"
+                    title={
+                      t.origine === 'calcolata'
+                        ? `${euro(t.paga)} ÷ ${t.ore} ore del mese${t.provvisoria ? ' (provvisoria)' : ''}`
+                        : 'Tariffa oraria inserita a mano'
+                    }
+                  >
+                    {euro(t.euroOra)}/h
+                    {t.origine === 'calcolata' && (
+                      <span className="block text-[10px] font-bold uppercase text-gray-500">
+                        calcolata
+                      </span>
+                    )}
+                  </span>
+                )}
               </div>
             )
           }}

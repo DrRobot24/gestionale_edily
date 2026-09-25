@@ -245,12 +245,14 @@ export function useOrePeriodo(p: Periodo) {
  * settimana di venti operai, centoventi — e chiederne una per cella
  * farebbe una tempesta di chiamate per disegnare una tabella.
  */
-export function useOreGriglia(p: Periodo) {
+/** @param abilitato  `false` per non partire: `ore_griglia` chiede
+ *  `paghe.read`, e chi non ce l'ha non deve nemmeno domandare. */
+export function useOreGriglia(p: Periodo, abilitato = true) {
   const { org } = useSession()
 
   return useQuery({
     queryKey: ['ore-periodo', 'griglia', org?.id, p.dal, p.al],
-    enabled: Boolean(org?.id),
+    enabled: Boolean(org?.id) && abilitato,
     retry: false,
     queryFn: async (): Promise<OreGiorno[]> => {
       const { data, error } = await supabase.rpc('ore_griglia', {
