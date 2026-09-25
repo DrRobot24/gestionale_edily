@@ -746,26 +746,24 @@ function Cella({
              mostrava solo la sigla, e la colonna delle cifre si
              interrompeva proprio dove serviva leggerla.
 
-             Lo zero e' grigio e non nero: e' una giornata non lavorata,
-             non un numero da sommare con gli altri a colpo d'occhio. La
-             sigla sta sotto, piccola e con `-mb-1` come i pallini dei
-             cantieri, cosi' la riga non si alza.
+             Lo zero e' rosso scuro e non nero: e' una giornata non
+             lavorata, non un numero da sommare con gli altri a colpo
+             d'occhio.
 
-             Il `title` porta il motivo per esteso: «ALT» in tre lettere
-             non dice niente, e chi passa sopra la cella vuole sapere
-             cos'era senza doverla aprire. */
+             NIENTE SIGLA SOTTO, dal 2026-09-25: la cella mostrava le
+             prime tre lettere del motivo (FER, PER, MAL, ALT). L'utente
+             l'ha tolta — «non mi serve come info visiva, mi va bene il
+             colore». Il motivo per esteso resta nel `title`, per chi
+             passa sopra la cella, e nel dettaglio che si apre. */
           <span
             title={
               casella.nota_assenza
                 ? `${casella.tipo_assenza}: ${casella.nota_assenza}`
                 : (casella.tipo_assenza ?? undefined)
             }
-            className="flex flex-col items-center"
+            className="numerico text-sm font-black text-rose-800"
           >
-            <span className="numerico text-sm font-black text-rose-800">0</span>
-            <span className="-mb-1 text-[9px] font-extrabold uppercase leading-none tracking-wide text-gray-600">
-              {siglaAssenza(casella.tipo_assenza)}
-            </span>
+            0
           </span>
         ) : (
           <span
@@ -822,8 +820,8 @@ type Luce = 'verde' | 'giallo' | 'rosso'
  *   giallo   diverso da 8, ma lavorato: serve un motivo. Il pallino
  *            azzurro dice se il tecnico l'ha gia' scritto — giallo con
  *            pallino e' spiegato, giallo senza pallino va chiesto.
- *   rosso    zero ore lavorate. Con la sigla sotto (FER, PER, MAL) il
- *            motivo c'e' gia'; resta rosso lo stesso perche' e' una
+ *   rosso    zero ore lavorate. Il motivo si legge passando sopra la
+ *            cella o aprendola; resta rosso lo stesso perche' e' una
  *            giornata senza lavoro, ed e' la prima cosa che chi fa le
  *            paghe deve vedere.
  *
@@ -1232,16 +1230,15 @@ function Legenda() {
         <span className="font-black text-rose-700">8</span> comprende straordinario
       </span>
       <span>
-        <span className="numerico font-black text-rose-800">0</span>
-        <span className="ml-0.5 text-[9px] font-extrabold text-gray-600">FER</span> assente
-        tutto il giorno, col motivo
+        <span className="numerico font-black text-rose-800">0</span> assente tutto il giorno
+        (il motivo passandoci sopra)
       </span>
       <span className="inline-flex items-center gap-1">
         <span className="inline-block h-1.5 w-1.5 rounded-full bg-sky-600" /> c’è una
         motivazione del tecnico
       </span>
       {/* I pallini hanno bisogno della riga di legenda piu' di tutto il
-          resto: il rosso dello straordinario e la sigla dell'assenza si
+          resto: il rosso dello straordinario e lo zero dell'assenza si
           intuiscono, due puntini neri no. */}
       <span className="inline-flex items-center gap-1">
         <span className="inline-flex items-center gap-0.5">
@@ -1309,16 +1306,4 @@ function giornoEtichetta(g: string): string {
  *  sono indistinguibili e non si sa mai quale si sta guardando. */
 function numeroGiorno(g: string): number {
   return Number(g.slice(8, 10))
-}
-
-/**
- * La sigla di un'assenza, per starci in una cella stretta.
- *
- * Le prime tre lettere di cio' che ha scritto chi compila: il campo e'
- * libero, quindi non esiste un elenco chiuso da tradurre. Per esteso lo
- * dice il dettaglio, che e' il posto giusto per una parola intera.
- */
-function siglaAssenza(tipo: string | null): string {
-  if (!tipo) return 'ASS'
-  return tipo.trim().slice(0, 3).toUpperCase()
 }
