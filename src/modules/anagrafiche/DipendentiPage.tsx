@@ -193,7 +193,7 @@ export function DipendentiPage() {
               <span>Mansione</span>
               <span>In servizio</span>
               <span>Assunzione</span>
-              {vedePaghe && <span className="text-right">Paga mensile</span>}
+              {vedePaghe && <span className="text-right">Paga globale</span>}
               <span className="text-right">Costo orario</span>
             </div>
           }
@@ -324,7 +324,7 @@ export function DipendentiPage() {
                       'numerico hidden justify-self-end text-sm lg:block',
                       s ? 'font-black text-black' : 'font-semibold text-gray-400',
                     )}
-                    title={s ? `Paga mensile pattuita dal ${fmtData(s.valido_dal)}` : undefined}
+                    title={s ? `Paga globale pattuita dal ${fmtData(s.valido_dal)}` : undefined}
                   >
                     {s ? euro(s.importo) : '—'}
                   </span>
@@ -340,14 +340,14 @@ export function DipendentiPage() {
                 {t.origine === 'manca' ? (
                   <span
                     className="numerico justify-self-end rounded-md border-2 border-black bg-rose-300 px-2 py-0.5 text-xs font-black text-black"
-                    title="Né paga mensile né tariffa: da inserire"
+                    title="Né paga globale né paga giornaliera: da inserire"
                   >
                     MANCA
                   </span>
                 ) : t.origine === 'in-attesa' ? (
                   <span
                     className="justify-self-end text-right text-[11px] font-bold leading-tight text-gray-500"
-                    title="A paga mensile: la tariffa si calcola quando ci sono giornate validate nel mese"
+                    title="A paga globale: la tariffa si calcola quando ci sono giornate validate nel mese"
                   >
                     in attesa
                     <br />
@@ -359,7 +359,7 @@ export function DipendentiPage() {
                     title={
                       t.origine === 'calcolata'
                         ? `${euro(t.paga)} ÷ ${t.ore} ore del mese${t.provvisoria ? ' (provvisoria)' : ''}`
-                        : 'Tariffa oraria inserita a mano'
+                        : 'Paga giornaliera: tariffa inserita a mano'
                     }
                   >
                     {euro(t.euroOra)}/h

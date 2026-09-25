@@ -32,6 +32,11 @@ import {
    mescola le due cose in una lista sola, perche' e' una storia sola:
    «da settembre a paga mensile, prima a tariffa».
 
+   I NOMI SONO QUELLI DELL'UTENTE (2026-09-25): a importo mensile e'
+   PAGA GLOBALE — dipende dai giorni lavorati e dalle ore di ognuno — a
+   tariffa oraria e' PAGA GIORNALIERA — dipende solo dalle ore fatte a
+   quella tariffa. Nel codice restano `paga` e `tariffa`.
+
    Lo vede solo chi ha `paghe.read`: il chiamante non lo monta per gli
    altri, e la RLS non darebbe comunque le righe.
    ══════════════════════════════════════════════════════════════════ */
@@ -58,8 +63,8 @@ export function RiquadroRetribuzione({
         <div>
           <h2 className="text-lg font-extrabold text-black">Retribuzione</h2>
           <p className="text-xs font-semibold text-gray-600">
-            O la paga mensile pattuita, o la tariffa oraria: una delle due. Con la paga
-            mensile la tariffa la calcola il programma, mese per mese.
+            Paga globale (un importo al mese) o paga giornaliera (una tariffa oraria): una
+            delle due. Con la paga globale la tariffa la calcola il programma, mese per mese.
           </p>
         </div>
         {puoScrivere && !apri && (
@@ -73,7 +78,7 @@ export function RiquadroRetribuzione({
 
       {!isPending && storico.length === 0 && !apri && (
         <Avviso tono="errore">
-          Né paga mensile né tariffa: le ore di questa persona valgono zero euro.
+          Né paga globale né paga giornaliera: le ore di questa persona valgono zero euro.
         </Avviso>
       )}
 
@@ -133,7 +138,7 @@ function NuovoRegime({
     const stessoGiorno = storico.find((r) => r.valido_dal === dal)
     if (stessoGiorno) {
       return setProblema(
-        `C’è già ${stessoGiorno.tipo === 'paga' ? 'una paga mensile' : 'una tariffa'} che parte il ${fmtData(dal)}. Scegli un altro giorno, o cancella quella se era sbagliata.`,
+        `C’è già una ${stessoGiorno.tipo === 'paga' ? 'paga globale' : 'paga giornaliera'} che parte il ${fmtData(dal)}. Scegli un altro giorno, o cancella quella se era sbagliata.`,
       )
     }
     setProblema(null)
@@ -166,8 +171,8 @@ function NuovoRegime({
       <div className="flex overflow-hidden rounded-xl border-2 border-black sm:w-fit">
         {(
           [
-            ['paga', 'Paga mensile'],
-            ['tariffa', 'Tariffa oraria'],
+            ['paga', 'Paga globale'],
+            ['tariffa', 'Paga giornaliera'],
           ] as const
         ).map(([v, etichetta]) => (
           <button
@@ -187,8 +192,8 @@ function NuovoRegime({
       </div>
       <p className="text-xs font-semibold text-gray-700">
         {tipo === 'paga'
-          ? 'Quello che entra in tasca alla persona in un mese regolare. La tariffa oraria la calcola il programma: paga ÷ ore del mese, comprese ferie e permessi.'
-          : 'Il costo di un’ora. Il mese costa le ore che ha fatto davvero; lo straordinario costa uguale.'}
+          ? 'Un importo al mese: quello che entra in tasca alla persona in un mese regolare. Dipende dai giorni lavorati e dalle ore di ognuno: la tariffa oraria la calcola il programma, importo ÷ ore del mese, comprese ferie e permessi.'
+          : 'Una tariffa oraria: il mese vale le ore fatte davvero a quella tariffa. Lo straordinario costa uguale.'}
       </p>
 
       <div className="grid gap-3 sm:grid-cols-2">
@@ -199,7 +204,7 @@ function NuovoRegime({
           onChange={(e) => setDal(e.target.value)}
         />
         <Campo
-          etichetta={tipo === 'paga' ? 'Paga mensile €' : 'Tariffa oraria €'}
+          etichetta={tipo === 'paga' ? 'Importo mensile €' : 'Tariffa oraria €'}
           type="number"
           step="0.01"
           min="0"
@@ -256,7 +261,7 @@ function TariffeCalcolate({ dipendenteId, storico }: { dipendenteId: string; sto
         Tariffa oraria calcolata
       </p>
       <p className="text-[11px] font-semibold text-gray-600">
-        Paga mensile ÷ ore del mese: quelle lavorate più ferie, permessi e assenze. Solo le
+        Paga globale ÷ ore del mese: quelle lavorate più ferie, permessi e assenze. Solo le
         giornate già validate dal titolare: il mese in corso si aggiorna fino alla fine.
       </p>
       {isPending ? (
@@ -294,7 +299,7 @@ function TariffeCalcolate({ dipendenteId, storico }: { dipendenteId: string; sto
                   </span>
                 ) : t.origine === 'manuale' ? (
                   <span className="text-xs font-semibold text-gray-500">
-                    a tariffa: <span className="numerico">{euro(t.euroOra)}/h</span>
+                    paga giornaliera: <span className="numerico">{euro(t.euroOra)}/h</span>
                   </span>
                 ) : (
                   <span className="text-xs font-semibold text-gray-500">—</span>
@@ -348,7 +353,7 @@ function Storico({
                 )}
               </td>
               <td className="whitespace-nowrap font-semibold">
-                {r.tipo === 'paga' ? 'Paga mensile' : 'Tariffa oraria'}
+                {r.tipo === 'paga' ? 'Paga globale' : 'Paga giornaliera'}
               </td>
               <Cifra>
                 {euro(r.importo)}
@@ -362,7 +367,7 @@ function Storico({
                     className="cursor-pointer text-xs font-bold text-gray-600 underline hover:text-black"
                     disabled={eliminaPaga.isPending || eliminaTariffa.isPending}
                     onClick={() => {
-                      const cosa = r.tipo === 'paga' ? 'la paga mensile' : 'la tariffa'
+                      const cosa = r.tipo === 'paga' ? 'la paga globale' : 'la paga giornaliera'
                       if (
                         confirm(
                           `Cancellare ${cosa} di ${euro(r.importo)} valida dal ${fmtData(r.valido_dal)}?\n\nSi cancella solo se era stata scritta per sbaglio: se è cambiata, inseriscine una nuova.`,
