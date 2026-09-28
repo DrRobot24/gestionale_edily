@@ -39,8 +39,16 @@ const schema = z
     comune: z.string(),
     provincia: z.string().refine((v) => v === '' || v.length === 2, 'Due lettere, es. CT'),
     cap: z.string().refine((v) => v === '' || /^\d{5}$/.test(v), 'Cinque cifre'),
-    data_inizio: z.string(),
-    data_fine_prevista: z.string(),
+    /* INIZIO E FINE PREVISTA OBBLIGATORIE (2026-09-28, utente: «metti
+       l'obbligo a chi crea il cantiere di segnare una data di chiusura,
+       altrimenti non possiamo fare cose»). L'inizio decide da quando il
+       cantiere chiede schede al tecnico; la fine prevista si puo'
+       spostare, ma un cantiere senza orizzonte non si pianifica. La fine
+       EFFETTIVA resta vuota fino alla chiusura, dove diventa obbligatoria
+       (vedi sotto). Vale anche in modifica: un cantiere vecchio senza
+       date le riceve alla prima volta che lo si riapre. */
+    data_inizio: z.string().min(1, 'Serve la data di inizio: da lì il tecnico rapporta'),
+    data_fine_prevista: z.string().min(1, 'Serve una fine prevista: si può spostare dopo'),
     data_fine_effettiva: z.string(),
     importo_contratto: z.string(),
     note: z.string(),
