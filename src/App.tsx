@@ -63,6 +63,9 @@ const EconomiaRisorsaPage = pigra(() => import('./modules/anagrafiche/EconomiaRi
 type Voce = {
   to: string
   etichetta: string
+  /** Al posto del nome, nel menu. L'etichetta resta per chi usa lo
+   *  screen reader e per il suggerimento al passaggio del mouse. */
+  icona?: string
   /** Una lista vuol dire OR: basta averne uno. */
   perm?: Permission | Permission[]
   /**
@@ -144,7 +147,10 @@ type Voce = {
  * si crea.
  */
 const VOCI: Voce[] = [
-  { to: '/', etichetta: 'Home', elemento: <Dashboard /> },
+  /* LA CASETTA al posto di «Home», dal 2026-09-28: «voglio una cosa
+     nuova, bella e originale: l'emoticon di una casetta» (utente), per
+     tutti. La parola resta come nome accessibile. */
+  { to: '/', etichetta: 'Home', icona: '🏠', elemento: <Dashboard /> },
 
   /* Le tre anagrafiche in testa, nell'ordine dell'importanza dichiarata
      dall'utente: e' anche l'ordine obbligato di inserimento, perche' un
@@ -625,7 +631,7 @@ function Barra({ voci }: { voci: Voce[] }) {
             )}
             <NavLink to={v.to} end={v.to === '/'} className={classeVoce}>
               <span className="flex items-center justify-between gap-2">
-                {v.etichetta}
+                <NomeVoce voce={v} />
                 <Pallino voce={v.to} />
               </span>
             </NavLink>
@@ -701,7 +707,7 @@ function BarraMobile({ voci }: { voci: Voce[] }) {
             className={(stato) => cn(classeVoce(stato), 'shrink-0')}
           >
             <span className="flex items-center gap-2">
-              {v.etichetta}
+              <NomeVoce voce={v} />
               <Pallino voce={v.to} />
             </span>
           </NavLink>
@@ -734,6 +740,17 @@ function BarraMobile({ voci }: { voci: Voce[] }) {
    perche' il giorno in cui una seconda voce avra' il suo conteggio
    bastera' aggiungere una riga a questa funzione.
    ───────────────────────────────────────────────────────────────── */
+/** Il nome della voce, o la sua icona: grande abbastanza da leggersi
+ *  come un pulsante, col nome per chi non la vede. */
+function NomeVoce({ voce }: { voce: Voce }) {
+  if (!voce.icona) return <>{voce.etichetta}</>
+  return (
+    <span role="img" aria-label={voce.etichetta} title={voce.etichetta} className="text-xl leading-none">
+      {voce.icona}
+    </span>
+  )
+}
+
 function Pallino({ voce }: { voce: string }) {
   const { data } = useOreDaLeggere()
 

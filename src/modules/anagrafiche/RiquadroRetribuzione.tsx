@@ -11,6 +11,7 @@ import {
 } from './dipendenti'
 import {
   limitiMese,
+  pagaEquivalente,
   regimeVigente,
   storicoRegimi,
   tariffaDelMese,
@@ -98,6 +99,11 @@ export function RiquadroRetribuzione({
           mano. */}
       {vigente?.tipo === 'paga' && (
         <TariffeCalcolate dipendenteId={dipendenteId} storico={storico} />
+      )}
+      {/* Il viceversa: con la paga giornaliera, a quanto corrisponde al
+          mese. Vedi `pagaEquivalente`. */}
+      {vigente?.tipo === 'tariffa' && (
+        <PagheEquivalenti dipendenteId={dipendenteId} euroOra={vigente.importo} />
       )}
 
       {storico.length > 0 && (
@@ -198,7 +204,7 @@ function NuovoRegime({
       </div>
       <p className="text-xs font-semibold text-gray-700">
         {tipo === 'paga'
-          ? 'Un importo al mese. Il programma ne ricava la tariffa oraria — importo ÷ giorni feriali del mese (senza sabati, domeniche e festività) ÷ ore della giornata piena — e il mese vale quella tariffa per le ore validate dal titolare.'
+          ? 'Un importo al mese. Il programma ne ricava la tariffa oraria — importo ÷ giorni feriali del mese (senza sabati, domeniche e festività) ÷ ore della giornata piena — e il mese vale quella tariffa per le ore validate dal titolare, più ferie e permessi.'
           : 'Una tariffa oraria: il mese vale le ore fatte davvero a quella tariffa. Lo straordinario costa uguale.'}
       </p>
 
@@ -259,7 +265,8 @@ function TariffeCalcolate({ dipendenteId, storico }: { dipendenteId: string; sto
       </p>
       <p className="text-[11px] font-semibold text-gray-600">
         Paga globale ÷ giorni feriali del mese (senza sabati, domeniche e festività) ÷ ore
-        della giornata piena. Il mese vale questa tariffa per le ore validate dal titolare.
+        della giornata piena. Il mese vale questa tariffa per le ore validate dal titolare, più
+        ferie e permessi.
       </p>
       <ul className="grid gap-1">
         {mesi.map((mese) => {
@@ -290,6 +297,55 @@ function TariffeCalcolate({ dipendenteId, storico }: { dipendenteId: string; sto
               ) : (
                 <span className="text-xs font-semibold text-gray-500">—</span>
               )}
+            </li>
+          )
+        })}
+      </ul>
+    </div>
+  )
+}
+
+/** Il mese corrente e i due prima: tariffa × giorni feriali × ore. */
+function PagheEquivalenti({ dipendenteId, euroOra }: { dipendenteId: string; euroOra: number }) {
+  const { data: orari } = useOrari()
+  const oggi = new Date().toLocaleDateString('sv-SE')
+  const [a, m] = oggi.split('-').map(Number)
+  const mesi = [0, 1, 2].map((indietro) =>
+    new Date(a, m - 1 - indietro, 1).toLocaleDateString('sv-SE'),
+  )
+
+  return (
+    <div className="grid gap-2 rounded-xl border-2 border-black bg-sky-50 p-4">
+      <p className="text-xs font-extrabold uppercase tracking-wide text-black">
+        Paga mensile equivalente
+      </p>
+      <p className="text-[11px] font-semibold text-gray-600">
+        Tariffa × giorni feriali del mese (senza sabati, domeniche e festività) × ore della
+        giornata piena. È un confronto: il mese vale la tariffa per le ore validate.
+      </p>
+      <ul className="grid gap-1">
+        {mesi.map((mese) => {
+          const e = pagaEquivalente(
+            euroOra,
+            mese,
+            oreContratto(orari, dipendenteId, limitiMese(mese).al),
+          )
+          const nome = new Date(`${mese}T00:00:00`).toLocaleDateString('it-IT', {
+            month: 'long',
+            year: 'numeric',
+          })
+          return (
+            <li
+              key={mese}
+              className="flex flex-wrap items-baseline justify-between gap-2 border-t border-sky-200 pt-1 first:border-t-0 first:pt-0"
+            >
+              <span className="text-sm font-bold capitalize text-black">{nome}</span>
+              <span className="text-sm font-semibold text-gray-700">
+                <span className="numerico">{euro(euroOra)}</span>/h ×{' '}
+                <span className="numerico">{e.giorni}</span> gg ×{' '}
+                <span className="numerico">{numero(e.oreGiorno)}</span> h ={' '}
+                <strong className="numerico text-base font-black text-black">{euro(e.euro)}</strong>
+              </span>
             </li>
           )
         })}

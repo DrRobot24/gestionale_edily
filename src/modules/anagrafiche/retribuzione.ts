@@ -184,6 +184,21 @@ export function tariffaDelMese(
   }
 }
 
+/**
+ * IL VICEVERSA, dal 2026-09-28: a quanto corrisponde al mese una paga
+ * giornaliera, con la stessa regola della globale letta al contrario.
+ *
+ *   paga mensile equivalente = tariffa × giorni feriali del mese × ore
+ *
+ * E' un confronto, non un importo da pagare: quello che si paga resta
+ * tariffa × ore validate. Serve a mettere accanto due persone a regimi
+ * diversi, ed e' la domanda che fanno i clienti.
+ */
+export function pagaEquivalente(euroOra: number, giorno: string, oreGiorno: number = 8) {
+  const giorni = giorniLavorabili(giorno)
+  return { giorni, oreGiorno, euro: Math.round(euroOra * giorni * oreGiorno * 100) / 100 }
+}
+
 /* ── le scritture ─────────────────────────────────────────────────── */
 
 /**
@@ -245,12 +260,30 @@ export type RigaEconomica = {
 }
 
 /**
+ * QUALI ASSENZE SI PAGANO, per regime. Dal 2026-09-28.
+ *
+ * Paga globale: ferie e permessi SI' — chiesto dall'utente lo stesso
+ * giorno («aggiungi tutto»), da confermare coi clienti alla riunione.
+ * Paga giornaliera: nessuna, come deciso il 2026-09-25 («le ore di ferie
+ * e permesso a tariffa non si pagano»).
+ * Malattia, infortunio e altro («altre») per ora in nessuno dei due: la
+ * malattia la copre in parte l'INPS, e va deciso a parte.
+ *
+ * STA QUI APPOSTA, in una riga: se alla riunione si decide diverso, si
+ * cambia questa lista e basta — Riepilogo e scheda seguono da soli.
+ */
+export const ASSENZE_PAGATE: Record<'calcolata' | 'manuale', ('ferie' | 'permessi' | 'altre')[]> = {
+  calcolata: ['ferie', 'permessi'],
+  manuale: [],
+}
+
+/**
  * Il mese di una persona: ore, assenze e quanto ha maturato.
  *
- * IL MATURATO E' SEMPRE TARIFFA × ORE LAVORATE VALIDATE, dal
- * 2026-09-28 anche a paga globale (vedi in cima). Cambia solo da dove
- * viene la tariffa: calcolata dalla paga globale, o scritta a mano per
- * la paga giornaliera. Le ore di ferie e permesso non entrano.
+ * IL MATURATO E' TARIFFA × ORE, dal 2026-09-28 anche a paga globale
+ * (vedi in cima): le ore lavorate e validate, piu' le assenze che quel
+ * regime paga (`ASSENZE_PAGATE`). Cambia solo da dove viene la tariffa:
+ * calcolata dalla paga globale, o scritta a mano per la giornaliera.
  */
 export function rigaDelMese(
   storico: Regime[],
@@ -284,7 +317,10 @@ export function rigaDelMese(
   r.giorni = giorniLavorati.size
   r.tariffa = tariffaDelMese(storico, giorno, oreGiorno)
 
-  if (r.tariffa.origine !== 'manca') r.maturato = r.tariffa.euroOra * r.ore_lavorate
+  if (r.tariffa.origine !== 'manca') {
+    const pagate = ASSENZE_PAGATE[r.tariffa.origine].reduce((s, c) => s + r[`ore_${c}`], 0)
+    r.maturato = r.tariffa.euroOra * (r.ore_lavorate + pagate)
+  }
 
   // Al centesimo: e' un importo che finisce in un bonifico.
   r.maturato = Math.round(r.maturato * 100) / 100

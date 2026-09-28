@@ -19,7 +19,11 @@ nuova sia per chi ci torna dopo giorni.
 - **Paga globale, calcolo corretto dall'utente:** tariffa = paga ÷ giorni
   feriali del mese **senza festività nazionali** (`eLavorabile` in
   `lib/giorni.ts`, Pasquetta calcolata, patrono escluso) ÷ ore giornata piena;
-  il mese vale **tariffa × ore validate**, non più la paga intera.
+  il mese vale **tariffa × ore validate**, non più la paga intera. A paga
+  globale si pagano anche **ferie e permessi** (a giornaliera no; malattia in
+  nessuno): regola in `ASSENZE_PAGATE` di `retribuzione.ts`, **da confermare
+  coi clienti alla riunione**. Con la paga giornaliera la scheda mostra la
+  **paga mensile equivalente** (tariffa × feriali × ore), solo come confronto.
 - **`supabase/schema/rapportino-mezzi-attrezzature.sql` ESEGUITO** il 28/09.
   Box «Mezzi e attrezzature» nel rapportino (`RiquadroMezzi`).
   `rapportino_attrezzature`: select/insert/delete come le foto (verificate).
