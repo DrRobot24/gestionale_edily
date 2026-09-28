@@ -49,6 +49,22 @@ const schema = z
     (v) => !v.data_inizio || !v.data_fine_prevista || v.data_fine_prevista >= v.data_inizio,
     { message: 'La fine prevista non può precedere l’inizio', path: ['data_fine_prevista'] },
   )
+  /* CHIUSO VUOL DIRE CHIUSO DA UNA DATA (2026-09-28). Sferrazzo era
+     «chiuso» senza fine effettiva: il programma non sapeva da quando, e
+     il calendario del titolare continuava a chiederne la scheda — «6 di
+     7» su una giornata completa. La data e' cio' che dice fino a quando
+     il cantiere ha chiesto schede, e da quando smette. */
+  .refine(
+    (v) => (v.stato !== 'chiuso' && v.stato !== 'archiviato') || v.data_fine_effettiva !== '',
+    {
+      message: 'Un cantiere chiuso ha la sua data di fine effettiva',
+      path: ['data_fine_effettiva'],
+    },
+  )
+  .refine(
+    (v) => !v.data_inizio || !v.data_fine_effettiva || v.data_fine_effettiva >= v.data_inizio,
+    { message: 'La fine effettiva non può precedere l’inizio', path: ['data_fine_effettiva'] },
+  )
 
 type Campi = z.infer<typeof schema>
 
@@ -306,7 +322,7 @@ export function CantiereForm() {
               etichetta="Fine effettiva"
               type="date"
               disabled={!puoScrivere}
-              suggerimento="Solo a lavori finiti"
+              suggerimento="Solo a lavori finiti: serve per chiudere il cantiere"
               errore={errors.data_fine_effettiva?.message}
               {...register('data_fine_effettiva')}
             />

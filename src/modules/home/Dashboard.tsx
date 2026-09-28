@@ -17,6 +17,7 @@ import { useMioDipendente } from '../anagrafiche/dipendenti'
 import { PresenzeDelGiorno } from './PresenzeDelGiorno'
 import { InScadenza } from './InScadenza'
 import { oggi } from '../rapportini/campiRapportino'
+import { useSearchParams } from 'react-router'
 import { useDataInIndirizzo } from './useDataInIndirizzo'
 
 /* ══════════════════════════════════════════════════════════════════
@@ -100,6 +101,30 @@ export function Dashboard() {
      non chi ha un permesso: e' il cancello di «Le mie ore». */
   const { data: mio } = useMioDipendente()
 
+  /* IL GIORNO DI CHI VALIDA E' QUELLO APERTO NEL CALENDARIO (2026-09-28).
+     «Quando clicco su un giorno del calendario mi deve cambiare anche la
+     data del banner in alto» (utente, dalla home di Giuseppe). La fascia
+     diceva sempre oggi mentre sotto si leggeva il 25: due date sulla
+     stessa pagina, e quella grande era quella sbagliata.
+
+     Il giorno e' lo stesso parametro `aperto` di `ConsegneDalCampo`, non
+     una copia: fascia e calendario non possono andare fuori passo. Le
+     frecce della fascia lo muovono e tolgono `mese`, cosi' il calendario
+     segue il giorno anche quando si scavalca un mese. */
+  const [aperto] = useDataInIndirizzo('aperto')
+  const [, setParams] = useSearchParams()
+  const apri = (g: string) =>
+    setParams(
+      (prec) => {
+        const nuovi = new URLSearchParams(prec)
+        if (g === oggi()) nuovi.delete('aperto')
+        else nuovi.set('aperto', g)
+        nuovi.delete('mese')
+        return nuovi
+      },
+      { replace: true },
+    )
+
   return (
     /* Piu' larga per chi valida: la sua home e' su due colonne (vedi
        sotto), e in 5xl la colonna del calendario restava schiacciata. */
@@ -121,6 +146,8 @@ export function Dashboard() {
           senza: frecce che non muovono niente si imparano a ignorare. */}
       {puoCompilare || faLePaghe ? (
         <Benvenuto giorno={giorno} onCambia={setGiorno} />
+      ) : puoValidare ? (
+        <Benvenuto giorno={aperto ?? oggi()} onCambia={apri} />
       ) : (
         <Benvenuto />
       )}

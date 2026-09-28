@@ -123,6 +123,9 @@ export type AttesaCantiere = {
    *  non chiude un cantiere, e pretendere schede fino alla previsione
    *  invece che fino alla chiusura e' lo stesso errore all'incontrario. */
   dataFine: string | null
+  /** Lo stato del cantiere ADESSO: solo gli `attivo` chiedono schede,
+   *  come per le card del tecnico e per il controllo all'invio. */
+  attivo: boolean
 }
 
 export type ConsegneDelMese = {
@@ -200,7 +203,7 @@ export function useConsegneDelMese(giorno: string) {
            intere. */
         supabase
           .from('cantiere_assegnazioni')
-          .select('cantiere_id, user_id, dal, al, cantieri ( data_inizio, data_fine_effettiva )')
+          .select('cantiere_id, user_id, dal, al, cantieri ( data_inizio, data_fine_effettiva, stato )')
           .eq('org_id', org!.id),
         supabase
           .from('assenze')
@@ -229,7 +232,7 @@ export function useConsegneDelMese(giorno: string) {
 
       const attese: AttesaCantiere[] = (assegnazioni.data ?? []).map((a) => {
         const c = (Array.isArray(a.cantieri) ? a.cantieri[0] : a.cantieri) as
-          | { data_inizio: string | null; data_fine_effettiva: string | null }
+          | { data_inizio: string | null; data_fine_effettiva: string | null; stato: string }
           | null
         return {
           cantiereId: a.cantiere_id,
@@ -238,6 +241,7 @@ export function useConsegneDelMese(giorno: string) {
           al: a.al,
           dataInizio: c?.data_inizio ?? null,
           dataFine: c?.data_fine_effettiva ?? null,
+          attivo: c?.stato === 'attivo',
         }
       })
 
@@ -322,15 +326,31 @@ export function useTecniciScollegati() {
  * accende di rosso i giorni da recuperare. Le card della home usano la
  * stessa regola (`cantiereAtteso`).
  */
+/*
+ * ⚠️ CANTIERI, NON RIGHE DI ASSEGNAZIONE, e solo quelli ATTIVI
+ * (2026-09-28). Il 25 settembre il titolare leggeva «6 di 7» su una
+ * giornata inviata e completa: il settimo non esisteva per il tecnico,
+ * che ne vedeva sei card, ne' per il controllo all'invio, che l'ha
+ * lasciata partire. Qui si contavano le righe di `cantiere_assegnazioni`
+ * senza guardare lo stato del cantiere — un cantiere assegnato ma non
+ * `attivo` (o assegnato due volte) diventava una scheda pretesa che
+ * nessuno poteva compilare. Ora la regola e' la stessa di
+ * `invia_foglio_giornata` in SQL: cantieri distinti, `stato = 'attivo'`.
+ */
 export function cantieriAttesi(attese: AttesaCantiere[], userId: string, giorno: string): number {
-  return attese.filter(
-    (a) =>
-      a.userId === userId &&
-      a.dal <= giorno &&
-      (a.al === null || a.al >= giorno) &&
-      (a.dataInizio === null || a.dataInizio <= giorno) &&
-      (a.dataFine === null || a.dataFine >= giorno),
-  ).length
+  return new Set(
+    attese
+      .filter(
+        (a) =>
+          a.userId === userId &&
+          a.attivo &&
+          a.dal <= giorno &&
+          (a.al === null || a.al >= giorno) &&
+          (a.dataInizio === null || a.dataInizio <= giorno) &&
+          (a.dataFine === null || a.dataFine >= giorno),
+      )
+      .map((a) => a.cantiereId),
+  ).size
 }
 
 /** Le schede di quel tecnico, indicizzate per giorno.
