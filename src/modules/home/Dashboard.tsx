@@ -15,6 +15,7 @@ import { RiepiloghiDaFirmare } from '../paghe/RiepiloghiDaFirmare'
 import { RiepilogoDelMese } from '../paghe/RiepilogoDelMese'
 import { useMioDipendente } from '../anagrafiche/dipendenti'
 import { PresenzeDelGiorno } from './PresenzeDelGiorno'
+import { InScadenza } from './InScadenza'
 import { oggi } from '../rapportini/campiRapportino'
 import { useDataInIndirizzo } from './useDataInIndirizzo'
 
@@ -175,6 +176,12 @@ export function Dashboard() {
               `anagrafiche.write` (il tecnico) non li vede comunque:
               `IlSuoLavoro` sparisce da solo. */}
           <IlSuoLavoro compatto />
+
+          {/* Le scadenze subito sotto i registri, che ne sono la fonte:
+              documenti, patenti, permessi, mezzi, attrezzature. Per chi
+              tiene le anagrafiche, e sparisce se non scade niente. Vedi
+              `InScadenza`. */}
+          <InScadenza />
 
           {/* DAL 2026-09-25 UNA SOTTO L'ALTRA, a tutta larghezza. Le due
               colonne del 24 mettevano calendario, giorno aperto e «cos'e'

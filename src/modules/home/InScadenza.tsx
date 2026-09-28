@@ -1,0 +1,177 @@
+import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { useNavigate } from 'react-router'
+import { supabase } from '../../lib/supabase'
+import { data as fmtData } from '../../lib/formato'
+import { Card, cn } from '../../ui'
+import { useSession } from '../auth/SessionProvider'
+import { patentiDi, useDipendenti } from '../anagrafiche/dipendenti'
+import { giorniA, statoScadenza } from '../anagrafiche/documentiPersonali'
+import { PARCO, useParco } from '../anagrafiche/parco'
+
+/* ══════════════════════════════════════════════════════════════════
+   IN SCADENZA — il promemoria delle date, in home. Dal 2026-09-28.
+
+   «Abbiamo un sistema che ci avvisa quando sta per scadere qualcosa
+   negli operai? Una visita medica, un attestato…» (utente). Le date
+   c'erano gia' tutte e si coloravano, ma ognuna nella sua pagina: per
+   saperlo bisognava andare a guardare, e una scadenza si ricorda proprio
+   quando nessuno ci pensa.
+
+   Qui si raccoglie in un posto solo tutto cio' che e' SCADUTO o scade
+   nei prossimi TRENTA giorni (lo stesso metro di `statoScadenza`):
+
+     documenti della persona   visita medica, attestati, patentini
+     patenti e abilitazioni    B, CQC, muletto…
+     permesso di soggiorno
+     mezzi                     revisione, assicurazione
+     attrezzature              verifica periodica
+
+   Una riga per scadenza, dalla piu' urgente, col link per aprirla.
+   SPARISCE quando non c'e' niente: la home mostra cose da fare.
+
+   Lo vede chi tiene le anagrafiche (`anagrafiche.write`): Stefania, che
+   le rinnova, e il titolare, che deve saperlo.
+   ══════════════════════════════════════════════════════════════════ */
+
+type Scadenza = {
+  chiave: string
+  chi: string
+  cosa: string
+  data: string
+  a: string
+}
+
+/** Tutti i documenti delle persone che hanno una scadenza. */
+function useDocumentiInScadenza(abilitato: boolean) {
+  const { org } = useSession()
+  return useQuery({
+    queryKey: ['documenti-personali', 'scadenze', org?.id],
+    enabled: Boolean(org?.id) && abilitato,
+    retry: false,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('dipendente_documenti')
+        .select('id, dipendente_id, titolo, scadenza')
+        .eq('org_id', org!.id)
+        .not('scadenza', 'is', null)
+      if (error) throw error
+      return data ?? []
+    },
+  })
+}
+
+const MOSTRATE = 6
+
+export function InScadenza() {
+  const navigate = useNavigate()
+  const { can } = useSession()
+  const abilitato = can('anagrafiche.write')
+  const [tutte, setTutte] = useState(false)
+
+  const { data: persone } = useDipendenti()
+  const { data: documenti } = useDocumentiInScadenza(abilitato)
+  const { data: mezzi } = useParco('mezzi')
+  const { data: attrezzi } = useParco('attrezzature')
+
+  if (!abilitato) return null
+
+  const lista: Scadenza[] = []
+  const urgente = (d: string | null | undefined): d is string => {
+    const s = statoScadenza(d ?? null)
+    return s === 'scaduto' || s === 'in-scadenza'
+  }
+  const nomi = new Map((persone ?? []).map((p) => [p.id, `${p.cognome} ${p.nome}`]))
+
+  for (const p of persone ?? []) {
+    const nome = `${p.cognome} ${p.nome}`
+    const scheda = `/anagrafiche/operai/${p.id}`
+    if (p.permesso_soggiorno && urgente(p.permesso_scadenza))
+      lista.push({ chiave: `perm-${p.id}`, chi: nome, cosa: 'Permesso di soggiorno', data: p.permesso_scadenza, a: scheda })
+    patentiDi(p.patenti).forEach((pt, i) => {
+      if (urgente(pt.scade_il))
+        lista.push({ chiave: `pat-${p.id}-${i}`, chi: nome, cosa: pt.tipo || 'Patente', data: pt.scade_il, a: scheda })
+    })
+  }
+  for (const d of documenti ?? []) {
+    // Solo le persone in elenco: un archiviato non chiede rinnovi.
+    const nome = nomi.get(d.dipendente_id)
+    if (nome && urgente(d.scadenza))
+      lista.push({ chiave: `doc-${d.id}`, chi: nome, cosa: d.titolo, data: d.scadenza, a: `/anagrafiche/operai/${d.dipendente_id}` })
+  }
+  for (const m of mezzi ?? []) {
+    const a = `${PARCO.mezzi.percorso}/${m.id}`
+    if (urgente(m.scadenza_revisione as string | null))
+      lista.push({ chiave: `rev-${m.id}`, chi: m.descrizione, cosa: 'Revisione', data: m.scadenza_revisione as string, a })
+    if (urgente(m.scadenza_assicurazione as string | null))
+      lista.push({ chiave: `ass-${m.id}`, chi: m.descrizione, cosa: 'Assicurazione', data: m.scadenza_assicurazione as string, a })
+  }
+  for (const t of attrezzi ?? []) {
+    if (urgente(t.scadenza_verifica as string | null))
+      lista.push({
+        chiave: `ver-${t.id}`,
+        chi: t.descrizione,
+        cosa: 'Verifica periodica',
+        data: t.scadenza_verifica as string,
+        a: `${PARCO.attrezzature.percorso}/${t.id}`,
+      })
+  }
+
+  if (lista.length === 0) return null
+  lista.sort((x, y) => x.data.localeCompare(y.data))
+  const scadute = lista.filter((s) => giorniA(s.data) < 0).length
+  const visibili = tutte ? lista : lista.slice(0, MOSTRATE)
+
+  return (
+    <Card className="overflow-hidden">
+      <div
+        className={cn(
+          'flex flex-wrap items-baseline justify-between gap-2 border-b-2 border-black px-4 py-2',
+          scadute > 0 ? 'bg-rose-200' : 'bg-yellow-200',
+        )}
+      >
+        <h2 className="text-xs font-extrabold uppercase tracking-wide text-black">In scadenza</h2>
+        <p className="text-[11px] font-bold text-black/70">
+          {scadute > 0 && `${scadute} ${scadute === 1 ? 'scaduta' : 'scadute'} · `}
+          {lista.length - scadute} nei prossimi 30 giorni
+        </p>
+      </div>
+      <ul className="divide-y divide-black/10">
+        {visibili.map((s) => {
+          const g = giorniA(s.data)
+          return (
+            <li key={s.chiave}>
+              <button
+                type="button"
+                onClick={() => navigate(s.a)}
+                className="flex w-full cursor-pointer items-baseline gap-3 px-4 py-1.5 text-left hover:bg-amber-50"
+              >
+                <span className="min-w-0 flex-1 truncate text-sm">
+                  <span className="font-extrabold text-black">{s.chi}</span>
+                  <span className="font-semibold text-gray-600"> · {s.cosa}</span>
+                </span>
+                <span
+                  className={cn(
+                    'numerico shrink-0 text-xs font-extrabold',
+                    g < 0 ? 'text-rose-700' : 'text-amber-800',
+                  )}
+                >
+                  {g < 0 ? `scaduta il ${fmtData(s.data)}` : g === 0 ? 'scade oggi' : `fra ${g} gg`}
+                </span>
+              </button>
+            </li>
+          )
+        })}
+      </ul>
+      {lista.length > MOSTRATE && (
+        <button
+          type="button"
+          onClick={() => setTutte((v) => !v)}
+          className="w-full cursor-pointer border-t-2 border-black px-4 py-1.5 text-xs font-bold text-black hover:bg-amber-50"
+        >
+          {tutte ? 'Mostra meno' : `Mostra tutte (${lista.length})`}
+        </button>
+      )}
+    </Card>
+  )
+}
