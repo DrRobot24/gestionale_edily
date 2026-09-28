@@ -46,8 +46,9 @@ import { oggi } from '../rapportini/campiRapportino'
  * `giorno` e `onCambia` arrivano insieme o non arrivano affatto.
  *
  * Senza, la fascia e' solo un saluto con la data di oggi: e' cosi' per
- * chi non compila rapportini — il titolare, l'amministrazione — a cui
- * sfogliare le giornate del tecnico non serve.
+ * chi non ha sotto niente che dipenda dal giorno. Dal 2026-09-28
+ * l'amministrazione le frecce le ha: sotto ci sono le presenze del
+ * giorno. Chi decide e' `Dashboard`.
  *
  * Con, la data diventa il comando: le frecce ai suoi lati muovono il
  * giorno di tutta la home. Stavano in una barra loro, sotto; l'utente

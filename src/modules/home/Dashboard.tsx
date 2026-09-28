@@ -12,6 +12,9 @@ import { GiornateDaValidare } from './GiornateDaValidare'
 import { IlSuoLavoro } from './IlSuoLavoro'
 import { OreArrivate } from './OreArrivate'
 import { RiepiloghiDaFirmare } from '../paghe/RiepiloghiDaFirmare'
+import { RiepilogoDelMese } from '../paghe/RiepilogoDelMese'
+import { useMioDipendente } from '../anagrafiche/dipendenti'
+import { PresenzeDelGiorno } from './PresenzeDelGiorno'
 import { oggi } from '../rapportini/campiRapportino'
 import { useDataInIndirizzo } from './useDataInIndirizzo'
 
@@ -89,6 +92,12 @@ export function Dashboard() {
 
   const puoValidare = can('rapportini.validate')
   const puoCompilare = can('rapportini.create')
+  /* Chi elabora le ore e NON le firma: Stefania. Stessa regola che
+     decide `OreArrivate`, vedi in fondo. */
+  const faLePaghe = can('paghe.read') && !puoValidare
+  /* Le ore proprie le dichiara chiunque abbia una scheda collegata,
+     non chi ha un permesso: e' il cancello di «Le mie ore». */
+  const { data: mio } = useMioDipendente()
 
   return (
     /* Piu' larga per chi valida: la sua home e' su due colonne (vedi
@@ -96,14 +105,24 @@ export function Dashboard() {
     <div
       className={cn(
         'mx-auto grid gap-6',
-        puoValidare || puoCompilare ? 'max-w-7xl' : 'max-w-5xl',
+        puoValidare || puoCompilare || faLePaghe ? 'max-w-7xl' : 'max-w-5xl',
       )}
     >
       {/* Le frecce stanno nella fascia, ai lati della data: la data
           grande e' il titolo della pagina, e il posto per cambiarla e'
-          quello dove la si legge. Chi non compila la riceve senza
-          frecce — sfogliare le giornate del tecnico non gli serve. */}
-      {puoCompilare ? <Benvenuto giorno={giorno} onCambia={setGiorno} /> : <Benvenuto />}
+          quello dove la si legge.
+
+          Le riceve chi ha sotto qualcosa che dipende dal giorno. Fino
+          al 2026-09-28 era solo chi compila; da quel giorno anche chi fa
+          le paghe, che sotto ha le presenze del giorno. «Non e' coerente
+          col resto del progetto», l'utente guardando la home di
+          Stefania. Chi non ha niente da sfogliare continua a riceverla
+          senza: frecce che non muovono niente si imparano a ignorare. */}
+      {puoCompilare || faLePaghe ? (
+        <Benvenuto giorno={giorno} onCambia={setGiorno} />
+      ) : (
+        <Benvenuto />
+      )}
 
       {/* COSA HAI LASCIATO INDIETRO, subito sotto il saluto e sopra
           ogni altra cosa.
@@ -287,7 +306,28 @@ export function Dashboard() {
               tiene le paghe e NON valida. Regge su tutti i ruoli —
               owner e admin validano e restano fuori, amministrazione ha
               `paghe.read` senza `rapportini.validate` ed entra. */}
-          {can('paghe.read') && !puoValidare && <OreArrivate />}
+          {faLePaghe && <OreArrivate />}
+
+          {/* ── Chi fa le paghe: il giorno delle frecce, dal 2026-09-28 ──
+
+              «Molto scarna», l'utente guardando la home di Stefania: i
+              registri, le ore della settimana quando ce n'erano, e
+              nient'altro. A sinistra, larga, la colonna del foglio
+              presenze per il giorno della fascia — chi c'era, dove, e
+              chi era assente col motivo. A destra, di lato, le cose sue:
+              il Riepilogo economico, che e' il suo appuntamento di fine
+              mese, e le sue ore se ha una scheda. Stessa impaginazione
+              del tecnico; sul telefono tornano in colonna. */}
+          {faLePaghe && (
+            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
+              <PresenzeDelGiorno giorno={giorno} />
+              <div className="grid gap-4">
+                <RiepilogoDelMese giorno={giorno} />
+                {/* Chi compila rapportini le ha gia' nella colonna sua. */}
+                {mio && !puoCompilare && <MieOre giorno={giorno} />}
+              </div>
+            </div>
+          )}
 
         </div>
       )}
