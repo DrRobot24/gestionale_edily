@@ -1,4 +1,4 @@
-import { Suspense, lazy, type ComponentType, type ReactNode } from 'react'
+import { Fragment, Suspense, lazy, type ComponentType, type ReactNode } from 'react'
 import { BrowserRouter, Routes, Route, NavLink, Outlet } from 'react-router'
 import { SessionProvider, useSession } from './modules/auth/SessionProvider'
 import { RequireAuth, RequirePermission } from './modules/auth/guards'
@@ -41,6 +41,8 @@ const ClientiPage = pigra(() => import('./modules/anagrafiche/ClientiPage'), 'Cl
 const ClienteForm = pigra(() => import('./modules/anagrafiche/ClienteForm'), 'ClienteForm')
 const FornitoriPage = pigra(() => import('./modules/anagrafiche/FornitoriPage'), 'FornitoriPage')
 const FornitoreForm = pigra(() => import('./modules/anagrafiche/FornitoreForm'), 'FornitoreForm')
+const ParcoPage = pigra(() => import('./modules/anagrafiche/ParcoPage'), 'ParcoPage')
+const ParcoForm = pigra(() => import('./modules/anagrafiche/ParcoForm'), 'ParcoForm')
 const EconomiaPage = pigra(() => import('./modules/economia/EconomiaPage'), 'EconomiaPage')
 const MagazzinoPage = pigra(() => import('./modules/magazzino/MagazzinoPage'), 'MagazzinoPage')
 const MieOrePage = pigra(() => import('./modules/oreproprie/MieOrePage'), 'MieOrePage')
@@ -303,6 +305,24 @@ const VOCI: Voce[] = [
     perm: 'anagrafiche.write',
     elemento: <FornitoriPage />,
   },
+  /* MEZZI E ATTREZZATURE, dal 2026-09-28: due anagrafiche separate —
+     con la targa e senza — che finiscono nel box del rapportino. Le
+     riempiono amministrazione e titolare, «ovviamente per aiutare»:
+     `anagrafiche.write`, come gli altri registri. «Fondamentale»,
+     l'utente, togliendo Lavori extra dal menu di Stefania per far loro
+     posto. */
+  {
+    to: '/anagrafiche/mezzi',
+    etichetta: 'Mezzi',
+    perm: 'anagrafiche.write',
+    elemento: <ParcoPage tipo="mezzi" />,
+  },
+  {
+    to: '/anagrafiche/attrezzature',
+    etichetta: 'Attrezzature',
+    perm: 'anagrafiche.write',
+    elemento: <ParcoPage tipo="attrezzature" />,
+  },
   /* Economia la vede anche il TECNICO, ed è una scelta del 2026-09-10.
      Oggi la pagina sono i lavori extra: le lavorazioni fuori
      progetto di tutti i cantieri, che il tecnico segna compilando i
@@ -316,14 +336,65 @@ const VOCI: Voce[] = [
 
      Quando qui dentro arriveranno anche i soldi — costi, ricavi,
      margini — quelli andranno gated su `economics.read` DENTRO la
-     pagina, non spostando questo cancello. */
+     pagina, non spostando questo cancello.
+
+     DAL 2026-09-28 IL CANCELLO E' CHI SCRIVE O FIRMA, non chi tiene i
+     conti: «togliamo lavori extra dalla sidebar di amministrazione»,
+     l'utente. Con `economics.read` la vedeva anche Stefania, a cui i
+     lavori extra non chiedono niente — li fattura il titolare. Restano
+     il tecnico che li scrive e il titolare che li legge validando. */
   {
     to: '/economia',
     etichetta: 'Lavori extra',
-    perm: ['rapportini.create', 'economics.read'],
+    perm: ['rapportini.create', 'rapportini.validate'],
     elemento: <EconomiaPage />,
   },
 ]
+
+/* ══════════════════════════════════════════════════════════════════
+   I GRUPPI DEL MENU, dal 2026-09-28: «sistema questo elenco in maniera
+   logica, raggruppa le cose per inerenza. I fornitori si mettono sotto
+   i clienti» (utente, guardando la sidebar di Stefania).
+
+   L'ORDINE STA QUI e non nella sequenza di `VOCI`: li' ogni voce si
+   porta dietro la storia del suo cancello, e spostare blocchi di
+   commenti per cambiare una posizione e' il modo sicuro di perderne
+   uno. Qui si legge il menu com'e', dall'alto in basso.
+
+     Anagrafiche        con chi si lavora: chi paga, chi vende, chi lavora
+     Cantieri           il lavoro sul campo e i suoi documenti
+     Mezzi e materiali  con cosa si lavora
+     Ore e paghe        cosa diventa busta paga
+
+   Il titolo segue le voci, non il ruolo: un gruppo di cui chi guarda
+   non vede nessuna voce non mostra nemmeno il titolo.
+   ══════════════════════════════════════════════════════════════════ */
+const GRUPPI: { titolo: string | null; voci: string[] }[] = [
+  { titolo: null, voci: ['/'] },
+  {
+    titolo: 'Anagrafiche',
+    voci: ['/anagrafiche/clienti', '/anagrafiche/fornitori', '/anagrafiche/operai'],
+  },
+  { titolo: 'Cantieri', voci: ['/cantieri', '/rapportini', '/economia', '/subappalti'] },
+  {
+    titolo: 'Mezzi e materiali',
+    voci: ['/anagrafiche/mezzi', '/anagrafiche/attrezzature', '/magazzino'],
+  },
+  { titolo: 'Ore e paghe', voci: ['/mie-ore', '/ore', '/riepilogo-economico'] },
+]
+
+/** Le voci visibili, nell'ordine dei gruppi, ciascuna col titolo del
+ *  suo gruppo. Una voce dimenticata in `GRUPPI` finisce in fondo invece
+ *  di sparire. */
+function inGruppi(voci: Voce[]): { voce: Voce; gruppo: string | null }[] {
+  const posto = new Map<string, { i: number; gruppo: string | null }>()
+  let i = 0
+  for (const g of GRUPPI) for (const to of g.voci) posto.set(to, { i: i++, gruppo: g.titolo })
+  return voci
+    .map((voce) => ({ voce, ...(posto.get(voce.to) ?? { i: 999, gruppo: null }) }))
+    .sort((a, b) => a.i - b.i)
+    .map(({ voce, gruppo }) => ({ voce, gruppo }))
+}
 
 function proteggi(perm: Permission | Permission[] | undefined, elemento: ReactNode) {
   if (!perm) return elemento
@@ -410,6 +481,22 @@ export default function App() {
             <Route
               path="anagrafiche/fornitori/:id"
               element={proteggi('anagrafiche.read', <FornitoreForm />)}
+            />
+            <Route
+              path="anagrafiche/mezzi/nuovo"
+              element={proteggi('anagrafiche.write', <ParcoForm tipo="mezzi" />)}
+            />
+            <Route
+              path="anagrafiche/mezzi/:id"
+              element={proteggi('anagrafiche.read', <ParcoForm tipo="mezzi" />)}
+            />
+            <Route
+              path="anagrafiche/attrezzature/nuovo"
+              element={proteggi('anagrafiche.write', <ParcoForm tipo="attrezzature" />)}
+            />
+            <Route
+              path="anagrafiche/attrezzature/:id"
+              element={proteggi('anagrafiche.read', <ParcoForm tipo="attrezzature" />)}
             />
             <Route
               path="anagrafiche/operai/nuovo"
@@ -526,13 +613,23 @@ function Barra({ voci }: { voci: Voce[] }) {
       </div>
 
       <nav className="flex flex-1 flex-col gap-1 p-3">
-        {voci.map((v) => (
-          <NavLink key={v.to} to={v.to} end={v.to === '/'} className={classeVoce}>
-            <span className="flex items-center justify-between gap-2">
-              {v.etichetta}
-              <Pallino voce={v.to} />
-            </span>
-          </NavLink>
+        {inGruppi(voci).map(({ voce: v, gruppo }, i, tutte) => (
+          <Fragment key={v.to}>
+            {/* Il titolo del gruppo prima della sua prima voce: stesso
+                stile di «Azienda» qui sopra, piccolo e grigio, perche'
+                ordina senza chiedere attenzione. */}
+            {gruppo && gruppo !== tutte[i - 1]?.gruppo && (
+              <p className="mt-3 px-3 pb-0.5 text-[10px] font-bold uppercase tracking-wider text-gray-500">
+                {gruppo}
+              </p>
+            )}
+            <NavLink to={v.to} end={v.to === '/'} className={classeVoce}>
+              <span className="flex items-center justify-between gap-2">
+                {v.etichetta}
+                <Pallino voce={v.to} />
+              </span>
+            </NavLink>
+          </Fragment>
         ))}
       </nav>
 
@@ -593,8 +690,10 @@ function BarraMobile({ voci }: { voci: Voce[] }) {
           Esci
         </Button>
       </div>
+      {/* Sul telefono stesso ordine, senza titoli: una striscia che
+          scorre di lato non ha spazio per le intestazioni. */}
       <nav className="flex gap-1 overflow-x-auto px-3 pb-3">
-        {voci.map((v) => (
+        {inGruppi(voci).map(({ voce: v }) => (
           <NavLink
             key={v.to}
             to={v.to}

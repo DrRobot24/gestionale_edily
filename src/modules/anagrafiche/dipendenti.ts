@@ -187,9 +187,11 @@ export type DatiDipendente = {
   /** Testo libero: B, C, CQC, muletto, piattaforma aerea. Un enum
    *  vorrebbe dire una migrazione a ogni abilitazione nuova. */
   patente: string | null
-  /** Patologie, limitazioni, contatti di emergenza. Dato sensibile:
-   *  la scheda e' chiusa su `anagrafiche.write`. */
-  note: string | null
+  /** La vecchia nota libera. Dal 2026-09-28 la scheda non la scrive
+   *  piu': gli appunti stanno in `dipendente_appunti` (vedi
+   *  `RiquadroAppunti`). Facoltativa perche' non la manda nessuno, e
+   *  un salvataggio che non la nomina la lascia com'e'. */
+  note?: string | null
   permesso_soggiorno: boolean
   /** Esiste solo se `permesso_soggiorno`: lo impone un check nel
    *  database, non solo il form. */

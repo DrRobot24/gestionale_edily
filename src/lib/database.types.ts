@@ -888,6 +888,155 @@ export type Database = {
         }
         Relationships: []
       }
+      attrezzature: {
+        Row: {
+          attivo: boolean
+          categoria: string | null
+          codice: string | null
+          created_at: string
+          data_acquisto: string | null
+          descrizione: string
+          fornitore_id: string | null
+          id: string
+          marca: string | null
+          matricola: string | null
+          modello: string | null
+          note: string | null
+          org_id: string
+          proprieta: string
+          scadenza_verifica: string | null
+          updated_at: string
+        }
+        Insert: {
+          attivo?: boolean
+          categoria?: string | null
+          codice?: string | null
+          created_at?: string
+          data_acquisto?: string | null
+          descrizione: string
+          fornitore_id?: string | null
+          id?: string
+          marca?: string | null
+          matricola?: string | null
+          modello?: string | null
+          note?: string | null
+          org_id: string
+          proprieta?: string
+          scadenza_verifica?: string | null
+          updated_at?: string
+        }
+        Update: {
+          attivo?: boolean
+          categoria?: string | null
+          codice?: string | null
+          created_at?: string
+          data_acquisto?: string | null
+          descrizione?: string
+          fornitore_id?: string | null
+          id?: string
+          marca?: string | null
+          matricola?: string | null
+          modello?: string | null
+          note?: string | null
+          org_id?: string
+          proprieta?: string
+          scadenza_verifica?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attrezzature_fornitore_id_fkey"
+            columns: ["fornitore_id"]
+            isOneToOne: false
+            referencedRelation: "fornitori"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attrezzature_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dipendente_appunti: {
+        Row: {
+          created_at: string
+          da_note_vecchie: boolean
+          dipendente_id: string
+          id: string
+          org_id: string
+          scritto_da: string | null
+          testo: string
+        }
+        Insert: {
+          created_at?: string
+          da_note_vecchie?: boolean
+          dipendente_id: string
+          id?: string
+          org_id: string
+          scritto_da?: string | null
+          testo: string
+        }
+        Update: {
+          created_at?: string
+          da_note_vecchie?: boolean
+          dipendente_id?: string
+          id?: string
+          org_id?: string
+          scritto_da?: string | null
+          testo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dipendente_appunti_dipendente_id_fkey"
+            columns: ["dipendente_id"]
+            isOneToOne: false
+            referencedRelation: "dipendenti"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dipendente_iban: {
+        Row: {
+          dipendente_id: string
+          iban: string
+          intestatario: string | null
+          org_id: string
+          updated_at: string
+        }
+        Insert: {
+          dipendente_id: string
+          iban: string
+          intestatario?: string | null
+          org_id: string
+          updated_at?: string
+        }
+        Update: {
+          dipendente_id?: string
+          iban?: string
+          intestatario?: string | null
+          org_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dipendente_iban_dipendente_id_fkey"
+            columns: ["dipendente_id"]
+            isOneToOne: true
+            referencedRelation: "dipendenti"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dipendente_iban_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dipendente_stipendi: {
         Row: {
           created_at: string
@@ -2386,6 +2535,51 @@ export type Database = {
           },
           {
             foreignKeyName: "rapportino_materiali_rapportino_id_fkey"
+            columns: ["rapportino_id"]
+            isOneToOne: false
+            referencedRelation: "rapportini"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rapportino_attrezzature: {
+        Row: {
+          attrezzatura_id: string
+          created_at: string
+          id: string
+          note: string | null
+          ore_utilizzo: number
+          org_id: string
+          rapportino_id: string
+        }
+        Insert: {
+          attrezzatura_id: string
+          created_at?: string
+          id?: string
+          note?: string | null
+          ore_utilizzo?: number
+          org_id: string
+          rapportino_id: string
+        }
+        Update: {
+          attrezzatura_id?: string
+          created_at?: string
+          id?: string
+          note?: string | null
+          ore_utilizzo?: number
+          org_id?: string
+          rapportino_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rapportino_attrezzature_attrezzatura_id_fkey"
+            columns: ["attrezzatura_id"]
+            isOneToOne: false
+            referencedRelation: "attrezzature"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rapportino_attrezzature_rapportino_id_fkey"
             columns: ["rapportino_id"]
             isOneToOne: false
             referencedRelation: "rapportini"

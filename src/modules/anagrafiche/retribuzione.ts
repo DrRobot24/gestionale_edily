@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
 import { useSession } from '../auth/SessionProvider'
-import { eFeriale } from '../../lib/giorni'
+import { eLavorabile } from '../../lib/giorni'
 import type { OreGiorno } from '../ore/useOrePeriodo'
 import type { Stipendio } from './dipendenti'
 
@@ -31,10 +31,12 @@ import type { Stipendio } from './dipendenti'
    2000 ÷ 23 = 86,96 € al giorno → ÷ 8 ore = 10,87 €/h.
 
    I GIORNI LAVORABILI sono i feriali, dal lunedi' al venerdi', contati
-   sul calendario del mese — non i giorni che la persona ha lavorato.
-   Stessa regola di `eFeriale`: i festivi infrasettimanali non si
-   tolgono (vedi `lib/giorni.ts`). LA GIORNATA PIENA e' l'orario da
-   contratto: 8 a tempo pieno, meno per un part-time.
+   sul calendario del mese — non i giorni che la persona ha lavorato. DAL
+   2026-09-28 SENZA LE FESTIVITA' NAZIONALI: «escludi i festivi e le
+   festivita' rosse di calendario italiano» (`eLavorabile` in
+   `lib/giorni.ts`). LA GIORNATA PIENA e' l'orario da contratto: 8 di
+   default, «le ore massime ordinarie applicabili a tutti i CCNL», meno
+   per un part-time.
 
    La prima versione (stesso giorno) divideva per le ore VALIDATE del
    mese — una risposta data prima, «giorni lavorati», presa alla
@@ -42,9 +44,14 @@ import type { Stipendio } from './dipendenti'
    Adesso la tariffa di un mese si conosce dal primo giorno e non si
    muove.
 
-   QUELLO CHE PRENDE resta la paga intera: «quello che conta e' che
-   quella risorsa prende quell'importo nel mese di riferimento». La
-   tariffa e' il costo di un'ora, e serve a pesare le ore sui cantieri.
+   QUELLO CHE PRENDE, corretto dall'utente il 2026-09-28: la tariffa
+   moltiplicata per le ORE EFFETTIVE del mese — quelle che il tecnico ha
+   inviato e il titolare ha confermato. «Quelle costituiscono parte
+   integrante del calcolo.» Fino a quel giorno prendeva la paga intera
+   appena c'era una giornata firmata; adesso la paga globale e' la base
+   da cui nasce la tariffa, e il mese vale le ore fatte. Esempio
+   dell'utente: Gioacchino Mancuso, 2000 € al mese; settembre 2026 ha 22
+   giorni lavorabili → 2000 ÷ 22 ÷ 8 = 11,36 €/h, per le ore validate.
    Lo straordinario costa come l'ordinario.
 
    ── DOVE NON STA ───────────────────────────────────────────────────
@@ -140,7 +147,7 @@ export function giorniLavorabili(giorno: string): number {
   for (;;) {
     const iso = d.toLocaleDateString('sv-SE')
     if (iso > al) break
-    if (eFeriale(iso)) n += 1
+    if (eLavorabile(iso)) n += 1
     d.setDate(d.getDate() + 1)
   }
   return n
@@ -235,20 +242,15 @@ export type RigaEconomica = {
   tariffa: TariffaDelMese
   /** Quanto ha maturato nel mese, prima di acconti e trattenute. */
   maturato: number
-  /** A paga globale, ma nel mese nessuna ora validata: il maturato resta
-   *  a zero finche' non arriva la prima giornata firmata. */
-  senzaOre: boolean
 }
 
 /**
  * Il mese di una persona: ore, assenze e quanto ha maturato.
  *
- * IL MATURATO SEGUE IL REGIME (utente, 2026-09-25):
- *   paga globale      la paga intera: «quello che conta e' che prende
- *                     quell'importo nel mese». Zero finche' nel mese non
- *                     c'e' nessuna ora validata.
- *   paga giornaliera  tariffa × ore effettivamente lavorate: le ore di
- *                     ferie e permesso a tariffa non si pagano.
+ * IL MATURATO E' SEMPRE TARIFFA × ORE LAVORATE VALIDATE, dal
+ * 2026-09-28 anche a paga globale (vedi in cima). Cambia solo da dove
+ * viene la tariffa: calcolata dalla paga globale, o scritta a mano per
+ * la paga giornaliera. Le ore di ferie e permesso non entrano.
  */
 export function rigaDelMese(
   storico: Regime[],
@@ -268,7 +270,6 @@ export function rigaDelMese(
     ore_altre: 0,
     tariffa: { origine: 'manca' },
     maturato: 0,
-    senzaOre: false,
   }
 
   for (const o of righe ?? []) {
@@ -283,11 +284,7 @@ export function rigaDelMese(
   r.giorni = giorniLavorati.size
   r.tariffa = tariffaDelMese(storico, giorno, oreGiorno)
 
-  const retribuite = r.ore_lavorate + r.ore_ferie + r.ore_permessi + r.ore_altre
-  if (r.tariffa.origine === 'calcolata') {
-    r.senzaOre = retribuite <= 0
-    r.maturato = r.senzaOre ? 0 : r.tariffa.paga
-  } else if (r.tariffa.origine === 'manuale') r.maturato = r.tariffa.euroOra * r.ore_lavorate
+  if (r.tariffa.origine !== 'manca') r.maturato = r.tariffa.euroOra * r.ore_lavorate
 
   // Al centesimo: e' un importo che finisce in un bonifico.
   r.maturato = Math.round(r.maturato * 100) / 100

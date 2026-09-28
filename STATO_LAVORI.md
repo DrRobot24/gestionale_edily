@@ -12,7 +12,49 @@
 Questa è la prima cosa da leggere aprendo il progetto, e vale sia per una chat
 nuova sia per chi ci torna dopo giorni.
 
-**⭐ PROSSIMA SESSIONE — IL CALENDARIO DELLE FESTIVITÀ.** Chiesto dall'utente
+**Novità del 28 settembre 2026.**
+- **`supabase/schema/iban-risorse.sql` ESEGUITO** il 28/09 (verifica: 4
+  policy, 1 trigger). Tabella `dipendente_iban`, chiusa su `paghe.read`;
+  l'IBAN si inserisce dal riquadro Retribuzione e compare nel Riepilogo.
+- **Paga globale, calcolo corretto dall'utente:** tariffa = paga ÷ giorni
+  feriali del mese **senza festività nazionali** (`eLavorabile` in
+  `lib/giorni.ts`, Pasquetta calcolata, patrono escluso) ÷ ore giornata piena;
+  il mese vale **tariffa × ore validate**, non più la paga intera.
+- **`supabase/schema/rapportino-mezzi-attrezzature.sql` ESEGUITO** il 28/09.
+  Box «Mezzi e attrezzature» nel rapportino (`RiquadroMezzi`).
+  `rapportino_attrezzature`: select/insert/delete come le foto (verificate).
+  `rapportino_mezzi` aveva già le sue da wbs-office e non sono state toccate:
+  `_select` (cantieri propri) e `_write` ALL (autore o chi valida, cantieri
+  propri) **senza controllo sullo stato** nella policy — lo stato lo difende
+  il trigger `riga_rapportino_modificabile`, se è attaccato anche lì. Anagrafiche mezzi e attrezzature ancora senza pagina: il box
+  dice «li inserisce l'amministrazione».
+- **`supabase/schema/appunti-risorse.sql` ESEGUITO** il 28/09 (3 policy,
+  1 trigger, 1 nota portata su 1 scheda con nota). Le note della
+  risorsa diventano **Appunti** (post-it, `dipendente_appunti`, letti solo con
+  `anagrafiche.write`), riquadro sotto Retribuzione. Il campo «Note» è uscito
+  da Sicurezza e abilitazioni; il blocco 3 copia le note esistenti come primo
+  appunto. `dipendenti.note` resta nel database, il gestionale non la scrive più.
+- **Sidebar a gruppi** (`GRUPPI` in `App.tsx`): Anagrafiche, Cantieri, Mezzi e
+  materiali, Ore e paghe. Stesso ordine per tutti, ognuno vede le sue voci.
+- **Pagine Mezzi e Attrezzature** (`/anagrafiche/mezzi`, `/anagrafiche/attrezzature`,
+  `ParcoPage`/`ParcoForm`, campi in `parco.ts`), in menu su `anagrafiche.write`
+  (Stefania e Giuseppe). **Lavori extra tolto dal menu di Stefania**: cancello
+  ora `rapportini.create` OR `rapportini.validate`. Verificato il 28/09: `mezzi` ha
+  `mezzi_select` e `mezzi_write` (ALL), nessun check su `proprieta` (testo
+  libero: il gestionale scrive `propria`/`noleggio`); `rapportino_mezzi` ha
+  il trigger `trg_rapportino_mezzi_lock` → `riga_rapportino_modificabile`,
+  quindi una scheda inviata non prende mezzi nuovi.
+- **`supabase/schema/attrezzature.sql` ESEGUITO** il 28/09 (verifica: 2
+  policy, 1 trigger). Mezzi e
+  attrezzature sono **due anagrafiche separate** (utente): `mezzi` = con targa
+  (tabella da wbs-office, pagina ancora da fare), `attrezzature` = tutto ciò
+  che non ha targa, con matricola e scadenza della verifica periodica. Solo
+  la tabella: pagina, consegne e costi ancora da fare.
+- Home di Stefania: frecce nella fascia, «Chi c'era» nel giorno, stato del
+  Riepilogo economico.
+
+**⭐ PROSSIMA SESSIONE — IL CALENDARIO DELLE FESTIVITÀ** (per la tariffa è
+fatto il 28/09; restano calendari, card e invio). Chiesto dall'utente
 la sera del 25 e rimandato di proposito. Oggi «giorno lavorabile» vuol dire
 lunedì–venerdì (`eFeriale` in `src/lib/giorni.ts`, che documenta già il
 limite): i festivi infrasettimanali — 1/1, 6/1, Pasquetta (mobile), 25/4, 1/5,

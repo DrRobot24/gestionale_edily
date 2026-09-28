@@ -8,6 +8,7 @@ import { useSession } from '../auth/SessionProvider'
 import { usePermission } from '../auth/usePermission'
 import { useEliminaRapportino, useRapportino, useTransizione } from './rapportino'
 import { useFoto } from './useFoto'
+import { RiquadroMezzi } from './RiquadroMezzi'
 import { cancellabile, modificabile } from './regole'
 import { StatoRapportino } from './stato'
 
@@ -257,6 +258,10 @@ export function RapportinoPage() {
           <Economia cantiereId={r.cantiere_id} giorno={r.data} />
 
           <GalleriaFoto rapportinoId={r.id} />
+
+          {/* Cosa si e' usato: in sola lettura, qui si guarda. Si
+              aggiunge dalla modifica, finche' la scheda e' in bozza. */}
+          <RiquadroMezzi rapportinoId={r.id} inAttesa={[]} onCambia={() => {}} modificabile={false} />
         </div>
 
         <div className="grid gap-4">

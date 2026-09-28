@@ -18,6 +18,7 @@ import {
   type Regime,
   type TariffaManuale,
 } from './retribuzione'
+import { ibanValido, mostraIban, pulisciIban, useIban, useSalvaIban } from './iban'
 
 /* ══════════════════════════════════════════════════════════════════
    UN RIQUADRO SOLO per quanto costa una persona, dal 2026-09-25.
@@ -102,6 +103,10 @@ export function RiquadroRetribuzione({
       {storico.length > 0 && (
         <Storico storico={storico} vigente={vigente} puoScrivere={puoScrivere} />
       )}
+
+      {/* Dove va il bonifico: sta qui e non in «Chi è» perche' e' un dato
+          delle paghe, e come la paga lo vede solo chi ha `paghe.read`. */}
+      <ContoBonifico dipendenteId={dipendenteId} puoScrivere={puoScrivere} />
     </Card>
   )
 }
@@ -193,7 +198,7 @@ function NuovoRegime({
       </div>
       <p className="text-xs font-semibold text-gray-700">
         {tipo === 'paga'
-          ? 'Un importo al mese: quello che entra in tasca alla persona in un mese regolare. La tariffa oraria la calcola il programma: importo ÷ giorni lavorabili del mese ÷ ore della giornata piena.'
+          ? 'Un importo al mese. Il programma ne ricava la tariffa oraria — importo ÷ giorni feriali del mese (senza sabati, domeniche e festività) ÷ ore della giornata piena — e il mese vale quella tariffa per le ore validate dal titolare.'
           : 'Una tariffa oraria: il mese vale le ore fatte davvero a quella tariffa. Lo straordinario costa uguale.'}
       </p>
 
@@ -253,9 +258,8 @@ function TariffeCalcolate({ dipendenteId, storico }: { dipendenteId: string; sto
         Tariffa oraria calcolata
       </p>
       <p className="text-[11px] font-semibold text-gray-600">
-        Paga globale ÷ giorni lavorabili del mese (dal lunedì al venerdì) ÷ ore della giornata
-        piena. Cambia di mese in mese con il calendario; quello che la persona prende resta la
-        paga globale.
+        Paga globale ÷ giorni feriali del mese (senza sabati, domeniche e festività) ÷ ore
+        della giornata piena. Il mese vale questa tariffa per le ore validate dal titolare.
       </p>
       <ul className="grid gap-1">
         {mesi.map((mese) => {
@@ -368,5 +372,110 @@ function Storico({
         </tbody>
       </Table>
     </>
+  )
+}
+
+/* ── il conto per il bonifico ─────────────────────────────────────── */
+
+/** L'IBAN su cui arriva lo stipendio, dal 2026-09-28. Uno per persona:
+ *  un conto cambiato si sovrascrive. Vedi `iban.ts`. */
+function ContoBonifico({
+  dipendenteId,
+  puoScrivere,
+}: {
+  dipendenteId: string
+  puoScrivere: boolean
+}) {
+  const { data, isPending, error } = useIban({ abilitato: true })
+  const salva = useSalvaIban()
+  const attuale = data?.get(dipendenteId)
+
+  const [apri, setApri] = useState(false)
+  const [iban, setIban] = useState('')
+  const [intestatario, setIntestatario] = useState('')
+  const [problema, setProblema] = useState<string | null>(null)
+
+  function comincia() {
+    setIban(attuale ? mostraIban(attuale.iban) : '')
+    setIntestatario(attuale?.intestatario ?? '')
+    setProblema(null)
+    setApri(true)
+  }
+
+  function conferma() {
+    if (!ibanValido(iban)) {
+      return setProblema(
+        'Questo IBAN non torna: controlla di averlo copiato giusto (in Italia sono 27 caratteri, IT…).',
+      )
+    }
+    setProblema(null)
+    salva.mutate(
+      {
+        dipendente_id: dipendenteId,
+        iban: pulisciIban(iban),
+        intestatario: intestatario.trim() || null,
+      },
+      { onSuccess: () => setApri(false) },
+    )
+  }
+
+  return (
+    <div className="grid gap-2 border-t-2 border-black pt-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-xs font-extrabold uppercase tracking-wide text-black">
+            IBAN per il bonifico
+          </p>
+          {!apri && (
+            <p className="numerico break-all text-sm font-bold text-black">
+              {isPending ? '…' : attuale ? mostraIban(attuale.iban) : (
+                <span className="font-semibold text-gray-500">non inserito</span>
+              )}
+            </p>
+          )}
+          {!apri && attuale?.intestatario && (
+            <p className="text-[11px] font-semibold text-gray-600">
+              Intestato a {attuale.intestatario}
+            </p>
+          )}
+        </div>
+        {puoScrivere && !apri && (
+          <Button dimensione="sm" onClick={comincia}>
+            {attuale ? 'Cambia' : 'Inserisci'}
+          </Button>
+        )}
+      </div>
+
+      {error && <Avviso tono="errore">Non riesco a leggere l’IBAN: {error.message}</Avviso>}
+
+      {apri && (
+        <div className="grid gap-3 rounded-xl border-2 border-black bg-amber-50 p-4">
+          <Campo
+            etichetta="IBAN"
+            className="numerico uppercase"
+            placeholder="IT60 X054 2811 1010 0000 0123 456"
+            value={iban}
+            onChange={(e) => setIban(e.target.value)}
+            autoComplete="off"
+          />
+          <Campo
+            etichetta="Intestatario"
+            placeholder="Solo se il conto non è a nome della persona"
+            value={intestatario}
+            onChange={(e) => setIntestatario(e.target.value)}
+          />
+          {problema && <Avviso tono="errore">{problema}</Avviso>}
+          {salva.error && <Avviso tono="errore">{(salva.error as Error).message}</Avviso>}
+          <div className="flex gap-2">
+            <Button variante="primario" dimensione="sm" onClick={conferma} disabled={salva.isPending}>
+              {salva.isPending ? 'Salvo…' : 'Salva'}
+            </Button>
+            <Button dimensione="sm" onClick={() => setApri(false)} disabled={salva.isPending}>
+              Annulla
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
   )
 }

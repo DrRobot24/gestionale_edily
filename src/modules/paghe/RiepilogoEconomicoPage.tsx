@@ -4,6 +4,7 @@ import { Avviso, Badge, Button, Campo, CampoSelect, Card, Cifra, RigaTotale, Tab
 import { useSession } from '../auth/SessionProvider'
 import { oreContratto, useDipendenti, useOrari, useStipendi } from '../anagrafiche/dipendenti'
 import { limitiMese, rigaDelMese, storicoRegimi } from '../anagrafiche/retribuzione'
+import { mostraIban, useIban } from '../anagrafiche/iban'
 import { useDataInIndirizzo } from '../home/useDataInIndirizzo'
 import { useGiornateInSospeso, useOreGriglia } from '../ore/useOrePeriodo'
 import {
@@ -80,6 +81,8 @@ export function RiepilogoEconomicoPage() {
   /* Dal vivo, solo finche' e' in bozza. */
   const persone = useDipendenti({ soloAttivi: false })
   const stipendi = useStipendi({ abilitato: true })
+  // Dove va il bonifico: letto dal vivo, anche su un mese archiviato.
+  const { data: ibans } = useIban({ abilitato: true })
   const { data: orari } = useOrari()
   const ore = useOreGriglia({ passo: 'mese', dal, al }, !fotografato)
   const sospeso = useGiornateInSospeso({ passo: 'mese', dal, al })
@@ -135,8 +138,6 @@ export function RiepilogoEconomicoPage() {
 
         if (t.origine === 'manca' && r.ore_lavorate > 0)
           avvisiRiga.set(d.id, 'Né paga globale né giornaliera: il lavoro vale zero')
-        else if (r.senzaOre)
-          avvisiRiga.set(d.id, 'Paga globale, ma nessuna ora validata nel mese')
 
         return {
           dipendente_id: d.id,
@@ -298,6 +299,11 @@ export function RiepilogoEconomicoPage() {
                           {r.tipo}
                         </span>
                       )}
+                      <span className="numerico block text-[10px] font-semibold text-gray-600">
+                        {ibans?.get(r.dipendente_id)
+                          ? mostraIban(ibans.get(r.dipendente_id)!.iban)
+                          : 'IBAN non inserito'}
+                      </span>
                       {avviso && (
                         <span className="block text-[11px] font-bold text-rose-700 print:hidden">
                           {avviso}

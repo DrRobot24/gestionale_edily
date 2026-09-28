@@ -183,9 +183,12 @@ export function useEliminaRapportino() {
         'rapportino_ore',
         'rapportino_materiali',
         'rapportino_mezzi',
+        'rapportino_attrezzature',
       ] as const) {
         const { error } = await supabase.from(tabella).delete().eq('rapportino_id', id)
-        if (error) throw error
+        // Una tabella che non c'e' ancora (SQL non eseguito) non ha righe
+        // da togliere: non e' un motivo per non cancellare la scheda.
+        if (error && error.code !== '42P01' && error.code !== 'PGRST205') throw error
       }
 
       const { data, error } = await supabase

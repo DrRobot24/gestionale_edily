@@ -3,11 +3,12 @@ import { useFieldArray, useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useNavigate, useParams } from 'react-router'
 import { z } from 'zod'
-import { Avviso, Badge, Button, Campo, CampoArea, CampoSelect, Card, Percorso, cn } from '../../ui'
+import { Avviso, Badge, Button, Campo, CampoSelect, Card, Percorso, cn } from '../../ui'
 import { usePermission } from '../auth/usePermission'
 import { RiquadroDocumentiPersona } from './RiquadroDocumentiPersona'
 import { RiquadroOrario } from './RiquadroOrario'
 import { RiquadroRetribuzione } from './RiquadroRetribuzione'
+import { RiquadroAppunti } from './RiquadroAppunti'
 import { useMembri } from '../cantieri/assegnazioni'
 import {
   useDipendenti,
@@ -87,7 +88,6 @@ const schema = z.object({
   data_nascita: z.string(),
   luogo_nascita: z.string(),
   residenza: z.string(),
-  note: z.string(),
   permesso_soggiorno: z.boolean(),
   permesso_scadenza: z.string(),
   /* Patenti e DPI con le date, dal 2026-09-25. La spunta «ha patenti»
@@ -204,7 +204,6 @@ const VUOTO: Campi = {
   data_nascita: '',
   luogo_nascita: '',
   residenza: '',
-  note: '',
   permesso_soggiorno: false,
   permesso_scadenza: '',
   ha_patenti: false,
@@ -310,7 +309,6 @@ export function DipendenteForm() {
       data_nascita: dipendente.data_nascita ?? '',
       luogo_nascita: dipendente.luogo_nascita ?? '',
       residenza: dipendente.residenza ?? '',
-      note: dipendente.note ?? '',
       permesso_soggiorno: dipendente.permesso_soggiorno ?? false,
       permesso_scadenza: dipendente.permesso_scadenza ?? '',
       ha_patenti: patentiDi(dipendente.patenti).length > 0,
@@ -360,7 +358,6 @@ export function DipendenteForm() {
         data_nascita: vuotoSeVuoto(c.data_nascita),
         luogo_nascita: vuotoSeVuoto(c.luogo_nascita),
         residenza: vuotoSeVuoto(c.residenza),
-        note: vuotoSeVuoto(c.note),
         stato_rapporto: c.stato_rapporto,
 
         /* Patente e DPI SOLO PER GLI OPERAI, e si azzerano cambiando
@@ -407,6 +404,44 @@ export function DipendenteForm() {
     // significherebbe fargli dimenticare il pezzo che conta.
     if (nuovo) navigate(`/anagrafiche/operai/${salvato}`, { replace: true })
   }
+
+  /* LA PULSANTIERA, dal 2026-09-28 sotto Sicurezza e abilitazioni.
+     Tolte le note da quel riquadro, a destra restava un buco alto
+     mezzo schermo mentre i pulsanti stavano a sinistra, sotto
+     Inquadramento, a spingere giu' documenti e orario. L'utente l'ha
+     visto prima di noi: «spostiamo la pulsantiera a destra, che c'e'
+     piu' spazio libero». Per tecnici e impiegati la colonna di destra
+     non c'e', e i pulsanti restano in fondo al modulo. */
+  const pulsantiera = puoScrivere && (
+          <div className="flex flex-wrap gap-3">
+            <Button type="submit" variante="primario" disabled={salva.isPending || !isDirty}>
+              {salva.isPending ? 'Salvo…' : nuovo ? `Crea ${comeSiChiama}` : 'Salva modifiche'}
+            </Button>
+
+            {!nuovo && (
+              <>
+                <Button
+                  onClick={() =>
+                    archivia.mutate({ id: id!, attivo: !dipendente?.attivo })
+                  }
+                  disabled={archivia.isPending}
+                >
+                  {dipendente?.attivo ? 'Archivia' : 'Riattiva'}
+                </Button>
+                <Button
+                  variante="danger"
+                  disabled={elimina.isPending}
+                  onClick={() => {
+                    if (!confirm('Eliminare definitivamente questa persona?')) return
+                    elimina.mutate(id!, { onSuccess: () => navigate('/anagrafiche/operai') })
+                  }}
+                >
+                  Elimina
+                </Button>
+              </>
+            )}
+          </div>
+  )
 
   return (
     <div className="mx-auto grid max-w-6xl gap-4">
@@ -529,7 +564,15 @@ export function DipendenteForm() {
 
             `items-start`: senza, le due card si allungano fino alla piu'
             alta e quella corta resta con mezzo riquadro vuoto in fondo. */}
-        <div className="grid items-start gap-4 lg:grid-cols-2">
+        {/* Due colonne solo per l'operaio: per tecnici e impiegati il
+            riquadro di destra non c'e' (vedi sotto) e Inquadramento
+            prende tutta la riga invece di lasciarne mezza vuota. */}
+        <div
+          className={cn(
+            'grid items-start gap-4',
+            tipoScelto === 'operaio' && 'lg:grid-cols-2',
+          )}
+        >
 
         {/* ══ INQUADRAMENTO ══
             Il rapporto con l'impresa: che ruolo ha, con che contratto,
@@ -776,15 +819,18 @@ export function DipendenteForm() {
             Patente e DPI SOLO PER GLI OPERAI: chi non va in cantiere non
             guida il furgone e non indossa l'imbracatura, e un riquadro
             di caselle che non si spunteranno mai e' rumore sulla scheda
-            di Stefania. Le note invece valgono per tutti — una patologia
-            e' una patologia ovunque si lavori. */}
+            di Stefania.
+
+            LE NOTE NON STANNO PIU' QUI, dal 2026-09-28: sono diventate
+            gli APPUNTI, un riquadro loro in fondo alla scheda — post-it
+            su qualunque argomento, per tutti i tipi di risorsa. Qui
+            dentro invitavano a scrivere solo di sicurezza. Vedi
+            `RiquadroAppunti`. */}
+        {tipoScelto === 'operaio' && (
+        <div className="grid gap-4">
         <Card className="overflow-hidden">
-          <Titolo nota={
-            tipoScelto === 'operaio'
-              ? 'Cosa può guidare, cosa gli è stato consegnato, cosa bisogna sapere.'
-              : 'Quello che bisogna sapere su questa persona.'
-          }>
-            {tipoScelto === 'operaio' ? 'Sicurezza e abilitazioni' : 'Note'}
+          <Titolo nota="Cosa può guidare e cosa gli è stato consegnato.">
+            Sicurezza e abilitazioni
           </Titolo>
           <div className="grid gap-4 p-5">
             {tipoScelto === 'operaio' && (
@@ -973,54 +1019,16 @@ export function DipendenteForm() {
               </>
             )}
 
-            {/* SENZA ETICHETTA quando il riquadro si chiama gia' «Note»:
-                leggere la stessa parola due volte a tre centimetri e'
-                rumore, ed e' la stessa regola dei percorsi. Per un
-                operaio invece il riquadro si intitola «Sicurezza e
-                abilitazioni» e l'etichetta serve. */}
-            <CampoArea
-              etichetta={tipoScelto === 'operaio' ? 'Note' : undefined}
-              rows={3}
-              disabled={!puoScrivere}
-              placeholder="Patologie, allergie, limitazioni, chi chiamare in caso di emergenza…"
-              suggerimento="Le legge solo chi gestisce le anagrafiche: il tecnico non vede questa scheda."
-              errore={errors.note?.message}
-              {...register('note')}
-            />
           </div>
         </Card>
+        {pulsantiera}
+        </div>
+        )}
         </div>
 
-        {puoScrivere && (
-          <div className="flex flex-wrap gap-3">
-            <Button type="submit" variante="primario" disabled={salva.isPending || !isDirty}>
-              {salva.isPending ? 'Salvo…' : nuovo ? `Crea ${comeSiChiama}` : 'Salva modifiche'}
-            </Button>
-
-            {!nuovo && (
-              <>
-                <Button
-                  onClick={() =>
-                    archivia.mutate({ id: id!, attivo: !dipendente?.attivo })
-                  }
-                  disabled={archivia.isPending}
-                >
-                  {dipendente?.attivo ? 'Archivia' : 'Riattiva'}
-                </Button>
-                <Button
-                  variante="danger"
-                  disabled={elimina.isPending}
-                  onClick={() => {
-                    if (!confirm('Eliminare definitivamente questa persona?')) return
-                    elimina.mutate(id!, { onSuccess: () => navigate('/anagrafiche/operai') })
-                  }}
-                >
-                  Elimina
-                </Button>
-              </>
-            )}
-          </div>
-        )}
+        {/* Senza la colonna di destra (tecnici e impiegati) i pulsanti
+            restano sotto, dove sono sempre stati. */}
+        {tipoScelto !== 'operaio' && pulsantiera}
       </form>
 
       {/* ══ DOCUMENTI E TARIFFE ══
@@ -1055,13 +1063,20 @@ export function DipendenteForm() {
               oraria, in un riquadro solo dal 2026-09-25 — vedi
               `RiquadroRetribuzione`. Solo a chi fa le paghe: chi non ha
               `paghe.read` non vede nemmeno che il riquadro esiste. */}
-          {dipendente && puoVederePaghe && (
-            <RiquadroRetribuzione
-              dipendenteId={dipendente.id}
-              tariffe={dipendente.dipendente_costi}
-              puoScrivere={puoScrivere}
-            />
-          )}
+          <div className="grid gap-4">
+            {dipendente && puoVederePaghe && (
+              <RiquadroRetribuzione
+                dipendenteId={dipendente.id}
+                tariffe={dipendente.dipendente_costi}
+                puoScrivere={puoScrivere}
+              />
+            )}
+            {/* Gli appunti nello spazio che restava vuoto sotto la
+                retribuzione (2026-09-28). Li vede chi tiene le
+                anagrafiche: e' la RLS a dirlo, qui si evita solo di
+                mostrare un riquadro che risponderebbe vuoto. */}
+            {id && puoScrivere && <RiquadroAppunti dipendenteId={id} puoScrivere={puoScrivere} />}
+          </div>
         </div>
       )}
     </div>

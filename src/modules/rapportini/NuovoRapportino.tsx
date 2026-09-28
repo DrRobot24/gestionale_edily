@@ -9,6 +9,7 @@ import { useDipendenti } from '../anagrafiche/dipendenti'
 import { FormRapportino } from './FormRapportino'
 import { caricaFoto } from './useFoto'
 import type { DatiEconomia } from './RiquadroEconomia'
+import { scriviUsi, type RigaUso } from './mezziAttrezzature'
 import { ALTRO_MOTIVO, oggi, type CampiRapportino } from './campiRapportino'
 
 export function NuovoRapportino() {
@@ -38,10 +39,12 @@ export function NuovoRapportino() {
       campi,
       foto,
       economia,
+      mezzi,
     }: {
       campi: CampiRapportino
       foto: File[]
       economia: DatiEconomia[]
+      mezzi: RigaUso[]
     }) => {
       // Numero e anno NON si passano: li assegna il database con
       // document_counters. Verificato: il primo inserimento e' uscito
@@ -141,6 +144,16 @@ export function NuovoRapportino() {
         }
       }
 
+      // Mezzi e attrezzature: come le note, a rapportino gia' nato non
+      // fanno fallire il salvataggio — si dice cosa e' rimasto fuori.
+      if (mezzi.length > 0) {
+        try {
+          await scriviUsi(org!.id, rapportino.id, mezzi)
+        } catch {
+          fallite.push('mezzi e attrezzature')
+        }
+      }
+
       for (const file of foto) {
         try {
           await caricaFoto({
@@ -160,6 +173,7 @@ export function NuovoRapportino() {
       qc.invalidateQueries({ queryKey: ['rapportini'] })
       qc.invalidateQueries({ queryKey: ['foto'] })
       qc.invalidateQueries({ queryKey: ['note-contabili'] })
+      qc.invalidateQueries({ queryKey: ['mezzi-attrezzature'] })
       // Se qualche foto e' rimasta a terra ci si ferma qui a dirlo.
       // Andarsene lasciando credere che sia partito tutto e' peggio di
       // un secondo di attesa in piu'.
@@ -284,7 +298,9 @@ export function NuovoRapportino() {
         etichettaSalva="Segna come compilata"
         inCorso={salva.isPending}
         errore={salva.isError ? (salva.error as Error).message : undefined}
-        onSalva={(campi, foto, economia) => salva.mutate({ campi, foto, economia })}
+        onSalva={(campi, foto, economia, mezzi) =>
+          salva.mutate({ campi, foto, economia, mezzi })
+        }
         onAnnulla={() => navigate(risali(dove, ritorno).a)}
       />
       )}

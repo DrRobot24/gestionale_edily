@@ -12,6 +12,8 @@ import { RiquadroFoto } from './RiquadroFoto'
 import { useAssenze } from './useAssenze'
 import { oreContratto, useOrari } from '../anagrafiche/dipendenti'
 import { RiquadroEconomia, type DatiEconomia } from './RiquadroEconomia'
+import { RiquadroMezzi } from './RiquadroMezzi'
+import type { RigaUso } from './mezziAttrezzature'
 
 type Props = {
   valoriIniziali: CampiRapportino
@@ -27,7 +29,12 @@ type Props = {
   etichettaSalva: string
   inCorso: boolean
   errore?: string
-  onSalva: (campi: CampiRapportino, foto: File[], economia: DatiEconomia[]) => void
+  onSalva: (
+    campi: CampiRapportino,
+    foto: File[],
+    economia: DatiEconomia[],
+    mezzi: RigaUso[],
+  ) => void
   onAnnulla: () => void
 }
 
@@ -47,6 +54,9 @@ export function FormRapportino({
   // rapportino, perche' cantiere e giorno si possono ancora cambiare e
   // scriverle subito le lascerebbe appese al cantiere sbagliato.
   const [economia, setEconomia] = useState<DatiEconomia[]>([])
+  // Mezzi e attrezzature: stessa regola, in attesa finche' la scheda
+  // non esiste.
+  const [mezzi, setMezzi] = useState<RigaUso[]>([])
   const {
     register,
     control,
@@ -231,7 +241,7 @@ export function FormRapportino({
 
   return (
     <form
-      onSubmit={handleSubmit((campi) => onSalva(campi, foto, economia))}
+      onSubmit={handleSubmit((campi) => onSalva(campi, foto, economia, mezzi))}
       className="grid gap-4"
       noValidate
     >
@@ -802,6 +812,14 @@ export function FormRapportino({
           {/* Le foto stanno fra la squadra e il taccuino: sono i fatti della
               giornata, come le ore, e vengono prima dei commenti. */}
           <RiquadroFoto scheda={scheda} inAttesa={foto} onCambia={setFoto} />
+
+          {/* Mezzi e attrezzature sotto le foto: sono fatti della
+              giornata anche loro, e vengono prima delle note. */}
+          <RiquadroMezzi
+            rapportinoId={scheda?.rapportinoId}
+            inAttesa={mezzi}
+            onCambia={setMezzi}
+          />
 
           {/* Il taccuino sta per conto suo, in fondo.
               Dentro il riquadro della squadra sembrerebbe una nota sulle
