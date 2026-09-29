@@ -21,7 +21,7 @@ import { useSession } from '../auth/SessionProvider'
 
 export type TipoParco = 'mezzi' | 'attrezzature'
 
-type Tipo = 'testo' | 'data' | 'proprieta' | 'fornitore' | 'area'
+type Tipo = 'testo' | 'data' | 'euro' | 'proprieta' | 'fornitore' | 'area'
 
 export type Campo = {
   nome: string
@@ -29,14 +29,60 @@ export type Campo = {
   tipo: Tipo
   segnaposto?: string
   suggerimento?: string
+  /** Occupa tutta la riga invece di mezza. */
+  largo?: boolean
 }
+
+/** I campi della scheda vanno a gruppi, ognuno col suo titolo: dal
+ *  2026-09-29, quando sono passati da otto a venti — «aumenta i campi
+ *  che qua sono molto pochi» (utente). Venti caselle una dopo l'altra
+ *  sono un modulo delle tasse; divise per argomento si trovano. */
+export type Sezione = { titolo: string; campi: Campo[] }
 
 /** Una riga, di qualunque delle due tabelle. */
 export type RigaParco = {
   id: string
   descrizione: string
   attivo: boolean
-  [campo: string]: string | boolean | null
+  [campo: string]: string | number | boolean | null
+}
+
+/** Le sezioni comuni ai due tipi: chi e' il proprietario, e
+ *  l'assicurazione — che c'e' anche su un'attrezzatura, una gru o un
+ *  sollevatore. Il COSTO e' il premio annuo: il pagamento vero, con la
+ *  sua data e il suo fornitore, si segna fra le spese. */
+const PROPRIETA: Sezione = {
+  titolo: 'Proprietà',
+  campi: [
+    { nome: 'proprieta', etichetta: 'Proprietà', tipo: 'proprieta' },
+    { nome: 'fornitore_id', etichetta: 'Fornitore del noleggio', tipo: 'fornitore' },
+    { nome: 'data_acquisto', etichetta: 'Data di acquisto', tipo: 'data' },
+  ],
+}
+
+function assicurazione(scadenza: boolean): Sezione {
+  return {
+    titolo: 'Assicurazione',
+    campi: [
+      { nome: 'compagnia_assicurativa', etichetta: 'Compagnia assicuratrice', tipo: 'testo', segnaposto: 'Generali, Unipol, Allianz…' },
+      { nome: 'numero_polizza', etichetta: 'Numero di polizza', tipo: 'testo' },
+      {
+        nome: 'costo_assicurazione',
+        etichetta: 'Costo annuo (€)',
+        tipo: 'euro',
+        segnaposto: '1200,00',
+        suggerimento: 'Il premio di un anno',
+      },
+      ...(scadenza
+        ? [{ nome: 'scadenza_assicurazione', etichetta: 'Scadenza assicurazione', tipo: 'data' as const }]
+        : []),
+    ],
+  }
+}
+
+const NOTE: Sezione = {
+  titolo: 'Note',
+  campi: [{ nome: 'note', etichetta: 'Note', tipo: 'area', largo: true }],
 }
 
 export const PARCO: Record<
@@ -46,11 +92,11 @@ export const PARCO: Record<
     singolare: string
     percorso: string
     sottotitolo: string
-    campi: Campo[]
+    sezioni: Sezione[]
     /** Le colonne dell'elenco, oltre alla descrizione. */
     colonne: { nome: string; etichetta: string }[]
-    /** Le scadenze da tenere d'occhio. */
-    scadenze: string[]
+    /** Le scadenze da tenere d'occhio, col nome breve per l'elenco. */
+    scadenze: { nome: string; etichetta: string; breve: string }[]
   }
 > = {
   mezzi: {
@@ -58,56 +104,97 @@ export const PARCO: Record<
     singolare: 'mezzo',
     percorso: '/anagrafiche/mezzi',
     sottotitolo: 'Tutto quello che ha la targa: furgoni, autocarri, escavatori omologati.',
-    campi: [
-      { nome: 'descrizione', etichetta: 'Descrizione', tipo: 'testo', segnaposto: 'Iveco Daily cassonato' },
-      { nome: 'codice', etichetta: 'Codice interno', tipo: 'testo', segnaposto: 'M01' },
-      { nome: 'tipo', etichetta: 'Tipo', tipo: 'testo', segnaposto: 'Furgone, autocarro, escavatore…' },
-      { nome: 'targa', etichetta: 'Targa', tipo: 'testo', segnaposto: 'AB123CD' },
-      { nome: 'proprieta', etichetta: 'Proprietà', tipo: 'proprieta' },
-      { nome: 'fornitore_id', etichetta: 'Fornitore del noleggio', tipo: 'fornitore' },
-      { nome: 'scadenza_revisione', etichetta: 'Scadenza revisione', tipo: 'data' },
-      { nome: 'scadenza_assicurazione', etichetta: 'Scadenza assicurazione', tipo: 'data' },
+    sezioni: [
+      {
+        titolo: 'Il mezzo',
+        campi: [
+          { nome: 'descrizione', etichetta: 'Descrizione', tipo: 'testo', segnaposto: 'Iveco Daily cassonato', largo: true },
+          { nome: 'codice', etichetta: 'Codice interno', tipo: 'testo', segnaposto: 'M01' },
+          { nome: 'tipo', etichetta: 'Tipo', tipo: 'testo', segnaposto: 'Furgone, autocarro, escavatore…' },
+          { nome: 'marca', etichetta: 'Marca', tipo: 'testo', segnaposto: 'Iveco' },
+          { nome: 'modello', etichetta: 'Modello', tipo: 'testo', segnaposto: 'Daily 35C14' },
+          { nome: 'targa', etichetta: 'Targa', tipo: 'testo', segnaposto: 'AB123CD' },
+          {
+            nome: 'telaio',
+            etichetta: 'Numero di telaio',
+            tipo: 'testo',
+            suggerimento: 'Il VIN, sul libretto alla lettera E',
+          },
+          { nome: 'data_immatricolazione', etichetta: 'Prima immatricolazione', tipo: 'data' },
+        ],
+      },
+      PROPRIETA,
+      assicurazione(true),
+      {
+        titolo: 'Scadenze',
+        campi: [
+          { nome: 'scadenza_revisione', etichetta: 'Scadenza revisione', tipo: 'data' },
+          { nome: 'scadenza_bollo', etichetta: 'Scadenza bollo', tipo: 'data' },
+        ],
+      },
+      NOTE,
     ],
     colonne: [
       { nome: 'targa', etichetta: 'Targa' },
       { nome: 'tipo', etichetta: 'Tipo' },
     ],
-    scadenze: ['scadenza_revisione', 'scadenza_assicurazione'],
+    scadenze: [
+      { nome: 'scadenza_revisione', etichetta: 'Revisione', breve: 'Rev.' },
+      { nome: 'scadenza_assicurazione', etichetta: 'Assicurazione', breve: 'Ass.' },
+      { nome: 'scadenza_bollo', etichetta: 'Bollo', breve: 'Bollo' },
+    ],
   },
   attrezzature: {
     titolo: 'Attrezzature',
     singolare: 'attrezzatura',
     percorso: '/anagrafiche/attrezzature',
     sottotitolo: 'Tutto quello che non ha la targa: demolitori, betoniere, trabattelli, generatori.',
-    campi: [
-      { nome: 'descrizione', etichetta: 'Descrizione', tipo: 'testo', segnaposto: 'Martello demolitore' },
-      { nome: 'codice', etichetta: 'Codice interno', tipo: 'testo', segnaposto: 'A01' },
-      { nome: 'categoria', etichetta: 'Categoria', tipo: 'testo', segnaposto: 'Demolizione, sollevamento, elettrico…' },
-      { nome: 'marca', etichetta: 'Marca', tipo: 'testo', segnaposto: 'Hilti' },
-      { nome: 'modello', etichetta: 'Modello', tipo: 'testo', segnaposto: 'TE 1000' },
+    sezioni: [
       {
-        nome: 'matricola',
-        etichetta: 'Matricola',
-        tipo: 'testo',
-        suggerimento: 'Quella sulla targhetta: distingue due attrezzi uguali',
+        titolo: 'L’attrezzatura',
+        campi: [
+          { nome: 'descrizione', etichetta: 'Descrizione', tipo: 'testo', segnaposto: 'Martello demolitore', largo: true },
+          { nome: 'codice', etichetta: 'Codice interno', tipo: 'testo', segnaposto: 'A01' },
+          { nome: 'categoria', etichetta: 'Categoria', tipo: 'testo', segnaposto: 'Demolizione, sollevamento, elettrico…' },
+          { nome: 'marca', etichetta: 'Marca', tipo: 'testo', segnaposto: 'Hilti' },
+          { nome: 'modello', etichetta: 'Modello', tipo: 'testo', segnaposto: 'TE 1000' },
+          {
+            nome: 'matricola',
+            etichetta: 'Matricola',
+            tipo: 'testo',
+            suggerimento: 'Quella sulla targhetta: distingue due attrezzi uguali',
+          },
+        ],
       },
-      { nome: 'proprieta', etichetta: 'Proprietà', tipo: 'proprieta' },
-      { nome: 'fornitore_id', etichetta: 'Fornitore del noleggio', tipo: 'fornitore' },
-      { nome: 'data_acquisto', etichetta: 'Data di acquisto', tipo: 'data' },
+      PROPRIETA,
+      assicurazione(true),
       {
-        nome: 'scadenza_verifica',
-        etichetta: 'Prossima verifica periodica',
-        tipo: 'data',
-        suggerimento: 'Ponteggi, sollevamento, impianti elettrici: quando va rifatta',
+        titolo: 'Verifiche',
+        campi: [
+          {
+            nome: 'scadenza_verifica',
+            etichetta: 'Prossima verifica periodica',
+            tipo: 'data',
+            suggerimento: 'INAIL (ex ISPESL) per sollevamento e ponteggi, impianti elettrici: quando va rifatta',
+          },
+        ],
       },
-      { nome: 'note', etichetta: 'Note', tipo: 'area' },
+      NOTE,
     ],
     colonne: [
       { nome: 'categoria', etichetta: 'Categoria' },
       { nome: 'matricola', etichetta: 'Matricola' },
     ],
-    scadenze: ['scadenza_verifica'],
+    scadenze: [
+      { nome: 'scadenza_verifica', etichetta: 'Verifica periodica', breve: 'Ver.' },
+      { nome: 'scadenza_assicurazione', etichetta: 'Assicurazione', breve: 'Ass.' },
+    ],
   },
+}
+
+/** Tutti i campi della scheda, in fila. */
+export function campiDi(tipo: TipoParco): Campo[] {
+  return PARCO[tipo].sezioni.flatMap((s) => s.campi)
 }
 
 /* Le due tabelle hanno tipi diversi per supabase-js: le chiamate si
@@ -165,10 +252,10 @@ export function useSalvaParco(tipo: TipoParco) {
   const qc = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ id, dati }: { id?: string; dati: Record<string, string | null> }) => {
+    mutationFn: async ({ id, dati }: { id?: string; dati: Record<string, string | number | null> }) => {
       // `descrizione` e' obbligatoria in tutte e due le tabelle: il form
       // la controlla prima di arrivare qui.
-      const riga = { ...dati, descrizione: dati.descrizione ?? '' }
+      const riga = { ...dati, descrizione: String(dati.descrizione ?? '') }
       if (id) {
         const { error } =
           tipo === 'mezzi'
@@ -231,7 +318,7 @@ export function useEliminaParco(tipo: TipoParco) {
       if (error) {
         if (error.code === '23503') {
           throw new Error(
-            'È già stato usato in qualche rapportino: eliminarlo lascerebbe quelle schede senza. Archivialo invece — sparisce dalla tendina ma lo storico resta.',
+            'È già stato usato in qualche rapportino o ha delle spese segnate: eliminarlo le lascerebbe senza. Archivialo invece — sparisce dalla tendina ma lo storico resta.',
           )
         }
         throw error

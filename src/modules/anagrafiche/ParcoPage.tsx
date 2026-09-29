@@ -97,22 +97,31 @@ export function ParcoPage({ tipo }: { tipo: TipoParco }) {
 
 /** Le scadenze della riga: rosse se passate, gialle entro trenta
  *  giorni, grigie le altre. */
-function Scadenze({ voce, campi }: { voce: Record<string, unknown>; campi: string[] }) {
-  const date = campi.map((c) => voce[c] as string | null).filter((d): d is string => Boolean(d))
+function Scadenze({
+  voce,
+  campi,
+}: {
+  voce: Record<string, unknown>
+  campi: { nome: string; etichetta: string; breve: string }[]
+}) {
+  const date = campi
+    .map((c) => ({ ...c, d: voce[c.nome] as string | null }))
+    .filter((c): c is typeof c & { d: string } => Boolean(c.d))
   if (date.length === 0) return <span className="text-gray-400">—</span>
   return (
     <span className="flex flex-wrap gap-1">
-      {date.map((d, i) => {
+      {date.map(({ d, nome, etichetta, breve }) => {
         const stato = scadenzaVicina(d)
         return (
           <span
-            key={i}
+            key={nome}
+            title={`${etichetta}: ${fmtData(d)}`}
             className={cn(
               'numerico rounded border border-black px-1.5 text-[11px] font-bold',
               stato === 'scaduta' ? 'bg-rose-300' : stato === 'vicina' ? 'bg-yellow-200' : 'bg-white',
             )}
           >
-            {fmtData(d)}
+            {breve} {fmtData(d)}
           </span>
         )
       })}

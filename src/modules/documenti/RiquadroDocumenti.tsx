@@ -52,6 +52,34 @@ const PLACEHOLDER: Record<AmbitoDocumento, string> = {
   attrezzatura: 'Verifica periodica 2026, Manuale d’uso…',
 }
 
+/** I documenti che quella cosa ha di sicuro, da scegliere con un
+ *  tocco invece di scriverli: dal 2026-09-29 per mezzi e attrezzature,
+ *  «il certificato assicurativo, la verifica ISPESL, il libretto di
+ *  proprieta'» (utente). Riempiono il nome, che resta modificabile —
+ *  «Polizza 2027» e' meglio di «Certificato assicurativo» due volte. */
+const TIPI: Partial<Record<AmbitoDocumento, string[]>> = {
+  mezzo: [
+    'Libretto di circolazione',
+    'Certificato di proprietà',
+    'Certificato assicurativo',
+    'Revisione',
+    'Bollo',
+    'Verifica INAIL (ex ISPESL)',
+    'Contratto di noleggio / leasing',
+    'Manuale d’uso',
+  ],
+  attrezzatura: [
+    'Verifica INAIL (ex ISPESL)',
+    'Verifica periodica',
+    'Dichiarazione CE di conformità',
+    'Certificato assicurativo',
+    'Registro di controllo',
+    'Fattura di acquisto',
+    'Contratto di noleggio',
+    'Manuale d’uso',
+  ],
+}
+
 type Props = {
   ambito: AmbitoDocumento
   riferimentoId: string
@@ -187,6 +215,28 @@ export function RiquadroDocumenti({ ambito, riferimentoId, puoScrivere }: Props)
                 PDF, Word, Excel o immagine, fino a 50 MB.
               </span>
             </label>
+          )}
+
+          {TIPI[ambito] && (
+            <div className="grid gap-1.5">
+              <span className="text-xs font-bold uppercase">Che documento è</span>
+              <div className="flex flex-wrap gap-1.5">
+                {TIPI[ambito]!.map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setTitolo(t)}
+                    className={
+                      titolo === t
+                        ? 'cursor-pointer rounded-lg border-2 border-black bg-amber-400 px-2.5 py-1 text-xs font-bold text-black'
+                        : 'cursor-pointer rounded-lg border-2 border-black bg-white px-2.5 py-1 text-xs font-bold text-black hover:bg-amber-100'
+                    }
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </div>
           )}
 
           <Campo

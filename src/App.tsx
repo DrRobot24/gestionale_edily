@@ -1,5 +1,5 @@
-import { Fragment, Suspense, lazy, type ComponentType, type ReactNode } from 'react'
-import { BrowserRouter, Routes, Route, NavLink, Outlet } from 'react-router'
+import { Fragment, Suspense, lazy, useState, type ComponentType, type ReactNode } from 'react'
+import { BrowserRouter, Routes, Route, NavLink, Outlet, useLocation } from 'react-router'
 import { SessionProvider, useSession } from './modules/auth/SessionProvider'
 import { RequireAuth, RequirePermission } from './modules/auth/guards'
 import { LoginPage } from './modules/auth/LoginPage'
@@ -582,28 +582,29 @@ function Barra({ voci }: { voci: Voce[] }) {
 
   return (
     <aside className="hidden w-64 shrink-0 flex-col border-r-2 border-black bg-gray-900 lg:flex print:hidden">
-      <div className="flex items-center gap-3 border-b-2 border-black px-5 py-6">
+      {/* LA TESTATA COMPATTA, dal 2026-09-29 («troppa carne al fuoco»,
+          l'utente, sulla sidebar): con una sola azienda il suo nome sta
+          sotto quello del programma, invece che in un riquadro suo con
+          l'etichetta «Azienda». Il selettore resta, sotto, solo quando
+          c'e' davvero una scelta da fare. */}
+      <div className="flex items-center gap-3 border-b-2 border-black px-5 py-4">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-2 border-black bg-amber-400 shadow-neo-sm">
           <span className="text-xs font-extrabold text-black">EG</span>
         </div>
         <div className="min-w-0">
           <p className="truncate font-extrabold leading-tight text-white">{env.VITE_APP_NAME}</p>
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">
-            Cantieri e commesse
+          <p className="truncate text-[11px] font-semibold uppercase tracking-wider text-gray-500">
+            {orgs.length > 1 ? 'Cantieri e commesse' : (org?.ragioneSociale ?? 'Cantieri e commesse')}
           </p>
         </div>
       </div>
 
-      {/* Il selettore compare solo se c'e' davvero una scelta da fare:
-          con una sola azienda una tendina da un elemento e' rumore. */}
-      <div className="border-b-2 border-black px-5 py-4">
-        <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-500">
-          Azienda
-        </p>
-        {orgs.length > 1 ? (
+      {orgs.length > 1 && (
+        <div className="border-b-2 border-black px-5 py-3">
           <select
             value={org?.id ?? ''}
             onChange={(e) => setOrgAttiva(e.target.value)}
+            aria-label="Azienda"
             className="w-full cursor-pointer rounded-xl border-2 border-black bg-white px-3 py-2 text-sm font-bold text-black focus:outline-none focus:ring-2 focus:ring-amber-400"
           >
             {orgs.map((o) => (
@@ -612,31 +613,10 @@ function Barra({ voci }: { voci: Voce[] }) {
               </option>
             ))}
           </select>
-        ) : (
-          <p className="truncate text-sm font-bold text-white">{org?.ragioneSociale}</p>
-        )}
-      </div>
+        </div>
+      )}
 
-      <nav className="flex flex-1 flex-col gap-1 p-3">
-        {inGruppi(voci).map(({ voce: v, gruppo }, i, tutte) => (
-          <Fragment key={v.to}>
-            {/* Il titolo del gruppo prima della sua prima voce: stesso
-                stile di «Azienda» qui sopra, piccolo e grigio, perche'
-                ordina senza chiedere attenzione. */}
-            {gruppo && gruppo !== tutte[i - 1]?.gruppo && (
-              <p className="mt-3 px-3 pb-0.5 text-[10px] font-bold uppercase tracking-wider text-gray-500">
-                {gruppo}
-              </p>
-            )}
-            <NavLink to={v.to} end={v.to === '/'} className={classeVoce}>
-              <span className="flex items-center justify-between gap-2">
-                <NomeVoce voce={v} />
-                <Pallino voce={v.to} />
-              </span>
-            </NavLink>
-          </Fragment>
-        ))}
-      </nav>
+      <Menu voci={voci} />
 
       <div className="border-t-2 border-black px-5 py-4">
         {/* Il nome sopra, l'indirizzo sotto in piccolo. Chi lavora qui si
@@ -674,6 +654,116 @@ function Barra({ voci }: { voci: Voce[] }) {
         </div>
       </div>
     </aside>
+  )
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   IL MENU A FISARMONICA, dal 2026-09-29: «sistema la sidebar perche'
+   mi sembra ci sia troppa carne al fuoco» (utente). Al titolare e a
+   Stefania arrivavano tredici voci tutte aperte, in quattro gruppi.
+
+   Adesso i gruppi si chiudono: resta aperto QUELLO DELLA PAGINA IN CUI
+   SI E', gli altri mostrano solo il titolo, con una freccia e quante
+   voci contengono. Un clic su un titolo apre quel gruppo e chiude
+   l'altro. Cambiando pagina si apre il gruppo della pagina nuova: la
+   voce accesa si vede sempre (vedi «sapere sempre dove si e'»).
+
+   Chi ha POCHE VOCI — il tecnico ne ha sei — le vede tutte aperte come
+   prima: chiuderle gli costerebbe un clic in piu' per non togliere
+   niente. Il limite e' `APERTO_FINO_A`.
+
+   Un gruppo con UNA voce sola non fa fisarmonica: un titolo che si apre
+   su una riga sola e' un gesto per niente. La voce resta sotto il suo
+   titolo, sempre visibile.
+
+   Il pallino della voce (le ore arrivate) sale sul titolo del gruppo
+   chiuso: quel numero serve proprio quando si e' altrove.
+   ══════════════════════════════════════════════════════════════════ */
+const APERTO_FINO_A = 7
+
+function Menu({ voci }: { voci: Voce[] }) {
+  const { pathname } = useLocation()
+  const ordinate = inGruppi(voci)
+
+  /** Il gruppo della pagina aperta: la voce col prefisso piu' lungo,
+   *  cosi' `/anagrafiche/mezzi/123` cade in «Mezzi e materiali». */
+  const attiva = ordinate
+    .filter(({ voce }) =>
+      voce.to === '/' ? pathname === '/' : pathname === voce.to || pathname.startsWith(`${voce.to}/`),
+    )
+    .sort((x, y) => y.voce.to.length - x.voce.to.length)[0]
+  const gruppoAttivo = attiva?.gruppo ?? null
+
+  const [aperto, setAperto] = useState<string | null>(gruppoAttivo)
+  // Cambiata pagina, si apre il suo gruppo: durante il render e non in
+  // un effetto, cosi' la voce accesa non passa un giro nascosta.
+  const [perGruppo, setPerGruppo] = useState(gruppoAttivo)
+  if (perGruppo !== gruppoAttivo) {
+    setPerGruppo(gruppoAttivo)
+    setAperto(gruppoAttivo)
+  }
+
+  const fisarmonica = voci.length > APERTO_FINO_A
+
+  // I gruppi nell'ordine, ognuno con le sue voci visibili.
+  const gruppi: { titolo: string | null; voci: Voce[] }[] = []
+  for (const { voce, gruppo } of ordinate) {
+    const ultimo = gruppi[gruppi.length - 1]
+    if (ultimo && ultimo.titolo === gruppo) ultimo.voci.push(voce)
+    else gruppi.push({ titolo: gruppo, voci: [voce] })
+  }
+
+  return (
+    <nav className="flex flex-1 flex-col gap-1 overflow-y-auto p-3">
+      {gruppi.map((g, i) => {
+        const chiudibile = fisarmonica && g.titolo !== null && g.voci.length > 1
+        const mostra = !chiudibile || aperto === g.titolo
+        return (
+          <Fragment key={g.titolo ?? `senza-${i}`}>
+            {g.titolo &&
+              (chiudibile ? (
+                <button
+                  type="button"
+                  aria-expanded={mostra}
+                  onClick={() => setAperto(mostra ? null : g.titolo)}
+                  className={cn(
+                    'mt-2 flex cursor-pointer items-center justify-between gap-2 rounded-lg px-3 py-1.5 text-left text-[11px] font-bold uppercase tracking-wider transition-colors',
+                    mostra ? 'text-gray-300' : 'text-gray-500 hover:bg-white/5 hover:text-gray-300',
+                    g.titolo === gruppoAttivo && !mostra && 'text-amber-400',
+                  )}
+                >
+                  <span className="flex items-center gap-2">
+                    <span
+                      aria-hidden
+                      className={cn('inline-block text-[9px] transition-transform', mostra && 'rotate-90')}
+                    >
+                      ▶
+                    </span>
+                    {g.titolo}
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    {!mostra && g.voci.map((v) => <Pallino key={v.to} voce={v.to} />)}
+                    {!mostra && <span className="text-[10px] text-gray-600">{g.voci.length}</span>}
+                  </span>
+                </button>
+              ) : (
+                <p className="mt-3 px-3 pb-0.5 text-[10px] font-bold uppercase tracking-wider text-gray-500">
+                  {g.titolo}
+                </p>
+              ))}
+            {mostra &&
+              g.voci.map((v) => (
+                <NavLink key={v.to} to={v.to} end={v.to === '/'} className={classeVoce}>
+                  <span className="flex items-center justify-between gap-2">
+                    <NomeVoce voce={v} />
+                    <Pallino voce={v.to} />
+                  </span>
+                </NavLink>
+              ))}
+          </Fragment>
+        )
+      })}
+    </nav>
   )
 }
 

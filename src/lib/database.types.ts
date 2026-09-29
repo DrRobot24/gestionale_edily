@@ -896,6 +896,8 @@ export type Database = {
           attivo: boolean
           categoria: string | null
           codice: string | null
+          compagnia_assicurativa: string | null
+          costo_assicurazione: number | null
           created_at: string
           data_acquisto: string | null
           descrizione: string
@@ -905,8 +907,10 @@ export type Database = {
           matricola: string | null
           modello: string | null
           note: string | null
+          numero_polizza: string | null
           org_id: string
           proprieta: string
+          scadenza_assicurazione: string | null
           scadenza_verifica: string | null
           updated_at: string
         }
@@ -914,6 +918,8 @@ export type Database = {
           attivo?: boolean
           categoria?: string | null
           codice?: string | null
+          compagnia_assicurativa?: string | null
+          costo_assicurazione?: number | null
           created_at?: string
           data_acquisto?: string | null
           descrizione: string
@@ -923,8 +929,10 @@ export type Database = {
           matricola?: string | null
           modello?: string | null
           note?: string | null
+          numero_polizza?: string | null
           org_id: string
           proprieta?: string
+          scadenza_assicurazione?: string | null
           scadenza_verifica?: string | null
           updated_at?: string
         }
@@ -932,6 +940,8 @@ export type Database = {
           attivo?: boolean
           categoria?: string | null
           codice?: string | null
+          compagnia_assicurativa?: string | null
+          costo_assicurazione?: number | null
           created_at?: string
           data_acquisto?: string | null
           descrizione?: string
@@ -941,8 +951,10 @@ export type Database = {
           matricola?: string | null
           modello?: string | null
           note?: string | null
+          numero_polizza?: string | null
           org_id?: string
           proprieta?: string
+          scadenza_assicurazione?: string | null
           scadenza_verifica?: string | null
           updated_at?: string
         }
@@ -1603,45 +1615,75 @@ export type Database = {
         Row: {
           attivo: boolean
           codice: string | null
+          compagnia_assicurativa: string | null
+          costo_assicurazione: number | null
           created_at: string
+          data_acquisto: string | null
+          data_immatricolazione: string | null
           descrizione: string
           fornitore_id: string | null
           id: string
+          marca: string | null
+          modello: string | null
+          note: string | null
+          numero_polizza: string | null
           org_id: string
           proprieta: string
           scadenza_assicurazione: string | null
+          scadenza_bollo: string | null
           scadenza_revisione: string | null
           targa: string | null
+          telaio: string | null
           tipo: string | null
           updated_at: string
         }
         Insert: {
           attivo?: boolean
           codice?: string | null
+          compagnia_assicurativa?: string | null
+          costo_assicurazione?: number | null
           created_at?: string
+          data_acquisto?: string | null
+          data_immatricolazione?: string | null
           descrizione: string
           fornitore_id?: string | null
           id?: string
+          marca?: string | null
+          modello?: string | null
+          note?: string | null
+          numero_polizza?: string | null
           org_id: string
           proprieta?: string
           scadenza_assicurazione?: string | null
+          scadenza_bollo?: string | null
           scadenza_revisione?: string | null
           targa?: string | null
+          telaio?: string | null
           tipo?: string | null
           updated_at?: string
         }
         Update: {
           attivo?: boolean
           codice?: string | null
+          compagnia_assicurativa?: string | null
+          costo_assicurazione?: number | null
           created_at?: string
+          data_acquisto?: string | null
+          data_immatricolazione?: string | null
           descrizione?: string
           fornitore_id?: string | null
           id?: string
+          marca?: string | null
+          modello?: string | null
+          note?: string | null
+          numero_polizza?: string | null
           org_id?: string
           proprieta?: string
           scadenza_assicurazione?: string | null
+          scadenza_bollo?: string | null
           scadenza_revisione?: string | null
           targa?: string | null
+          telaio?: string | null
           tipo?: string | null
           updated_at?: string
         }
@@ -2233,6 +2275,83 @@ export type Database = {
           trattenute?: number
         }
         Relationships: []
+      }
+      parco_spese: {
+        Row: {
+          attrezzatura_id: string | null
+          categoria: string
+          created_at: string
+          creato_da: string | null
+          data: string
+          descrizione: string | null
+          fornitore_id: string | null
+          id: string
+          importo: number
+          mezzo_id: string | null
+          numero_documento: string | null
+          org_id: string
+          updated_at: string
+        }
+        Insert: {
+          attrezzatura_id?: string | null
+          categoria?: string
+          created_at?: string
+          creato_da?: string | null
+          data?: string
+          descrizione?: string | null
+          fornitore_id?: string | null
+          id?: string
+          importo: number
+          mezzo_id?: string | null
+          numero_documento?: string | null
+          org_id: string
+          updated_at?: string
+        }
+        Update: {
+          attrezzatura_id?: string | null
+          categoria?: string
+          created_at?: string
+          creato_da?: string | null
+          data?: string
+          descrizione?: string | null
+          fornitore_id?: string | null
+          id?: string
+          importo?: number
+          mezzo_id?: string | null
+          numero_documento?: string | null
+          org_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "parco_spese_attrezzatura_id_fkey"
+            columns: ["attrezzatura_id"]
+            isOneToOne: false
+            referencedRelation: "attrezzature"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "parco_spese_fornitore_id_fkey"
+            columns: ["fornitore_id"]
+            isOneToOne: false
+            referencedRelation: "fornitori"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "parco_spese_mezzo_id_fkey"
+            columns: ["mezzo_id"]
+            isOneToOne: false
+            referencedRelation: "mezzi"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "parco_spese_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       periodi_paga: {
         Row: {

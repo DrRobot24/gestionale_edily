@@ -26,8 +26,8 @@ import { PARCO, useParco } from '../anagrafiche/parco'
      patenti e abilitazioni    B, CQC, muletto…
      permesso di soggiorno
      contratti a termine       dal 2026-09-29
-     mezzi                     revisione, assicurazione
-     attrezzature              verifica periodica
+     mezzi                     revisione, assicurazione, bollo
+     attrezzature              verifica periodica, assicurazione
      documenti del parco       dal 2026-09-29: quelli caricati su un
                                mezzo o un'attrezzatura con una scadenza
 
@@ -149,22 +149,23 @@ export function InScadenza() {
     if (nome && urgente(d.scadenza))
       lista.push({ chiave: `doc-${d.id}`, chi: nome, cosa: d.titolo, data: d.scadenza, a: `/anagrafiche/operai/${d.dipendente_id}` })
   }
-  for (const m of mezzi ?? []) {
-    const a = `${PARCO.mezzi.percorso}/${m.id}`
-    if (urgente(m.scadenza_revisione as string | null))
-      lista.push({ chiave: `rev-${m.id}`, chi: m.descrizione, cosa: 'Revisione', data: m.scadenza_revisione as string, a })
-    if (urgente(m.scadenza_assicurazione as string | null))
-      lista.push({ chiave: `ass-${m.id}`, chi: m.descrizione, cosa: 'Assicurazione', data: m.scadenza_assicurazione as string, a })
-  }
-  for (const t of attrezzi ?? []) {
-    if (urgente(t.scadenza_verifica as string | null))
-      lista.push({
-        chiave: `ver-${t.id}`,
-        chi: t.descrizione,
-        cosa: 'Verifica periodica',
-        data: t.scadenza_verifica as string,
-        a: `${PARCO.attrezzature.percorso}/${t.id}`,
-      })
+  /* Le date della scheda: quelle che `PARCO[tipo].scadenze` elenca —
+     revisione, assicurazione e bollo del mezzo, verifica e assicurazione
+     dell'attrezzatura. Una scadenza aggiunta li' arriva qui da sola. */
+  for (const [tipo, voci] of [['mezzi', mezzi], ['attrezzature', attrezzi]] as const) {
+    for (const v of voci ?? []) {
+      for (const sc of PARCO[tipo].scadenze) {
+        const d = v[sc.nome] as string | null
+        if (urgente(d))
+          lista.push({
+            chiave: `${sc.nome}-${v.id}`,
+            chi: v.descrizione,
+            cosa: sc.etichetta,
+            data: d,
+            a: `${PARCO[tipo].percorso}/${v.id}`,
+          })
+      }
+    }
   }
 
   /* Solo quelli di un mezzo o un'attrezzatura ancora in elenco: un
