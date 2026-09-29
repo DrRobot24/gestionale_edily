@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { Avviso, Badge, Button, Campo, CampoArea, CampoSelect, Card, Percorso } from '../../ui'
 import { usePermission } from '../auth/usePermission'
+import { RiquadroDocumenti } from '../documenti/RiquadroDocumenti'
 import { useFornitori } from './fornitori'
 import {
   PARCO,
@@ -162,6 +163,19 @@ export function ParcoForm({ tipo }: { tipo: TipoParco }) {
           </div>
         )}
       </form>
+
+      {/* I DOCUMENTI del mezzo o dell'attrezzatura (2026-09-29): libretto,
+          assicurazione, verifiche, manuali — «una cosa importantissima»
+          (utente). Fuori dal <form>, coi suoi salvataggi; solo su una
+          scheda gia' salvata, perche' un documento ha bisogno di sapere
+          a chi appartiene. */}
+      {!nuovo && id && (
+        <RiquadroDocumenti
+          ambito={tipo === 'mezzi' ? 'mezzo' : 'attrezzatura'}
+          riferimentoId={id}
+          puoScrivere={puoScrivere}
+        />
+      )}
     </div>
   )
 }

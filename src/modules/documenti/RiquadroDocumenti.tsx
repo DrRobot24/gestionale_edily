@@ -39,6 +39,8 @@ const ESEMPI: Record<AmbitoDocumento, string> = {
   cliente: 'Contratti, preventivi accettati, corrispondenza.',
   fornitore: 'Listini, condizioni di fornitura, certificazioni.',
   materiale: 'Schede tecniche, certificati, dichiarazioni di conformità.',
+  mezzo: 'Libretto, assicurazione, revisione, bollo, manuale.',
+  attrezzatura: 'Certificati, verifiche periodiche, manuale d’uso, dichiarazione CE.',
 }
 
 const PLACEHOLDER: Record<AmbitoDocumento, string> = {
@@ -46,6 +48,8 @@ const PLACEHOLDER: Record<AmbitoDocumento, string> = {
   cliente: 'Contratto 2026, Preventivo accettato…',
   fornitore: 'Listino 2026, Condizioni di pagamento…',
   materiale: 'Scheda tecnica, Certificato CE…',
+  mezzo: 'Libretto di circolazione, Polizza 2026…',
+  attrezzatura: 'Verifica periodica 2026, Manuale d’uso…',
 }
 
 type Props = {

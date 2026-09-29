@@ -28,6 +28,8 @@ import { PARCO, useParco } from '../anagrafiche/parco'
      contratti a termine       dal 2026-09-29
      mezzi                     revisione, assicurazione
      attrezzature              verifica periodica
+     documenti del parco       dal 2026-09-29: quelli caricati su un
+                               mezzo o un'attrezzatura con una scadenza
 
    Una riga per scadenza, dalla piu' urgente, col link per aprirla.
    SPARISCE quando non c'e' niente: la home mostra cose da fare.
@@ -63,6 +65,28 @@ function useDocumentiInScadenza(abilitato: boolean) {
   })
 }
 
+/** I documenti caricati su mezzi e attrezzature che hanno una scadenza
+ *  (vedi `documenti-parco.sql`). Senza lo SQL l'ambito non esiste e la
+ *  query torna un errore: si tace, come se non ce ne fossero. */
+function useDocumentiParcoInScadenza(abilitato: boolean) {
+  const { org } = useSession()
+  return useQuery({
+    queryKey: ['documenti', 'parco', 'scadenze', org?.id],
+    enabled: Boolean(org?.id) && abilitato,
+    retry: false,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('documenti')
+        .select('id, ambito, riferimento_id, titolo, scadenza')
+        .eq('org_id', org!.id)
+        .in('ambito', ['mezzo', 'attrezzatura'])
+        .not('scadenza', 'is', null)
+      if (error) return []
+      return data ?? []
+    },
+  })
+}
+
 const MOSTRATE = 6
 
 export function InScadenza() {
@@ -75,6 +99,7 @@ export function InScadenza() {
   const { data: documenti } = useDocumentiInScadenza(abilitato)
   const { data: mezzi } = useParco('mezzi')
   const { data: attrezzi } = useParco('attrezzature')
+  const { data: documentiParco } = useDocumentiParcoInScadenza(abilitato)
   const { data: contratti } = useContratti({ abilitato })
 
   if (!abilitato) return null
@@ -140,6 +165,22 @@ export function InScadenza() {
         data: t.scadenza_verifica as string,
         a: `${PARCO.attrezzature.percorso}/${t.id}`,
       })
+  }
+
+  /* Solo quelli di un mezzo o un'attrezzatura ancora in elenco: un
+     mezzo venduto non chiede rinnovi. */
+  const nomiParco = new Map<string, { nome: string; a: string }>([
+    ...(mezzi ?? []).map(
+      (m) => [m.id, { nome: m.descrizione, a: `${PARCO.mezzi.percorso}/${m.id}` }] as const,
+    ),
+    ...(attrezzi ?? []).map(
+      (t) => [t.id, { nome: t.descrizione, a: `${PARCO.attrezzature.percorso}/${t.id}` }] as const,
+    ),
+  ])
+  for (const d of documentiParco ?? []) {
+    const cosa = nomiParco.get(d.riferimento_id)
+    if (cosa && urgente(d.scadenza))
+      lista.push({ chiave: `docp-${d.id}`, chi: cosa.nome, cosa: d.titolo, data: d.scadenza, a: cosa.a })
   }
 
   if (lista.length === 0) return null

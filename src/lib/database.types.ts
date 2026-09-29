@@ -3517,7 +3517,13 @@ export type Database = {
         | "validato"
         | "contabilizzato"
       stato_ddt: "caricato" | "estratto" | "verificato" | "fatturato"
-      ambito_documento: "cantiere" | "cliente" | "fornitore" | "materiale"
+      ambito_documento:
+        | "cantiere"
+        | "cliente"
+        | "fornitore"
+        | "materiale"
+        | "mezzo"
+        | "attrezzatura"
       ambito_figura: "cliente" | "cantiere"
       motivo_ore:
         | "permesso"
@@ -3692,7 +3698,14 @@ export const Constants = {
         "contabilizzato",
       ],
       stato_ddt: ["caricato", "estratto", "verificato", "fatturato"],
-      ambito_documento: ["cantiere", "cliente", "fornitore", "materiale"],
+      ambito_documento: [
+        "cantiere",
+        "cliente",
+        "fornitore",
+        "materiale",
+        "mezzo",
+        "attrezzatura",
+      ],
       ambito_figura: ["cliente", "cantiere"],
       motivo_ore: [
         "permesso",

@@ -4,7 +4,7 @@ import { useSession } from '../auth/SessionProvider'
 
 /* ══════════════════════════════════════════════════════════════════
    I documenti: di un cantiere, di un cliente, di un fornitore, di un
-   materiale.
+   materiale, e dal 2026-09-29 di un mezzo e di un'attrezzatura.
 
    Chiesti dall'utente il 2026-09-18: computi, disegni, permessi,
    verbali, contratti, listini, schede tecniche. Prima esisteva solo un
@@ -33,7 +33,14 @@ const BUCKET = 'documenti'
  *  finito per sbaglio in una chat resti buono. */
 const DURATA_FIRMA = 3600
 
-export type AmbitoDocumento = 'cantiere' | 'cliente' | 'fornitore' | 'materiale'
+/** Mezzi e attrezzature dal 2026-09-29: vedi `documenti-parco.sql`. */
+export type AmbitoDocumento =
+  | 'cantiere'
+  | 'cliente'
+  | 'fornitore'
+  | 'materiale'
+  | 'mezzo'
+  | 'attrezzatura'
 
 export type Documento = {
   id: string
