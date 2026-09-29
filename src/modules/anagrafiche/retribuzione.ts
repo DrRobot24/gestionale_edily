@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase'
 import { useSession } from '../auth/SessionProvider'
 import { eLavorabile } from '../../lib/giorni'
 import type { OreGiorno } from '../ore/useOrePeriodo'
+import { chiaveGiorno, orePagateDelGiorno, type OrePagate } from '../ore/orePagate'
 import type { Stipendio } from './dipendenti'
 
 /* ══════════════════════════════════════════════════════════════════
@@ -251,6 +252,11 @@ export type RigaEconomica = {
   giorni: number
   ore_lavorate: number
   ore_straordinarie: number
+  /** Le ore che si pagano: le lavorate, salvo dove il titolare ha deciso
+   *  altro su una giornata gialla (dal 2026-09-29, `orePagate.ts`). */
+  ore_pagate: number
+  /** Decisioni che non valgono piu': la giornata e' cambiata dopo. */
+  da_rivedere: number
   ore_ferie: number
   ore_permessi: number
   ore_altre: number
@@ -284,6 +290,11 @@ export const ASSENZE_PAGATE: Record<'calcolata' | 'manuale', ('ferie' | 'permess
  * (vedi in cima): le ore lavorate e validate, piu' le assenze che quel
  * regime paga (`ASSENZE_PAGATE`). Cambia solo da dove viene la tariffa:
  * calcolata dalla paga globale, o scritta a mano per la giornaliera.
+ *
+ * DAL 2026-09-29 LE ORE SONO QUELLE PAGATE: dove il titolare ha deciso
+ * su una giornata gialla (pagare 8 su 6, o 9 su 10), vale la sua
+ * decisione; altrove le lavorate. Le ore lavorate restano quelle del
+ * campo, e si mostrano accanto.
  */
 export function rigaDelMese(
   storico: Regime[],
@@ -291,6 +302,7 @@ export function rigaDelMese(
   dipendenteId: string,
   giorno: string,
   oreGiorno: number = 8,
+  decisioni?: Map<string, OrePagate>,
 ): RigaEconomica {
   const { dal, al } = limitiMese(giorno)
   const giorniLavorati = new Set<string>()
@@ -298,6 +310,8 @@ export function rigaDelMese(
     giorni: 0,
     ore_lavorate: 0,
     ore_straordinarie: 0,
+    ore_pagate: 0,
+    da_rivedere: 0,
     ore_ferie: 0,
     ore_permessi: 0,
     ore_altre: 0,
@@ -311,6 +325,9 @@ export function rigaDelMese(
     if (lav > 0) giorniLavorati.add(o.data)
     r.ore_lavorate += lav
     r.ore_straordinarie += Number(o.ore_straordinarie)
+    const pagate = orePagateDelGiorno(decisioni?.get(chiaveGiorno(dipendenteId, o.data)), lav)
+    r.ore_pagate += pagate.ore
+    if (pagate.daRivedere) r.da_rivedere += 1
     const ass = Number(o.ore_assenza)
     if (ass > 0) r[`ore_${categoriaAssenza(o.tipo_assenza)}`] += ass
   }
@@ -319,7 +336,7 @@ export function rigaDelMese(
 
   if (r.tariffa.origine !== 'manca') {
     const pagate = ASSENZE_PAGATE[r.tariffa.origine].reduce((s, c) => s + r[`ore_${c}`], 0)
-    r.maturato = r.tariffa.euroOra * (r.ore_lavorate + pagate)
+    r.maturato = r.tariffa.euroOra * (r.ore_pagate + pagate)
   }
 
   // Al centesimo: e' un importo che finisce in un bonifico.

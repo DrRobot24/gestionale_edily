@@ -1,8 +1,11 @@
-import { useState } from 'react'
+import { createContext, useContext, useState } from 'react'
 import { Avviso, Badge, Button, Card, Table, Vuoto, cn } from '../../ui'
 import { dataEstesa } from '../../lib/formato'
 import { oreContratto, useOrari } from '../anagrafiche/dipendenti'
 import { eFineSettimana, nomeNonFeriale } from '../../lib/giorni'
+import { useSession } from '../auth/SessionProvider'
+import { DecisioneOrePagate } from './DecisioneOrePagate'
+import { chiaveGiorno, orePagateDelGiorno, useOrePagate, type OrePagate } from './orePagate'
 import {
   conPasso,
   contieneOggi,
@@ -93,12 +96,26 @@ import {
  *  facoltativamente il giorno su cui si e' cliccato. */
 type Aperta = { chi: string; giorno: string | null }
 
+/* LE ORE PAGATE (2026-09-29): la decisione del titolare sulle giornate
+   gialle. Scende fino alle celle e al dettaglio del giorno per un
+   contesto e non di mano in mano: attraversa quattro componenti che non
+   la usano. Vedi `orePagate.ts`. */
+const Decisioni = createContext<{
+  mappa: Map<string, OrePagate> | undefined
+  puoDecidere: boolean
+}>({ mappa: undefined, puoDecidere: false })
+
 export function OrePeriodoPage() {
   const [periodo, setPeriodo] = useState(() => periodoCorrente('settimana'))
   const [aperta, setAperta] = useState<Aperta | null>(null)
 
   const griglia = useOreGriglia(periodo)
   const sospeso = useGiornateInSospeso(periodo)
+  /* Decide chi valida; legge anche chi fa le paghe. «Chi valida non
+     elabora»: qui e' il contrario, e la decisione e' del titolare. */
+  const { can } = useSession()
+  const puoDecidere = can('rapportini.validate')
+  const decisioni = useOrePagate(periodo.dal, periodo.al, puoDecidere || can('paghe.read'))
 
   const righe = inGriglia(griglia.data ?? [])
   /* SETTIMANE COMPLETE, da lunedi' a domenica. Chiesto dall'utente il
@@ -240,7 +257,7 @@ export function OrePeriodoPage() {
           «Risorse».
         </Vuoto>
       ) : (
-        <>
+        <Decisioni.Provider value={{ mappa: decisioni.data, puoDecidere }}>
           <Griglia
             conOre={conOre}
             senzaOre={senzaOre}
@@ -249,7 +266,7 @@ export function OrePeriodoPage() {
             onApri={apriChiudi}
           />
           <Legenda />
-        </>
+        </Decisioni.Provider>
       )}
     </div>
   )
@@ -557,6 +574,7 @@ function RigaPersona({
         {giorni.map((g) => (
           <Cella
             key={g}
+            dipendenteId={riga.dipendente_id}
             giorno={g}
             piena={oreContratto(orari, riga.dipendente_id, g)}
             casella={riga.giorni.get(g)}
@@ -631,12 +649,14 @@ function RigaPersona({
  * qualcosa da dire.
  */
 function Cella({
+  dipendenteId,
   giorno,
   piena,
   casella,
   aperta,
   onApri,
 }: {
+  dipendenteId: string
   /** Serve solo a riconoscere sabato e domenica: una cella vuota non
    *  sa che giorno e', perche' `casella` li' non c'e'. */
   giorno: string
@@ -651,6 +671,7 @@ function Cella({
      venti righe non si distingue piu' gia' dalla terza riga, che e'
      dove si guarda davvero. */
   const nonFeriale = eFineSettimana(giorno)
+  const { mappa } = useContext(Decisioni)
 
   if (!casella) {
     return (
@@ -713,6 +734,13 @@ function Cella({
      I cantieri con zero ore non si contano: una riga a zero c'e'
      quando la giornata e' stata aperta e poi svuotata, e non e' un
      posto dove la persona e' stata. */
+  /* La decisione del titolare su quante ore pagare, se c'e': un pallino
+     verde in alto a sinistra, rosso se la giornata e' cambiata dopo. */
+  const pagate = orePagateDelGiorno(
+    mappa?.get(chiaveGiorno(dipendenteId, giorno)),
+    lav,
+  )
+
   const quantiCantieri = casella.cantieri.filter((k) => Number(k.ore) > 0).length
   const sparso = quantiCantieri > 1
   const luce = semaforo(lav, nonFeriale, piena)
@@ -824,6 +852,20 @@ function Cella({
             className="absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full bg-sky-600"
           />
         )}
+        {(pagate.decisa || pagate.daRivedere) && (
+          <span
+            aria-hidden="true"
+            title={
+              pagate.decisa
+                ? `Il titolare paga ${ore(pagate.ore)} ore`
+                : 'Decisione da rivedere: la giornata è cambiata'
+            }
+            className={cn(
+              'absolute left-0.5 top-0.5 h-1.5 w-1.5 rounded-full',
+              pagate.decisa ? 'bg-emerald-600' : 'bg-rose-600',
+            )}
+          />
+        )}
       </button>
     </td>
   )
@@ -909,7 +951,12 @@ function Dettaglio({
   if (giorno) {
     return (
       <div className="space-y-2">
-        <Giornata casella={riga.giorni.get(giorno)} giorno={giorno} tipo={riga.tipo} />
+        <Giornata
+          casella={riga.giorni.get(giorno)}
+          giorno={giorno}
+          tipo={riga.tipo}
+          dipendenteId={riga.dipendente_id}
+        />
         {/* Da una giornata si sale al periodo: chi ha cliccato una cella
             per capire un numero spesso vuole poi vedere il resto, ed e'
             un click e non una seconda ricerca. */}
@@ -1119,11 +1166,16 @@ function Giornata({
   casella,
   giorno,
   tipo,
+  dipendenteId,
 }: {
   casella: OreGiorno | undefined
   giorno: string
   tipo: string
+  dipendenteId: string
 }) {
+  const { mappa, puoDecidere } = useContext(Decisioni)
+  const { data: orari } = useOrari()
+
   if (!casella) {
     return (
       <div className="rounded-lg border-2 border-black bg-white px-3 py-2">
@@ -1139,6 +1191,14 @@ function Giornata({
   }
 
   const g = casella.giustificazione
+  /* LA SCELTA DEL TITOLARE si apre sulle giornate gialle: diverse dalla
+     giornata piena, lavorate. Sulle verdi non c'e' niente da decidere,
+     sulle rosse niente da pagare. */
+  const lav = lavorate(casella)
+  const nonFeriale = eFineSettimana(giorno)
+  const piena = oreContratto(orari, dipendenteId, giorno)
+  const gialla = semaforo(lav, nonFeriale, piena) === 'giallo'
+  const decisione = mappa?.get(chiaveGiorno(dipendenteId, giorno))
 
   return (
     <div className="overflow-hidden rounded-lg border-2 border-black bg-white">
@@ -1226,6 +1286,17 @@ function Giornata({
           )}
         </div>
       )}
+
+      {(gialla || decisione) && (mappa !== undefined) && (
+        <DecisioneOrePagate
+          dipendenteId={dipendenteId}
+          giorno={giorno}
+          lavorate={lav}
+          attesa={nonFeriale ? 0 : piena}
+          decisione={decisione}
+          puoDecidere={puoDecidere}
+        />
+      )}
     </div>
   )
 }
@@ -1259,6 +1330,10 @@ function Legenda() {
       <span className="inline-flex items-center gap-1">
         <span className="inline-block h-1.5 w-1.5 rounded-full bg-sky-600" /> c’è una
         motivazione del tecnico
+      </span>
+      <span className="inline-flex items-center gap-1">
+        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-600" /> il titolare ha
+        deciso quante ore pagare
       </span>
       {/* I pallini hanno bisogno della riga di legenda piu' di tutto il
           resto: il rosso dello straordinario e lo zero dell'assenza si

@@ -2123,6 +2123,42 @@ export type Database = {
         }
         Relationships: []
       }
+      ore_pagate: {
+        Row: {
+          data: string
+          deciso_at: string
+          deciso_da: string | null
+          dipendente_id: string
+          id: string
+          nota: string | null
+          ore_lavorate: number
+          ore_pagate: number
+          org_id: string
+        }
+        Insert: {
+          data: string
+          deciso_at?: string
+          deciso_da?: string | null
+          dipendente_id: string
+          id?: string
+          nota?: string | null
+          ore_lavorate: number
+          ore_pagate: number
+          org_id: string
+        }
+        Update: {
+          data?: string
+          deciso_at?: string
+          deciso_da?: string | null
+          dipendente_id?: string
+          id?: string
+          nota?: string | null
+          ore_lavorate?: number
+          ore_pagate?: number
+          org_id?: string
+        }
+        Relationships: []
+      }
       paghe_righe: {
         Row: {
           acconti: number
@@ -2138,6 +2174,7 @@ export type Database = {
           ore_altre: number
           ore_ferie: number
           ore_lavorate: number
+          ore_pagate: number | null
           ore_permessi: number
           ore_straordinarie: number
           paga_globale: number | null
@@ -2161,6 +2198,7 @@ export type Database = {
           ore_altre?: number
           ore_ferie?: number
           ore_lavorate?: number
+          ore_pagate?: number | null
           ore_permessi?: number
           ore_straordinarie?: number
           paga_globale?: number | null
@@ -2184,6 +2222,7 @@ export type Database = {
           ore_altre?: number
           ore_ferie?: number
           ore_lavorate?: number
+          ore_pagate?: number | null
           ore_permessi?: number
           ore_straordinarie?: number
           paga_globale?: number | null

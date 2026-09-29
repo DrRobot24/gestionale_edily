@@ -8,9 +8,12 @@ import { useSession } from '../auth/SessionProvider'
    Tabelle e funzioni in `supabase/schema/riepilogo-economico.sql`, che
    spiega il perche' di tutto. In breve:
 
-     bozza     Stefania guarda i numeri, scrive acconti, rimborsi e
-               trattenute, e quando tutto coincide lo INVIA
-     inviato   il titolare lo firma, o lo rimanda indietro col motivo
+     bozza     dal vivo: il titolare lo guarda quando vuole, senza che
+               nessuno glielo mandi (utente, 2026-09-29). Stefania ci
+               scrive acconti, rimborsi e trattenute, e quando tutto
+               coincide gli INVIA IL FOGLIO DEFINITIVO
+     inviato   il titolare valida il foglio definitivo, o lo rimanda
+               indietro col motivo
      validato  archiviato: fotografato, i rapportini del mese passano a
                «contabilizzato», e si stampa il PDF per i bonifici.
                Solo il titolare lo riapre, col motivo.
@@ -49,8 +52,13 @@ export type RigaPaghe = {
   giorni: number
   ore_lavorate: number
   ore_straordinarie: number
+  /** Le ore pagate, quando il titolare ha deciso diverso dalle lavorate
+   *  su qualche giornata gialla (dal 2026-09-29). Null = come lavorate. */
+  ore_pagate: number | null
   ore_ferie: number
   ore_permessi: number
+  /** Malattia, infortunio, altro: non si pagano e dal 2026-09-29 non si
+   *  mostrano piu' («non serve», utente). Restano nella fotografia. */
   ore_altre: number
   regime: 'globale' | 'giornaliera' | null
   paga_globale: number | null
@@ -126,6 +134,7 @@ export function useRighePaghe(meseId: string | undefined) {
         giorni: Number(r.giorni),
         ore_lavorate: Number(r.ore_lavorate),
         ore_straordinarie: Number(r.ore_straordinarie),
+        ore_pagate: r.ore_pagate === null || r.ore_pagate === undefined ? null : Number(r.ore_pagate),
         ore_ferie: Number(r.ore_ferie),
         ore_permessi: Number(r.ore_permessi),
         ore_altre: Number(r.ore_altre),

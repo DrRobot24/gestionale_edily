@@ -7,6 +7,7 @@ import { limitiMese, rigaDelMese, storicoRegimi } from '../anagrafiche/retribuzi
 import { mostraIban, useIban } from '../anagrafiche/iban'
 import { useDataInIndirizzo } from '../home/useDataInIndirizzo'
 import { useGiornateInSospeso, useOreGriglia } from '../ore/useOrePeriodo'
+import { useOrePagate } from '../ore/orePagate'
 import {
   tabellaMancante,
   useAggiungiMovimento,
@@ -27,7 +28,8 @@ import {
    con i soldi accanto.
 
    Una riga per persona in servizio nel mese — operai, tecnici, impiegati
-   — con le ore lavorate, ferie, permessi e altre assenze, quanto ha
+   — con le ore lavorate (e quelle pagate, dove il titolare ha deciso
+   diverso su una giornata gialla), ferie e permessi, quanto ha
    maturato secondo il suo regime (paga globale o giornaliera, vedi
    `retribuzione.ts`), e poi i MOVIMENTI che Stefania scrive col motivo:
    acconti, rimborsi, trattenute. In fondo alla riga, DA BONIFICARE.
@@ -35,6 +37,12 @@ import {
    E' diverso dalla pagina Economia della risorsa: quella segue UNA
    persona mese per mese; questa guarda TUTTE le persone in un mese, ed
    e' il foglio su cui il titolare fa i bonifici.
+
+   IL FLUSSO, corretto dall'utente il 2026-09-29: il titolare questo
+   foglio lo vede SEMPRE, dal vivo, e non ha niente da validare mentre si
+   riempie da solo. Quello che valida e' il FOGLIO DEFINITIVO che Stefania
+   gli manda quando ha messo acconti, rimborsi e trattenute: e' quello su
+   cui fa i bonifici.
 
    Il ciclo e la ragione di ogni scelta stanno in
    `riepilogo-economico.sql`. Qui conta una cosa: CHI VALIDA NON ELABORA.
@@ -87,6 +95,8 @@ export function RiepilogoEconomicoPage() {
   const ore = useOreGriglia({ passo: 'mese', dal, al }, !fotografato)
   const sospeso = useGiornateInSospeso({ passo: 'mese', dal, al })
   const movimenti = useMovimenti(anno, mese)
+  /* Quante ore paga il titolare sulle giornate gialle (2026-09-29). */
+  const decisioni = useOrePagate(dal, al, !fotografato)
   const foto = useRighePaghe(fotografato ? meseQ.data?.id : undefined)
 
   const [aperta, setAperta] = useState<string | null>(null)
@@ -105,7 +115,9 @@ export function RiepilogoEconomicoPage() {
   }
   const carico =
     meseQ.isPending ||
-    (fotografato ? foto.isPending : persone.isPending || ore.isPending || movimenti.isPending)
+    (fotografato
+      ? foto.isPending
+      : persone.isPending || ore.isPending || movimenti.isPending || decisioni.isPending)
 
   /* ── le righe: fotografia, o calcolo dal vivo ── */
   const avvisiRiga = new Map<string, string>()
@@ -127,7 +139,14 @@ export function RiepilogoEconomicoPage() {
       )
       .map((d) => {
         const storico = storicoRegimi(stipendi.data, d.dipendente_costi, d.id)
-        const r = rigaDelMese(storico, ore.data, d.id, dal, oreContratto(orari, d.id, al))
+        const r = rigaDelMese(
+          storico,
+          ore.data,
+          d.id,
+          dal,
+          oreContratto(orari, d.id, al),
+          decisioni.data,
+        )
         const suoi = (movimenti.data ?? []).filter((m) => m.dipendente_id === d.id)
         const somma = (t: TipoMovimento) =>
           suoi.filter((m) => m.tipo === t).reduce((s, m) => s + m.importo, 0)
@@ -138,6 +157,11 @@ export function RiepilogoEconomicoPage() {
 
         if (t.origine === 'manca' && r.ore_lavorate > 0)
           avvisiRiga.set(d.id, 'Né paga globale né giornaliera: il lavoro vale zero')
+        else if (r.da_rivedere > 0)
+          avvisiRiga.set(
+            d.id,
+            `${r.da_rivedere === 1 ? 'Una giornata è cambiata' : `${r.da_rivedere} giornate sono cambiate`} dopo la decisione del titolare: si pagano le ore lavorate`,
+          )
 
         return {
           dipendente_id: d.id,
@@ -146,6 +170,10 @@ export function RiepilogoEconomicoPage() {
           giorni: r.giorni,
           ore_lavorate: r.ore_lavorate,
           ore_straordinarie: r.ore_straordinarie,
+          ore_pagate:
+            Math.round(r.ore_pagate * 100) === Math.round(r.ore_lavorate * 100)
+              ? null
+              : Math.round(r.ore_pagate * 100) / 100,
           ore_ferie: r.ore_ferie,
           ore_permessi: r.ore_permessi,
           ore_altre: r.ore_altre,
@@ -201,8 +229,9 @@ export function RiepilogoEconomicoPage() {
         <div>
           <h1 className="text-2xl font-extrabold text-black">Riepilogo economico</h1>
           <p className="text-sm font-semibold text-gray-600">
-            Tutte le risorse del mese: ore, assenze, quanto hanno maturato, acconti, rimborsi e
-            trattenute. Lo prepara l&rsquo;amministrazione, lo firma il titolare.
+            Tutte le risorse del mese, dal vivo: ore, assenze, quanto hanno maturato. Quando
+            l&rsquo;amministrazione ha messo acconti, rimborsi e trattenute, manda al titolare il
+            foglio definitivo per i bonifici.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -265,7 +294,6 @@ export function RiepilogoEconomicoPage() {
               <th className="!text-right">Ore lav.</th>
               <th className="!text-right">Ferie h</th>
               <th className="!text-right">Perm. h</th>
-              <th className="!text-right">Altre h</th>
               <th className="!text-right">Paga</th>
               <th className="!text-right">Maturato</th>
               <th className="!text-right">Acconti</th>
@@ -318,12 +346,22 @@ export function RiepilogoEconomicoPage() {
                           di cui {numero(r.ore_straordinarie)} str.
                         </span>
                       )}
+                      {/* Le ore che si pagano davvero, quando il titolare
+                          ha deciso diverso su qualche giornata gialla. Le
+                          lavorate restano sopra: sono quelle del campo. */}
+                      {r.ore_pagate !== null && (
+                        <span
+                          className="block text-[10px] font-black text-emerald-700"
+                          title="Il titolare ha deciso quante ore pagare su alcune giornate"
+                        >
+                          pagate {numero(r.ore_pagate)}
+                        </span>
+                      )}
                     </Cifra>
                     <Cifra className="text-gray-700">{r.ore_ferie ? numero(r.ore_ferie) : '—'}</Cifra>
                     <Cifra className="text-gray-700">
                       {r.ore_permessi ? numero(r.ore_permessi) : '—'}
                     </Cifra>
-                    <Cifra className="text-gray-700">{r.ore_altre ? numero(r.ore_altre) : '—'}</Cifra>
                     <Cifra>
                       {r.regime === 'globale' ? (
                         <>
@@ -359,7 +397,7 @@ export function RiepilogoEconomicoPage() {
                   {aperto && (
                     <tr className="bg-amber-50 print:hidden">
                       <td />
-                      <td colSpan={12} className="pb-3">
+                      <td colSpan={11} className="pb-3">
                         <Movimenti
                           dipendenteId={r.dipendente_id}
                           anno={anno}
@@ -385,7 +423,6 @@ export function RiepilogoEconomicoPage() {
               <Cifra>{numero(totale('ore_lavorate'))}</Cifra>
               <Cifra>{numero(totale('ore_ferie'))}</Cifra>
               <Cifra>{numero(totale('ore_permessi'))}</Cifra>
-              <Cifra>{numero(totale('ore_altre'))}</Cifra>
               <td />
               <Cifra>{euro(totale('maturato'))}</Cifra>
               <Cifra>{euro(totale('acconti'))}</Cifra>
@@ -448,9 +485,11 @@ function StatoMese({
         {stato === 'validato' ? (
           <Badge colore="info">Validato dal titolare il {fmtData(validatoIl)} · in archivio</Badge>
         ) : stato === 'inviato' ? (
-          <Badge colore="attesa">Inviato al titolare il {fmtData(inviatoIl)} · da firmare</Badge>
+          <Badge colore="attesa">
+            Foglio definitivo inviato il {fmtData(inviatoIl)} · da validare
+          </Badge>
         ) : (
-          <Badge>In preparazione</Badge>
+          <Badge>Dal vivo · in preparazione</Badge>
         )}
       </div>
       {/* Il motivo del ritorno: e' la prima cosa da leggere per chi deve
@@ -626,13 +665,13 @@ function Comandi({
               onClick={() => {
                 if (
                   confirm(
-                    'Inviare il riepilogo al titolare?\n\nDa quel momento i numeri restano fermi: se c’è da correggere, te lo rimanda indietro lui.',
+                    'Inviare il foglio definitivo al titolare?\n\nDa quel momento i numeri restano fermi: se c’è da correggere, te lo rimanda indietro lui.',
                   )
                 )
                   invia.mutate(righe)
               }}
             >
-              {invia.isPending ? 'Invio…' : 'Invia al titolare'}
+              {invia.isPending ? 'Invio…' : 'Invia il foglio definitivo'}
             </Button>
             <span className="text-xs font-semibold text-gray-600">
               Si invia quando tutto coincide: mese finito, giornate tutte validate, ogni persona con
@@ -642,7 +681,8 @@ function Comandi({
         )}
         {stato === 'bozza' && puoFirmare && (
           <span className="text-sm font-semibold text-gray-600">
-            In preparazione dall&rsquo;amministrazione: ti arriva da firmare quando è pronto.
+            Lo stai vedendo dal vivo. Quando l&rsquo;amministrazione ha messo acconti, rimborsi e
+            trattenute ti manda il foglio definitivo da validare.
           </span>
         )}
 
@@ -654,7 +694,7 @@ function Comandi({
               onClick={() => {
                 if (
                   confirm(
-                    'Validare il riepilogo?\n\nVa in archivio: i rapportini del mese diventano archiviati, e si può stampare il PDF per i bonifici.',
+                    'Validare il foglio definitivo?\n\nVa in archivio: i rapportini del mese diventano archiviati, e si può stampare il PDF per i bonifici.',
                   )
                 )
                   decidi.mutate({ valida: true })
