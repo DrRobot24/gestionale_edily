@@ -6,6 +6,7 @@ import { data as fmtData } from '../../lib/formato'
 import { Card, cn } from '../../ui'
 import { useSession } from '../auth/SessionProvider'
 import { patentiDi, useDipendenti } from '../anagrafiche/dipendenti'
+import { useContratti } from '../anagrafiche/contratti'
 import { giorniA, statoScadenza } from '../anagrafiche/documentiPersonali'
 import { PARCO, useParco } from '../anagrafiche/parco'
 
@@ -24,6 +25,7 @@ import { PARCO, useParco } from '../anagrafiche/parco'
      documenti della persona   visita medica, attestati, patentini
      patenti e abilitazioni    B, CQC, muletto…
      permesso di soggiorno
+     contratti a termine       dal 2026-09-29
      mezzi                     revisione, assicurazione
      attrezzature              verifica periodica
 
@@ -73,6 +75,7 @@ export function InScadenza() {
   const { data: documenti } = useDocumentiInScadenza(abilitato)
   const { data: mezzi } = useParco('mezzi')
   const { data: attrezzi } = useParco('attrezzature')
+  const { data: contratti } = useContratti({ abilitato })
 
   if (!abilitato) return null
 
@@ -91,6 +94,28 @@ export function InScadenza() {
     patentiDi(p.patenti).forEach((pt, i) => {
       if (urgente(pt.scade_il))
         lista.push({ chiave: `pat-${p.id}-${i}`, chi: nome, cosa: pt.tipo || 'Patente', data: pt.scade_il, a: scheda })
+    })
+  }
+  /* IL CONTRATTO A TERMINE CHE SCADE, e dopo cui non c'e' ancora niente:
+     ne' un contratto nuovo, ne' la fine del servizio a quella data. Va
+     deciso — rinnovo, altro contratto, o la persona se ne va. Scaduto,
+     resta in lista trenta giorni e poi tace: si puo' restare in servizio
+     senza contratto (utente, 2026-09-29), e dopo un mese non e' piu' un
+     promemoria ma una scelta. */
+  const persona = new Map((persone ?? []).map((p) => [p.id, p]))
+  const ultimoDi = new Map<string, NonNullable<typeof contratti>[number]>()
+  for (const c of contratti ?? []) if (!ultimoDi.has(c.dipendente_id)) ultimoDi.set(c.dipendente_id, c)
+  for (const c of ultimoDi.values()) {
+    const p = persona.get(c.dipendente_id)
+    if (!p || !c.al || c.motivo_fine !== 'scadenza_termine' || !urgente(c.al)) continue
+    if (giorniA(c.al) < -30) continue
+    if (p.data_cessazione && p.data_cessazione <= c.al) continue
+    lista.push({
+      chiave: `ctr-${c.id}`,
+      chi: `${p.cognome} ${p.nome}`,
+      cosa: `Contratto${c.tipo_contratto ? ` (${c.tipo_contratto.toLowerCase()})` : ''} con ${c.azienda}`,
+      data: c.al,
+      a: `/anagrafiche/operai/${p.id}`,
     })
   }
   for (const d of documenti ?? []) {

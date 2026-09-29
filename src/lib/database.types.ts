@@ -858,6 +858,7 @@ export type Database = {
       dipendente_documenti: {
         Row: {
           caricato_da: string | null
+          categoria: string
           created_at: string
           dipendente_id: string
           id: string
@@ -868,6 +869,7 @@ export type Database = {
         }
         Insert: {
           caricato_da?: string | null
+          categoria?: string
           created_at?: string
           dipendente_id: string
           id?: string
@@ -878,6 +880,7 @@ export type Database = {
         }
         Update: {
           caricato_da?: string | null
+          categoria?: string
           created_at?: string
           dipendente_id?: string
           id?: string
@@ -1112,6 +1115,72 @@ export type Database = {
           org_id?: string
           scritto_da?: string | null
           valido_dal?: string
+        }
+        Relationships: []
+      }
+      dipendente_contratti: {
+        Row: {
+          al: string | null
+          azienda: string
+          created_at: string
+          dal: string
+          dipendente_id: string
+          id: string
+          motivo_fine: string | null
+          note_fine: string | null
+          org_id: string
+          scritto_da: string | null
+          tipo_contratto: string | null
+        }
+        Insert: {
+          al?: string | null
+          azienda: string
+          created_at?: string
+          dal: string
+          dipendente_id: string
+          id?: string
+          motivo_fine?: string | null
+          note_fine?: string | null
+          org_id: string
+          scritto_da?: string | null
+          tipo_contratto?: string | null
+        }
+        Update: {
+          al?: string | null
+          azienda?: string
+          created_at?: string
+          dal?: string
+          dipendente_id?: string
+          id?: string
+          motivo_fine?: string | null
+          note_fine?: string | null
+          org_id?: string
+          scritto_da?: string | null
+          tipo_contratto?: string | null
+        }
+        Relationships: []
+      }
+      dipendente_uscite: {
+        Row: {
+          dipendente_id: string
+          motivo: string
+          note: string | null
+          org_id: string
+          updated_at: string
+        }
+        Insert: {
+          dipendente_id: string
+          motivo: string
+          note?: string | null
+          org_id: string
+          updated_at?: string
+        }
+        Update: {
+          dipendente_id?: string
+          motivo?: string
+          note?: string | null
+          org_id?: string
+          updated_at?: string
         }
         Relationships: []
       }

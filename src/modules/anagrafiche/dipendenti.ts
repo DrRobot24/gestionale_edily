@@ -166,17 +166,23 @@ export type DatiDipendente = {
   mansione: string | null
   /** Come la matricola: fuori dal modulo, conservato. */
   livello_ccnl?: string | null
-  tipo_contratto: string | null
+  /** Dal 2026-09-29 tipo, data e ditta dell'assunzione sono la COPIA dei
+   *  contratti (`dipendente_contratti`), tenuta dal database: la scheda
+   *  non li scrive piu', e un salvataggio che non li nomina li lascia
+   *  come sono. Vedi `contratti.ts`. */
+  tipo_contratto?: string | null
   /** «In servizio dal»: il primo giorno di lavoro. Puo' venire PRIMA
    *  dell'assunzione — prova, da inquadrare — mai dopo: lo impone un
    *  check, e un trigger la riempie con l'assunzione se manca. Senza,
    *  la risorsa non compare negli elenchi: vedi `inServizio`. */
   data_impiego: string | null
-  data_assunzione: string | null
+  /** Il primo contratto: da quando e' in forza. Copia, vedi sopra. */
+  data_assunzione?: string | null
   /** «Fine servizio». Vuota = nessuna scadenza. */
   data_cessazione: string | null
-  /** Con quale azienda e' assunto, dal 2026-09-25. Testo libero. */
-  azienda_assunzione: string | null
+  /** Con quale azienda e' assunto, dal 2026-09-25: la ditta dell'ultimo
+   *  contratto. Copia, vedi sopra. */
+  azienda_assunzione?: string | null
   telefono: string | null
   email: string | null
 
@@ -205,7 +211,9 @@ export type DatiDipendente = {
   patenti: Patente[]
   /** I DPI consegnati, ognuno con il giorno della consegna. */
   dpi_consegnati: DpiConsegnato[]
-  stato_rapporto: StatoRapporto
+  /** «Assunto» lo decide un contratto aperto, e lo scrive il database;
+   *  a mano si sceglie solo fra in prova e da inquadrare. */
+  stato_rapporto?: StatoRapporto
 
   /** L'utente che entra nel gestionale con questa anagrafica.
    *

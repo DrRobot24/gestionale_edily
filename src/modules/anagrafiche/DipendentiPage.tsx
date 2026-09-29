@@ -14,6 +14,7 @@ import {
   type TipoRisorsa,
 } from './dipendenti'
 import { statoScadenza, giorniA } from './documentiPersonali'
+import { aperto, useContratti, type Contratto } from './contratti'
 
 /* ══════════════════════════════════════════════════════════════════
    Il registro delle persone che lavorano per l'impresa.
@@ -125,6 +126,10 @@ export function DipendentiPage() {
   /* L'orario da contratto di ognuno, per la tariffa di chi e' a paga
      globale: paga ÷ (giorni lavorabili × ore al giorno). */
   const { data: orari } = useOrari()
+  /* I contratti, per la colonna dell'assunzione (2026-09-29). Li legge
+     solo chi tiene le anagrafiche; gli altri vedono la copia sulla
+     scheda, come prima. */
+  const { data: contratti } = useContratti({ abilitato: puoScrivere })
   const COLONNE = vedePaghe ? COLONNE_CON_STIPENDIO : COLONNE_SENZA_STIPENDIO
 
   if (isPending) return <p className="text-sm font-bold text-gray-600">Carico le risorse…</p>
@@ -283,7 +288,13 @@ export function DipendentiPage() {
                 <Data valore={d.data_impiego} />
 
                 <span className="hidden min-w-0 lg:block">
-                  {d.stato_rapporto === 'assunto' && d.data_assunzione ? (
+                  {contratti ? (
+                    <ColonnaContratto
+                      suoi={contratti.filter((c) => c.dipendente_id === d.id)}
+                      stato={d.stato_rapporto}
+                      oggi={oggi}
+                    />
+                  ) : d.stato_rapporto === 'assunto' && d.data_assunzione ? (
                     <>
                       <span className="numerico block text-sm font-semibold text-gray-800">
                         {fmtData(d.data_assunzione)}
@@ -374,5 +385,53 @@ function Data({ valore }: { valore: string | null }) {
     </span>
   ) : (
     <span className="hidden text-sm font-semibold text-gray-400 lg:block">—</span>
+  )
+}
+
+/** La colonna dell'assunzione letta dai contratti: il contratto in
+ *  corso (data, ditta, e la scadenza se c'e'); se non ce n'e' uno, il
+ *  perche'. */
+function ColonnaContratto({
+  suoi,
+  stato,
+  oggi,
+}: {
+  suoi: Contratto[]
+  stato: string | null
+  oggi: string
+}) {
+  // Prima quello gia' cominciato, poi quello che comincia a giorni.
+  const vivo =
+    suoi.find((c) => c.dal <= oggi && aperto(c, oggi)) ?? suoi.find((c) => aperto(c, oggi))
+  if (vivo) {
+    return (
+      <>
+        <span className="numerico block text-sm font-semibold text-gray-800">
+          {fmtData(vivo.dal)}
+          {vivo.al && <span className="text-gray-500"> → {fmtData(vivo.al)}</span>}
+        </span>
+        <span className="block truncate text-[11px] font-bold text-gray-500">{vivo.azienda}</span>
+      </>
+    )
+  }
+  /* Un contratto c'era ed e' finito, e la persona e' ancora in elenco:
+     va deciso cosa succede — rinnovo, altro contratto o fine servizio. */
+  if (suoi.length > 0 && stato !== 'in_prova') {
+    return (
+      <Badge colore="attesa" className="px-2 py-0.5 text-[10px]">
+        contratto finito il {fmtData(suoi[0].al)}
+      </Badge>
+    )
+  }
+  if (stato === 'in_prova')
+    return (
+      <Badge colore="attesa" className="px-2 py-0.5 text-[10px]">
+        in prova
+      </Badge>
+    )
+  return (
+    <Badge colore="errore" className="px-2 py-0.5 text-[10px]">
+      da inquadrare
+    </Badge>
   )
 }

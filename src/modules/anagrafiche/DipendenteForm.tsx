@@ -3,12 +3,25 @@ import { useFieldArray, useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useNavigate, useParams } from 'react-router'
 import { z } from 'zod'
+import { data as fmtData } from '../../lib/formato'
 import { Avviso, Badge, Button, Campo, CampoSelect, Card, Percorso, cn } from '../../ui'
 import { usePermission } from '../auth/usePermission'
-import { RiquadroDocumentiPersona } from './RiquadroDocumentiPersona'
+import { useSession } from '../auth/SessionProvider'
+import { useQueryClient } from '@tanstack/react-query'
+import { CassettoDocumenti, RiquadroDocumentiPersona } from './RiquadroDocumentiPersona'
 import { RiquadroOrario } from './RiquadroOrario'
 import { RiquadroRetribuzione } from './RiquadroRetribuzione'
 import { RiquadroAppunti } from './RiquadroAppunti'
+import { RiquadroContratti } from './RiquadroContratti'
+import {
+  ETICHETTA_MOTIVO,
+  MOTIVI_SCELTI,
+  aperto,
+  salvaUscita,
+  useContratti,
+  useUscita,
+  type MotivoFine,
+} from './contratti'
 import { useMembri } from '../cantieri/assegnazioni'
 import {
   useDipendenti,
@@ -19,8 +32,6 @@ import {
   dpiConsegnatiDi,
   patentiDi,
 } from './dipendenti'
-
-const CONTRATTI = ['Tempo indeterminato', 'Tempo determinato', 'Apprendistato', 'Stagionale']
 
 /* MATRICOLA E LIVELLO CCNL SONO USCITI DALLA SCHEDA il 2026-09-25, su
    indicazione dell'utente. Le colonne restano nel database — le legge
@@ -57,9 +68,9 @@ const DPI = [
   'Mascherina / respiratore',
 ]
 
-/* Perche' non e' assunto. L'assunzione e' una spunta a parte (vedi
-   «In servizio e assunzione» nel modulo): qui restano le due ragioni
-   per cui si e' in servizio senza contratto. */
+/* Perche' non e' assunto. I contratti stanno in un riquadro loro (vedi
+   `RiquadroContratti`): qui restano le due ragioni per cui si e' in
+   servizio senza contratto. */
 const NON_ASSUNTO = [
   ['in_prova', 'In prova'],
   ['da_inquadrare', 'Da inquadrare — contratto ancora da fare'],
@@ -75,11 +86,12 @@ const schema = z.object({
     .refine((v) => v === '' || v.trim().length === 16, 'Il codice fiscale ha 16 caratteri'),
   tipo: z.enum(['operaio', 'tecnico', 'impiegato']),
   mansione: z.string(),
-  tipo_contratto: z.string(),
   data_impiego: z.string(),
-  data_assunzione: z.string(),
   data_cessazione: z.string(),
-  azienda_assunzione: z.string(),
+  /* Perche' finisce il servizio, dal 2026-09-29. Sta in una tabella sua
+     (`dipendente_uscite`), letta solo da chi tiene le anagrafiche. */
+  motivo_uscita: z.string(),
+  note_uscita: z.string(),
   telefono: z.string(),
   email: z.string().refine((v) => v === '' || /.+@.+\..+/.test(v), 'Email non valida'),
   user_id: z.string(),
@@ -104,40 +116,22 @@ const schema = z.object({
      cui esiste il campo, cioe' «quando va rinnovato». Il database ha il
      suo check, ma quello rifiuta il caso opposto — data senza permesso —
      e un 23514 non e' una frase leggibile. */
-  /* «Non ci puo' essere assunzione senza impiego, ma impiego senza
-     assunzione si'» (2026-09-24). Il database ha lo stesso check; qui
-     serve a dirlo con una frase invece che con un 23514. L'impiego
-     vuoto con l'assunzione piena invece passa: lo riempie il trigger
-     con la data di assunzione, che e' l'unica cosa certa. */
-  .refine((v) => !v.data_impiego || !v.data_assunzione || v.data_impiego <= v.data_assunzione, {
-    message: 'Il servizio non può cominciare dopo l’assunzione',
-    path: ['data_impiego'],
-  })
-  /* IL PERIODO DI SERVIZIO, e l'assunzione che ci sta dentro
-     (2026-09-25). Il database ha gli stessi check; qui servono a dirlo
-     con una frase. */
+  /* IL PERIODO DI SERVIZIO (2026-09-25). Il database ha lo stesso
+     check; qui serve a dirlo con una frase. I confronti coi contratti li
+     fa `onSubmit`, che i contratti li conosce. */
   .refine((v) => !v.data_cessazione || !v.data_impiego || v.data_cessazione >= v.data_impiego, {
     message: 'La fine del servizio viene prima dell’inizio',
     path: ['data_cessazione'],
   })
-  .refine(
-    (v) =>
-      v.stato_rapporto !== 'assunto' ||
-      !v.data_cessazione ||
-      !v.data_assunzione ||
-      v.data_assunzione <= v.data_cessazione,
-    { message: 'L’assunzione non può cominciare dopo la fine del servizio', path: ['data_assunzione'] },
-  )
-  /* Assunto vuol dire un contratto: DA QUANDO e CON CHI. Una spunta
-     senza queste due cose non risponde a nessuna delle domande per cui
-     esiste. */
-  .refine((v) => v.stato_rapporto !== 'assunto' || v.data_assunzione !== '', {
-    message: 'Da quando è assunto?',
-    path: ['data_assunzione'],
+  /* Una fine senza motivo non risponde alla domanda per cui il campo
+     esiste (utente, 2026-09-29). */
+  .refine((v) => !v.data_cessazione || v.motivo_uscita !== '', {
+    message: 'Perché finisce il servizio?',
+    path: ['motivo_uscita'],
   })
-  .refine((v) => v.stato_rapporto !== 'assunto' || v.azienda_assunzione.trim() !== '', {
-    message: 'Con quale azienda è assunto?',
-    path: ['azienda_assunzione'],
+  .refine((v) => v.motivo_uscita !== 'altro' || v.note_uscita.trim() !== '', {
+    message: 'Con «Altro» servono due parole di spiegazione',
+    path: ['note_uscita'],
   })
   /* Ogni patente dice COSA e almeno UNA DATA: «B» senza date non
      risponde alla domanda per cui il campo esiste — fino a quando vale.
@@ -193,11 +187,10 @@ const VUOTO: Campi = {
   codice_fiscale: '',
   tipo: 'operaio' as const,
   mansione: '',
-  tipo_contratto: '',
   data_impiego: '',
-  data_assunzione: '',
   data_cessazione: '',
-  azienda_assunzione: '',
+  motivo_uscita: '',
+  note_uscita: '',
   telefono: '',
   email: '',
   user_id: '',
@@ -210,7 +203,7 @@ const VUOTO: Campi = {
   patenti: [],
   dpi_consegnati: [],
   /* Una risorsa nuova parte NON assunta: il contratto e' il passo in
-     piu', e si spunta quando c'e'. Prima il default era «assunto», e
+     piu', e si aggiunge quando c'e'. Prima il default era «assunto», e
      schede mai toccate risultavano assunte senza data ne' azienda. */
   stato_rapporto: 'in_prova' as const,
 }
@@ -242,6 +235,15 @@ export function DipendenteForm() {
   const salva = useSalvaDipendente()
   const archivia = useArchiviaDipendente()
   const elimina = useEliminaDipendente()
+  const { org } = useSession()
+  const qc = useQueryClient()
+  /* I contratti e il perche' della fine: solo per chi tiene le
+     anagrafiche, come le tabelle che li contengono. */
+  const { data: contratti } = useContratti({ abilitato: puoScrivere })
+  const suoiContratti = (contratti ?? []).filter((c) => c.dipendente_id === id)
+  const contrattoAperto = suoiContratti.find((c) => aperto(c))
+  const { data: uscita } = useUscita(id, puoScrivere)
+  const [erroreUscita, setErroreUscita] = useState<string | null>(null)
 
   const {
     register,
@@ -249,6 +251,7 @@ export function DipendenteForm() {
     reset,
     control,
     setValue,
+    setError,
     formState: { errors, isDirty, isSubmitted },
   } = useForm<Campi>({ resolver: zodResolver(schema), defaultValues: VUOTO })
 
@@ -269,15 +272,11 @@ export function DipendenteForm() {
     // Dopo il primo invio l'errore si aggiorna mentre si scrive la data.
     setValue('dpi_consegnati', nuovi, { shouldDirty: true, shouldValidate: isSubmitted })
   }
-  /* Stessa ragione per l'assunzione: data e azienda compaiono quando
-     si spunta. E il servizio, per avvisare subito chi lo lascia vuoto. */
-  const statoRapporto = useWatch({ control, name: 'stato_rapporto' })
-  const assunto = statoRapporto === 'assunto'
+  /* Il servizio, per avvisare subito chi lo lascia vuoto; la sua fine,
+     per chiedere il perche' nel momento in cui si scrive. */
   const inServizioDal = useWatch({ control, name: 'data_impiego' })
-  /* Togliendo la spunta si torna alla ragione di prima, se c'era: chi
-     la rimette e la toglie per sbaglio non deve perdere «da
-     inquadrare». */
-  const [nonAssunto, setNonAssunto] = useState<'in_prova' | 'da_inquadrare'>('in_prova')
+  const fineServizio = useWatch({ control, name: 'data_cessazione' })
+  const motivoUscita = useWatch({ control, name: 'motivo_uscita' })
 
   /* Come si chiama quello che si sta creando. La scheda non fa piu'
      solo operai — Stefania ci registra sé stessa e il tecnico — e
@@ -298,11 +297,10 @@ export function DipendenteForm() {
       codice_fiscale: dipendente.codice_fiscale ?? '',
       tipo: dipendente.tipo ?? 'operaio',
       mansione: dipendente.mansione ?? '',
-      tipo_contratto: dipendente.tipo_contratto ?? '',
       data_impiego: dipendente.data_impiego ?? '',
-      data_assunzione: dipendente.data_assunzione ?? '',
       data_cessazione: dipendente.data_cessazione ?? '',
-      azienda_assunzione: dipendente.azienda_assunzione ?? '',
+      motivo_uscita: uscita?.motivo ?? '',
+      note_uscita: uscita?.note ?? '',
       telefono: dipendente.telefono ?? '',
       email: dipendente.email ?? '',
       user_id: dipendente.user_id ?? '',
@@ -321,9 +319,15 @@ export function DipendenteForm() {
         dpi: d.dpi,
         consegnato_il: d.consegnato_il ?? '',
       })),
-      stato_rapporto: dipendente.stato_rapporto ?? 'assunto',
+      /* «Assunto» non si sceglie piu' a mano: lo dice un contratto
+         aperto. Nella tendina restano le due ragioni per non esserlo, e
+         una scheda segnata «assunto» senza contratto (le vecchie, o un
+         contratto appena finito) parte da «da inquadrare», che e' il
+         compito che resta. */
+      stato_rapporto:
+        dipendente.stato_rapporto === 'in_prova' ? 'in_prova' : 'da_inquadrare',
     })
-  }, [dipendente, reset])
+  }, [dipendente, uscita, reset])
 
   if (!nuovo && isPending) {
     return <p className="text-sm font-bold text-gray-600">Carico la scheda…</p>
@@ -331,6 +335,24 @@ export function DipendenteForm() {
   if (error) return <Avviso tono="errore">Non trovo questa persona: {error.message}</Avviso>
 
   async function onSubmit(c: Campi) {
+    /* I confronti coi contratti, che lo schema non conosce. Il database
+       ha gli stessi vincoli; qui servono a dirlo sul campo giusto invece
+       che con un 23514. */
+    const primo = suoiContratti.at(-1)?.dal
+    const ultimo = suoiContratti[0]?.dal
+    if (c.data_impiego && primo && c.data_impiego > primo) {
+      setError('data_impiego', {
+        message: `Il primo contratto comincia il ${fmtData(primo)}: il servizio non può cominciare dopo`,
+      })
+      return
+    }
+    if (c.data_cessazione && ultimo && c.data_cessazione < ultimo) {
+      setError('data_cessazione', {
+        message: `C’è un contratto che comincia il ${fmtData(ultimo)}: il servizio non può finire prima`,
+      })
+      return
+    }
+
     const salvato = await salva.mutateAsync({
       id,
       dati: {
@@ -339,17 +361,9 @@ export function DipendenteForm() {
         codice_fiscale: vuotoSeVuoto(c.codice_fiscale)?.toUpperCase() ?? null,
         tipo: c.tipo,
         mansione: vuotoSeVuoto(c.mansione),
-        /* Il tipo di contratto esiste solo se c'e' un contratto: se ne
-           va con la spunta dell'assunzione, come la data e l'azienda. */
-        tipo_contratto:
-          c.stato_rapporto === 'assunto' ? vuotoSeVuoto(c.tipo_contratto) : null,
+        /* Data, ditta e tipo del contratto non si scrivono da qui dal
+           2026-09-29: le ricopia il database dai contratti. */
         data_impiego: vuotoSeVuoto(c.data_impiego),
-        /* Data e azienda dell'assunzione se ne vanno insieme alla
-           spunta: una data rimasta li' direbbe «assunto» a chiunque
-           legga la colonna, contro la spunta tolta. */
-        data_assunzione: c.stato_rapporto === 'assunto' ? vuotoSeVuoto(c.data_assunzione) : null,
-        azienda_assunzione:
-          c.stato_rapporto === 'assunto' ? vuotoSeVuoto(c.azienda_assunzione) : null,
         data_cessazione: vuotoSeVuoto(c.data_cessazione),
         telefono: vuotoSeVuoto(c.telefono),
         email: vuotoSeVuoto(c.email),
@@ -358,7 +372,9 @@ export function DipendenteForm() {
         data_nascita: vuotoSeVuoto(c.data_nascita),
         luogo_nascita: vuotoSeVuoto(c.luogo_nascita),
         residenza: vuotoSeVuoto(c.residenza),
-        stato_rapporto: c.stato_rapporto,
+        /* Con un contratto aperto lo stato e' «assunto» e lo tiene il
+           database: la tendina non c'e', e non si manda niente. */
+        ...(contrattoAperto ? {} : { stato_rapporto: c.stato_rapporto }),
 
         /* Patente e DPI SOLO PER GLI OPERAI, e si azzerano cambiando
            tipo. Non e' pulizia formale: la scheda di chi passa a
@@ -398,6 +414,23 @@ export function DipendenteForm() {
         permesso_scadenza: c.permesso_soggiorno ? vuotoSeVuoto(c.permesso_scadenza) : null,
       },
     })
+
+    /* Il perche' della fine servizio, DOPO la scheda: la data sta li'.
+       Tolta la data, il motivo lo cancella il database da solo. La
+       fine del servizio chiude anche i contratti aperti: si rileggono. */
+    setErroreUscita(null)
+    if (c.data_cessazione) {
+      try {
+        await salvaUscita(org!.id, salvato, {
+          motivo: c.motivo_uscita as MotivoFine,
+          note: vuotoSeVuoto(c.note_uscita),
+        })
+      } catch (e) {
+        setErroreUscita(`La scheda è salvata, il motivo della fine no: ${(e as Error).message}`)
+      }
+    }
+    qc.invalidateQueries({ queryKey: ['uscita', salvato] })
+    qc.invalidateQueries({ queryKey: ['contratti'] })
     // Dopo la creazione si resta sulla scheda invece di tornare alla
     // lista: senza tariffa l'operaio non costa niente, e la sezione
     // tariffe esiste solo quando c'e' un id. Rimandarlo alla lista
@@ -474,6 +507,7 @@ export function DipendenteForm() {
 
       {salva.isError && <Avviso tono="errore">{(salva.error as Error).message}</Avviso>}
       {elimina.isError && <Avviso tono="errore">{(elimina.error as Error).message}</Avviso>}
+      {erroreUscita && <Avviso tono="errore">{erroreUscita}</Avviso>}
 
       <form onSubmit={handleSubmit(onSubmit)} className="grid gap-4" noValidate>
         {/* ══ CHI E' ══
@@ -547,6 +581,95 @@ export function DipendenteForm() {
               {...register('email')}
             />
           </div>
+
+          {/* I DOCUMENTI DI IDENTITA', in anagrafica dal 2026-09-29: «non
+              confondiamo i cassetti! Tu metteresti mutande e calzini
+              insieme con le camicie e i maglioni?» (utente). Gli
+              attestati e i corsi stanno nei documenti di lavoro, in
+              fondo. Solo per chi tiene le anagrafiche, come la RLS. */}
+          {puoScrivere && (
+            <div className="rounded-xl border-2 border-black bg-white p-4">
+              {id ? (
+                <CassettoDocumenti
+                  dipendenteId={id}
+                  puoScrivere={puoScrivere}
+                  cassetto="identita"
+                  titolo="Documenti di identità"
+                  nota="Carta d’identità, passaporto, tessera sanitaria."
+                />
+              ) : (
+                <>
+                  <span className="block text-sm font-extrabold text-black">
+                    Documenti di identità
+                  </span>
+                  <span className="block text-xs font-semibold text-gray-600">
+                    Salvata la scheda, qui si caricano carta d&rsquo;identità e gli altri.
+                  </span>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* IL PERMESSO DI SOGGIORNO, e la sua scadenza. In «Chi e'»
+              dal 2026-09-29, con la sua copia caricata: e' un documento
+              della persona, non del suo lavoro («non confondiamo i
+              cassetti», utente).
+
+              Due campi e non uno: SE serve, e QUANDO scade. La data
+              compare solo spuntando la casella — chiederla a un
+              cittadino italiano sarebbe una domanda senza risposta — ed
+              e' obbligatoria quando c'e', perche' un permesso senza
+              data non risponde alla domanda per cui il campo esiste.
+
+              E' l'unico campo della scheda CHE SCADE: la data sta in un
+              campo suo, e non dentro le note, perche' un domani diventa
+              il promemoria in home che avvisa prima che sia tardi. */}
+          <div className="grid gap-3 rounded-xl border-2 border-black bg-white p-4">
+            <label className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                disabled={!puoScrivere}
+                className="mt-0.5 h-5 w-5 shrink-0 cursor-pointer rounded border-2 border-black accent-amber-400"
+                {...register('permesso_soggiorno')}
+              />
+              <span>
+                <span className="block text-sm font-extrabold text-black">
+                  Ha un permesso di soggiorno
+                </span>
+                <span className="block text-xs font-semibold text-gray-600">
+                  Da spuntare per chi non è cittadino UE: il documento va rinnovato e la
+                  scadenza va tenuta d&rsquo;occhio.
+                </span>
+              </span>
+            </label>
+
+            {haPermesso && (
+              <Campo
+                etichetta="Scade il"
+                type="date"
+                disabled={!puoScrivere}
+                className="sm:w-56"
+                errore={errors.permesso_scadenza?.message}
+                {...register('permesso_scadenza')}
+              />
+            )}
+
+            {/* La copia del permesso, qui accanto alla sua scadenza e
+                non fra gli attestati (2026-09-29). Senza scadenza sua:
+                la data e' quella qui sopra. */}
+            {haPermesso && id && puoScrivere && (
+              <div className="border-t-2 border-gray-200 pt-3">
+                <CassettoDocumenti
+                  dipendenteId={id}
+                  puoScrivere={puoScrivere}
+                  cassetto="permesso"
+                  conScadenza={false}
+                  titolo="Copia del permesso"
+                />
+              </div>
+            )}
+          </div>
+
           </div>
         </Card>
 
@@ -618,10 +741,12 @@ export function DipendenteForm() {
 
               Quindi prima il PERIODO DI SERVIZIO, che decide se la
               risorsa esiste negli elenchi da cui si sceglie — squadre,
-              assenti, anagrafica. Poi, dentro, l'ASSUNZIONE: una spunta,
-              e solo spuntandola compaiono da quando e con quale azienda.
-              Si puo' essere in servizio senza essere assunti — in prova,
-              o per il tempo di un progetto — non il contrario.
+              assenti, anagrafica. Poi, dentro, i CONTRATTI (dal
+              2026-09-29 uno dopo l'altro, anche con ditte diverse: vedi
+              `RiquadroContratti`). Si puo' essere in servizio senza
+              essere assunti — in prova, o per il tempo di un progetto —
+              non il contrario. E un contratto puo' finire lasciando la
+              persona in servizio.
 
               «In servizio» e non «impiego»: la parola «impiegato» la usa
               gia' il tipo di risorsa, e le due cose si confondevano. */}
@@ -655,69 +780,74 @@ export function DipendenteForm() {
             </Avviso>
           )}
 
-          <div className="grid gap-3 rounded-xl border-2 border-black bg-white p-4">
-            <label className="flex items-start gap-3">
-              <input
-                type="checkbox"
-                disabled={!puoScrivere}
-                checked={assunto}
-                onChange={(e) => {
-                  if (e.target.checked) {
-                    if (statoRapporto !== 'assunto') setNonAssunto(statoRapporto)
-                    setValue('stato_rapporto', 'assunto', { shouldDirty: true })
-                  } else {
-                    setValue('stato_rapporto', nonAssunto, { shouldDirty: true })
-                  }
-                }}
-                className="mt-0.5 h-5 w-5 shrink-0 cursor-pointer rounded border-2 border-black accent-amber-400"
+          {/* PERCHE' FINISCE IL SERVIZIO (2026-09-29): compare quando c'e'
+              la data, e senza non si salva. Sul servizio e non sul
+              contratto, cosi' vale anche per chi non e' mai stato assunto
+              — la prova non superata. Solo per chi tiene le anagrafiche:
+              la tabella la legge solo lui. */}
+          {puoScrivere && fineServizio && (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <CampoSelect
+                etichetta="Perché finisce il servizio"
+                errore={errors.motivo_uscita?.message}
+                {...register('motivo_uscita')}
+              >
+                <option value="">—</option>
+                {MOTIVI_SCELTI.map((m) => (
+                  <option key={m} value={m}>
+                    {ETICHETTA_MOTIVO[m]}
+                  </option>
+                ))}
+              </CampoSelect>
+              <Campo
+                etichetta="Note sulla fine"
+                placeholder={motivoUscita === 'altro' ? 'Cosa è successo' : 'Facoltative'}
+                errore={errors.note_uscita?.message}
+                {...register('note_uscita')}
               />
-              <span>
-                <span className="block text-sm font-extrabold text-black">Assunto</span>
-                <span className="block text-xs font-semibold text-gray-600">
-                  C&rsquo;è un contratto. Da spuntare quando arriva: si può essere in servizio
-                  senza, in prova o per il tempo di un progetto.
-                </span>
-              </span>
-            </label>
+              {contrattoAperto && (
+                <p className="text-xs font-semibold text-gray-600 sm:col-span-2">
+                  Salvando, il contratto con {contrattoAperto.azienda} si chiude alla stessa data.
+                </p>
+              )}
+            </div>
+          )}
 
-            {assunto ? (
-              <div className="grid gap-4 sm:grid-cols-3">
-                <Campo
-                  etichetta="Assunto dal"
-                  type="date"
-                  disabled={!puoScrivere}
-                  errore={errors.data_assunzione?.message}
-                  {...register('data_assunzione')}
-                />
-                {/* Testo libero per ora: diventera' una tendina di ditte
-                    quando l'elenco ci sara' (utente, 2026-09-25). */}
-                <Campo
-                  etichetta="Assunto con"
-                  placeholder="L’azienda che ha fatto il contratto"
-                  disabled={!puoScrivere}
-                  errore={errors.azienda_assunzione?.message}
-                  {...register('azienda_assunzione')}
-                />
-                {/* Qui e non fra i campi generali (2026-09-25): un tipo
-                    di contratto senza contratto non ha senso. */}
-                <CampoSelect
-                  etichetta="Tipo contratto"
-                  disabled={!puoScrivere}
-                  errore={errors.tipo_contratto?.message}
-                  {...register('tipo_contratto')}
-                >
-                  <option value="">—</option>
-                  {CONTRATTI.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </CampoSelect>
-              </div>
+          <div className="grid gap-3 rounded-xl border-2 border-black bg-white p-4">
+            <div>
+              <span className="block text-sm font-extrabold text-black">Contratti</span>
+              <span className="block text-xs font-semibold text-gray-600">
+                Uno dopo l&rsquo;altro, anche con aziende diverse. Un contratto può finire e la
+                persona restare in servizio.
+              </span>
+            </div>
+
+            {nuovo ? (
+              <p className="text-xs font-semibold text-gray-600">
+                Salvata la scheda, qui si aggiungono i contratti.
+              </p>
+            ) : puoScrivere ? (
+              <RiquadroContratti
+                dipendenteId={id!}
+                puoScrivere={puoScrivere}
+                inServizioDal={inServizioDal}
+              />
             ) : (
+              /* Chi non tiene le anagrafiche non legge i contratti: vede
+                 la copia sulla scheda, ditta e tipo dell'ultimo. */
+              <p className="text-sm font-semibold text-gray-800">
+                {dipendente?.stato_rapporto === 'assunto' && dipendente.azienda_assunzione
+                  ? `Assunto con ${dipendente.azienda_assunzione}${
+                      dipendente.tipo_contratto ? ` · ${dipendente.tipo_contratto}` : ''
+                    }`
+                  : 'Non assunto'}
+              </p>
+            )}
+
+            {/* Senza un contratto aperto resta la domanda: perche' no? */}
+            {puoScrivere && !contrattoAperto && (
               <CampoSelect
                 etichetta="Perché non è assunto"
-                disabled={!puoScrivere}
                 className="sm:w-80"
                 errore={errors.stato_rapporto?.message}
                 {...register('stato_rapporto')}
@@ -728,48 +858,6 @@ export function DipendenteForm() {
                   </option>
                 ))}
               </CampoSelect>
-            )}
-          </div>
-
-          {/* IL PERMESSO DI SOGGIORNO, e la sua scadenza.
-
-              Due campi e non uno: SE serve, e QUANDO scade. La data
-              compare solo spuntando la casella — chiederla a un
-              cittadino italiano sarebbe una domanda senza risposta — ed
-              e' obbligatoria quando c'e', perche' un permesso senza
-              data non risponde alla domanda per cui il campo esiste.
-
-              E' l'unico campo della scheda CHE SCADE: la data sta in un
-              campo suo, e non dentro le note, perche' un domani diventa
-              il promemoria in home che avvisa prima che sia tardi. */}
-          <div className="grid gap-3 rounded-xl border-2 border-black bg-white p-4">
-            <label className="flex items-start gap-3">
-              <input
-                type="checkbox"
-                disabled={!puoScrivere}
-                className="mt-0.5 h-5 w-5 shrink-0 cursor-pointer rounded border-2 border-black accent-amber-400"
-                {...register('permesso_soggiorno')}
-              />
-              <span>
-                <span className="block text-sm font-extrabold text-black">
-                  Ha un permesso di soggiorno
-                </span>
-                <span className="block text-xs font-semibold text-gray-600">
-                  Da spuntare per chi non è cittadino UE: il documento va rinnovato e la
-                  scadenza va tenuta d&rsquo;occhio.
-                </span>
-              </span>
-            </label>
-
-            {haPermesso && (
-              <Campo
-                etichetta="Scade il"
-                type="date"
-                disabled={!puoScrivere}
-                className="sm:w-56"
-                errore={errors.permesso_scadenza?.message}
-                {...register('permesso_scadenza')}
-              />
             )}
           </div>
 

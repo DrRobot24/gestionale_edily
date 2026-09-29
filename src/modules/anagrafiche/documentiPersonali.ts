@@ -49,9 +49,22 @@ export function percorsoDocumento(
   return `${orgId}/${dipendenteId}/${Date.now()}-${pulito}`
 }
 
+/** IL CASSETTO, dal 2026-09-29: «non confondiamo i cassetti!» (utente).
+ *  Identita' e permesso di soggiorno stanno in anagrafica, in cima alla
+ *  scheda; attestati, patentini e corsi fra i documenti di lavoro. Vedi
+ *  `supabase/schema/documenti-cassetti.sql`. */
+export type Cassetto = 'identita' | 'permesso' | 'lavoro'
+
+export const NOME_CASSETTO: Record<Cassetto, string> = {
+  identita: 'Documenti di identità',
+  permesso: 'Permesso di soggiorno',
+  lavoro: 'Documenti di lavoro',
+}
+
 export type DocumentoPersonale = {
   id: string
   titolo: string
+  categoria: Cassetto
   percorso: string
   scadenza: string | null
   created_at: string
@@ -72,12 +85,23 @@ export function useDocumentiPersonali(dipendenteId: string | undefined) {
     queryKey: ['documenti-personali', dipendenteId, org?.id],
     enabled: Boolean(dipendenteId && org?.id),
     queryFn: async (): Promise<DocumentoPersonale[]> => {
-      const { data, error } = await supabase
-        .from('dipendente_documenti')
-        .select('id, titolo, percorso, scadenza, created_at')
-        .eq('dipendente_id', dipendenteId!)
-        .eq('org_id', org!.id)
-        .order('created_at', { ascending: false })
+      const leggi = (campi: string) =>
+        supabase
+          .from('dipendente_documenti')
+          .select(campi)
+          .eq('dipendente_id', dipendenteId!)
+          .eq('org_id', org!.id)
+          .order('created_at', { ascending: false })
+          .overrideTypes<Omit<DocumentoPersonale, 'url'>[], { merge: false }>()
+
+      let { data, error } = await leggi('id, titolo, categoria, percorso, scadenza, created_at')
+      /* Senza `documenti-cassetti.sql` la colonna non c'e' (42703): si
+         leggono lo stesso, tutti nel cassetto di lavoro com'erano. */
+      if (error?.code === '42703') {
+        const vecchi = await leggi('id, titolo, percorso, scadenza, created_at')
+        error = vecchi.error
+        data = (vecchi.data ?? []).map((d) => ({ ...d, categoria: 'lavoro' as const }))
+      }
 
       if (error) throw error
       if (!data || data.length === 0) return []
@@ -118,11 +142,13 @@ export function useCaricaDocumento() {
       file,
       titolo,
       scadenza,
+      categoria,
     }: {
       dipendenteId: string
       file: File
       titolo: string
       scadenza: string | null
+      categoria: Cassetto
     }) => {
       const percorso = percorsoDocumento(org!.id, dipendenteId, file.name)
 
@@ -137,6 +163,9 @@ export function useCaricaDocumento() {
         titolo,
         percorso,
         scadenza,
+        // Il cassetto di lavoro e' il default della colonna: non
+        // nominarlo lascia caricare anche prima dello SQL nuovo.
+        ...(categoria === 'lavoro' ? {} : { categoria }),
         caricato_da: app!.userId,
       })
 
@@ -148,6 +177,73 @@ export function useCaricaDocumento() {
       }
     },
     onSuccess: (_, v) => {
+      qc.invalidateQueries({ queryKey: ['documenti-personali', v.dipendenteId] })
+    },
+  })
+}
+
+/**
+ * Corregge un documento gia' caricato (2026-09-29): nome, scadenza,
+ * cassetto, e se serve il file stesso.
+ *
+ * Col file nuovo l'ordine e' quello del caricamento: prima sale il file,
+ * poi la riga punta a lui, e solo alla fine si toglie il vecchio. Se
+ * qualcosa si ferma a meta', la riga punta sempre a un file che esiste.
+ */
+export function useModificaDocumento() {
+  const { org } = useSession()
+  const qc = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({
+      id,
+      dipendenteId,
+      percorsoVecchio,
+      titolo,
+      scadenza,
+      categoria,
+      file,
+    }: {
+      id: string
+      dipendenteId: string
+      percorsoVecchio: string
+      titolo: string
+      scadenza: string | null
+      categoria: Cassetto
+      file: File | null
+    }) => {
+      let percorso = percorsoVecchio
+      if (file) {
+        percorso = percorsoDocumento(org!.id, dipendenteId, file.name)
+        const { error: erroreFile } = await supabase.storage
+          .from(BUCKET)
+          .upload(percorso, file, { contentType: file.type, upsert: false })
+        if (erroreFile) throw erroreFile
+      }
+
+      // `.select()`: un UPDATE respinto dalla RLS tocca zero righe senza
+      // errore, e il file nuovo resterebbe orfano.
+      const { data, error } = await supabase
+        .from('dipendente_documenti')
+        .update({ titolo, scadenza, percorso, categoria })
+        .eq('id', id)
+        .eq('org_id', org!.id)
+        .select('id')
+
+      if (error || !data?.length) {
+        if (file) await supabase.storage.from(BUCKET).remove([percorso])
+        if (error?.code === '42703') {
+          throw new Error(
+            'Manca la colonna del cassetto nel database: va eseguito supabase/schema/documenti-cassetti.sql.',
+          )
+        }
+        throw error ?? new Error('Non hai il permesso di modificare questo documento.')
+      }
+
+      if (file) await supabase.storage.from(BUCKET).remove([percorsoVecchio])
+    },
+    onSuccess: (_, v) => {
+      qc.invalidateQueries({ queryKey: ['documenti-personali'] })
       qc.invalidateQueries({ queryKey: ['documenti-personali', v.dipendenteId] })
     },
   })
