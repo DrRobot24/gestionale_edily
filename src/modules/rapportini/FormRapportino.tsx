@@ -12,6 +12,8 @@ import { RiquadroFoto } from './RiquadroFoto'
 import { useAssenze } from './useAssenze'
 import { oreContratto, useOrari } from '../anagrafiche/dipendenti'
 import { RiquadroEconomia, type DatiEconomia } from './RiquadroEconomia'
+import { RiquadroSubappalto } from '../subappalti/RiquadroSubappalto'
+import type { RigaSubappalto } from '../subappalti/subappalti'
 import { RiquadroMezzi } from './RiquadroMezzi'
 import type { RigaUso } from './mezziAttrezzature'
 
@@ -34,6 +36,7 @@ type Props = {
     foto: File[],
     economia: DatiEconomia[],
     mezzi: RigaUso[],
+    subappalti: RigaSubappalto[],
   ) => void
   onAnnulla: () => void
 }
@@ -57,6 +60,8 @@ export function FormRapportino({
   // Mezzi e attrezzature: stessa regola, in attesa finche' la scheda
   // non esiste.
   const [mezzi, setMezzi] = useState<RigaUso[]>([])
+  // I subappalti della giornata (2026-09-29): stessa regola.
+  const [subappalti, setSubappalti] = useState<RigaSubappalto[]>([])
   const {
     register,
     control,
@@ -241,7 +246,7 @@ export function FormRapportino({
 
   return (
     <form
-      onSubmit={handleSubmit((campi) => onSalva(campi, foto, economia, mezzi))}
+      onSubmit={handleSubmit((campi) => onSalva(campi, foto, economia, mezzi, subappalti))}
       className="grid gap-4"
       noValidate
     >
@@ -792,20 +797,14 @@ export function FormRapportino({
 
           {/* Subappalto: sta subito sotto la squadra perche' risponde alla
               stessa domanda — chi ha lavorato oggi qui — solo per le
-              imprese che non sono la nostra.
-
-              Per ora e' un posto riservato e basta: non ha campi e non
-              salva niente. Inventarsi adesso le colonne (ragione sociale?
-              fornitore collegato? ore? importo?) vorrebbe dire scegliere al
-              posto di chi lo usera', e poi migrare dati veri per
-              correggersi. */}
-          <Card className="grid gap-2 border-dashed p-5">
-            <h2 className="text-lg font-extrabold text-gray-500">Subappalto</h2>
-            <p className="text-sm font-semibold text-gray-500">
-              Le imprese esterne che hanno lavorato in questo cantiere oggi. Sezione ancora da
-              costruire: per adesso non si compila e non salva nulla.
-            </p>
-          </Card>
+              imprese che non sono la nostra. Dal 2026-09-29 si compila:
+              impresa (dai fornitori di tipo «Subappalto»), cosa ha fatto,
+              persone, ore, note. Vedi `RiquadroSubappalto`. */}
+          <RiquadroSubappalto
+            rapportinoId={scheda?.rapportinoId}
+            inAttesa={subappalti}
+            onCambia={setSubappalti}
+          />
         </div>
 
         <div className="grid gap-4">

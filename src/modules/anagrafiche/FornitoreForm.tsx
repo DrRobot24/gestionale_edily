@@ -30,11 +30,19 @@ const vuoto = (v: string) => (v.trim() === '' ? null : v.trim())
 /** Le categorie ricorrenti in edilizia, come suggerimento e non come
  *  vincolo: `categoria` e' testo libero nel database e imporre qui un
  *  elenco chiuso creerebbe una regola che la tabella non conosce. */
+/* SUBAPPALTO E I DUE NOLI, dal 2026-09-29: «il subappalto e' un servizio
+   importantissimo come il nolo, sia a freddo che a caldo» (utente). Il
+   nolo a freddo e' il mezzo senza operatore, a caldo con l'operatore:
+   due servizi diversi, e prima stavano insieme sotto «Noleggio mezzi».
+   Chi e' gia' scritto «Noleggio mezzi» resta com'e' (testo libero): lo
+   si corregge dalla scheda. */
 const CATEGORIE = [
+  'Subappalto',
+  'Nolo a freddo',
+  'Nolo a caldo',
   'Materiali edili',
   'Ferramenta',
   'Calcestruzzo',
-  'Noleggio mezzi',
   'Trasporti',
   'Carburanti',
   'Impianti',

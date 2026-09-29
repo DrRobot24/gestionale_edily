@@ -6,6 +6,7 @@ import { useDipendenti } from '../anagrafiche/dipendenti'
 import { useFornitori } from '../anagrafiche/fornitori'
 import { useCantieri } from '../cantieri/useCantieri'
 import { useGiacenze } from '../magazzino/magazzino'
+import { useSubappaltiPeriodo } from '../subappalti/subappalti'
 
 /* ══════════════════════════════════════════════════════════════════
    I registri di chi tiene l'amministrazione.
@@ -46,6 +47,13 @@ export function IlSuoLavoro({ compatto = false }: { compatto?: boolean } = {}) {
   const { data: operai } = useDipendenti({ inServizioIl: new Date().toLocaleDateString('sv-SE') })
   const { data: fornitori } = useFornitori()
   const { data: giacenze } = useGiacenze()
+  const vedeSubappalti = can('rapportini.create') || can('rapportini.validate')
+  const ora = new Date()
+  const { data: subappalti } = useSubappaltiPeriodo(
+    new Date(ora.getFullYear(), ora.getMonth(), 1).toLocaleDateString('sv-SE'),
+    new Date(ora.getFullYear(), ora.getMonth() + 1, 0).toLocaleDateString('sv-SE'),
+    tieneIRegistri && vedeSubappalti,
+  )
 
   if (!tieneIRegistri) return null
 
@@ -94,19 +102,22 @@ export function IlSuoLavoro({ compatto = false }: { compatto?: boolean } = {}) {
       colore: 'bg-white',
       nota: 'Voci a registro',
     },
-    /* Subappalti non ha ancora una tabella: la voce di menu e' un
-       segnaposto. Il conteggio percio' NON e' zero ma un trattino, e la
-       differenza e' tutta: zero direbbe «non ne hai nessuno», che e'
-       falso — non c'e' ancora il posto dove metterli. Sta qui, a
-       richiesta dell'utente, perche' alla riunione del 21 settembre
-       serve far vedere che il posto e' previsto. */
-    {
-      etichetta: 'Subappalti',
-      a: '/subappalti',
-      quanti: undefined,
-      colore: 'bg-white',
-      nota: 'Da costruire',
-    },
+    /* I SUBAPPALTI DEL MESE, dal 2026-09-29: gli interventi delle
+       imprese esterne segnati nei rapportini. Solo a chi apre la
+       pagina (il titolare): Stefania tiene i registri, ma la pagina non
+       e' sua, e una pillola che porta a una pagina che respinge e'
+       peggio di niente. */
+    ...(vedeSubappalti
+      ? [
+          {
+            etichetta: 'Subappalti',
+            a: '/subappalti',
+            quanti: subappalti?.manca ? undefined : subappalti?.righe.length,
+            colore: 'bg-sky-300',
+            nota: 'Interventi nel mese',
+          },
+        ]
+      : []),
   ]
 
   /* LA STRISCIA DEL TITOLARE, dal 2026-09-24. Per un giorno la sua

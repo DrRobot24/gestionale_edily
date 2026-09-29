@@ -10,7 +10,7 @@ import { useMioDipendente } from './modules/anagrafiche/dipendenti'
 import type { Permission } from './modules/auth/session'
 import { env } from './lib/env'
 import logoEncreade from './assets/logo-encreade.png'
-import { Button, Card, cn } from './ui'
+import { Button, cn } from './ui'
 
 /* ══════════════════════════════════════════════════════════════════
    LE PAGINE SI SCARICANO QUANDO SERVONO, dal 2026-09-25.
@@ -44,6 +44,7 @@ const FornitoreForm = pigra(() => import('./modules/anagrafiche/FornitoreForm'),
 const ParcoPage = pigra(() => import('./modules/anagrafiche/ParcoPage'), 'ParcoPage')
 const ParcoForm = pigra(() => import('./modules/anagrafiche/ParcoForm'), 'ParcoForm')
 const EconomiaPage = pigra(() => import('./modules/economia/EconomiaPage'), 'EconomiaPage')
+const SubappaltiPage = pigra(() => import('./modules/subappalti/SubappaltiPage'), 'SubappaltiPage')
 const MagazzinoPage = pigra(() => import('./modules/magazzino/MagazzinoPage'), 'MagazzinoPage')
 const MieOrePage = pigra(() => import('./modules/oreproprie/MieOrePage'), 'MieOrePage')
 const RiepilogoEconomicoPage = pigra(() => import('./modules/paghe/RiepilogoEconomicoPage'), 'RiepilogoEconomicoPage')
@@ -291,18 +292,16 @@ const VOCI: Voce[] = [
      assicurazioni, visura) sono un'altra cosa e vogliono un posto loro:
      hanno una scadenza e non un cantiere. Vedi STATO_LAVORI.md.
 
-     Subappalti resta senza `perm` di proposito e non per fretta: finche'
-     non esiste non c'e' niente da proteggere, e il cancello va scelto
-     quando si sa chi ci lavora dentro. */
+     SUBAPPALTI, costruita il 2026-09-29: i subappalti segnati nei
+     rapportini, raccolti con la logica dei Lavori extra. Il cancello e'
+     lo stesso — chi scrive i rapportini e chi li valida, cioe' il
+     tecnico e il titolare (deciso con l'utente). Chi vede cosa lo
+     decide la RLS: il tecnico i cantieri suoi. */
   {
     to: '/subappalti',
     etichetta: 'Subappalti',
-    elemento: (
-      <Segnaposto
-        titolo="Subappalti"
-        nota="Le imprese in subappalto e cosa fanno su ogni cantiere. Da costruire."
-      />
-    ),
+    perm: ['rapportini.create', 'rapportini.validate'],
+    elemento: <SubappaltiPage />,
   },
 
   {
@@ -779,22 +778,5 @@ function classeVoce({ isActive }: { isActive: boolean }): string {
     isActive
       ? 'border-black bg-amber-400 text-black shadow-neo-xs'
       : 'border-transparent text-gray-400 hover:bg-white/5 hover:text-white',
-  )
-}
-
-/* ═══════════════════════════════════════════════════════════════════
-   Pagine
-   ═══════════════════════════════════════════════════════════════════ */
-
-function Segnaposto({ titolo, nota }: { titolo: string; nota?: string }) {
-  return (
-    <div className="mx-auto grid max-w-4xl gap-6">
-      <h1 className="text-2xl font-extrabold text-black">{titolo}</h1>
-      <Card className="p-5">
-        <p className="text-sm font-semibold text-gray-600">
-          {nota ?? 'Sezione non ancora costruita. Il permesso c’è, i dati arrivano dopo.'}
-        </p>
-      </Card>
-    </div>
   )
 }

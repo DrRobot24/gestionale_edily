@@ -9,6 +9,7 @@ import { useDipendenti } from '../anagrafiche/dipendenti'
 import { FormRapportino } from './FormRapportino'
 import { caricaFoto } from './useFoto'
 import type { DatiEconomia } from './RiquadroEconomia'
+import { scriviSubappalti, type RigaSubappalto } from '../subappalti/subappalti'
 import { scriviUsi, type RigaUso } from './mezziAttrezzature'
 import { ALTRO_MOTIVO, oggi, type CampiRapportino } from './campiRapportino'
 
@@ -40,11 +41,13 @@ export function NuovoRapportino() {
       foto,
       economia,
       mezzi,
+      subappalti,
     }: {
       campi: CampiRapportino
       foto: File[]
       economia: DatiEconomia[]
       mezzi: RigaUso[]
+      subappalti: RigaSubappalto[]
     }) => {
       // Numero e anno NON si passano: li assegna il database con
       // document_counters. Verificato: il primo inserimento e' uscito
@@ -154,6 +157,16 @@ export function NuovoRapportino() {
         }
       }
 
+      // I subappalti della giornata: come i mezzi, a rapportino gia'
+      // nato non fanno fallire il salvataggio.
+      if (subappalti.length > 0) {
+        try {
+          await scriviSubappalti(org!.id, rapportino.id, subappalti)
+        } catch {
+          fallite.push(subappalti.length === 1 ? 'il subappalto' : 'i subappalti')
+        }
+      }
+
       for (const file of foto) {
         try {
           await caricaFoto({
@@ -173,6 +186,7 @@ export function NuovoRapportino() {
       qc.invalidateQueries({ queryKey: ['rapportini'] })
       qc.invalidateQueries({ queryKey: ['foto'] })
       qc.invalidateQueries({ queryKey: ['note-contabili'] })
+      qc.invalidateQueries({ queryKey: ['subappalti'] })
       qc.invalidateQueries({ queryKey: ['mezzi-attrezzature'] })
       // Se qualche foto e' rimasta a terra ci si ferma qui a dirlo.
       // Andarsene lasciando credere che sia partito tutto e' peggio di
@@ -298,8 +312,8 @@ export function NuovoRapportino() {
         etichettaSalva="Segna come compilata"
         inCorso={salva.isPending}
         errore={salva.isError ? (salva.error as Error).message : undefined}
-        onSalva={(campi, foto, economia, mezzi) =>
-          salva.mutate({ campi, foto, economia, mezzi })
+        onSalva={(campi, foto, economia, mezzi, subappalti) =>
+          salva.mutate({ campi, foto, economia, mezzi, subappalti })
         }
         onAnnulla={() => navigate(risali(dove, ritorno).a)}
       />

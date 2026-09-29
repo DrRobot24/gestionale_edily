@@ -8,6 +8,7 @@ import { useSession } from '../auth/SessionProvider'
 import { usePermission } from '../auth/usePermission'
 import { useEliminaRapportino, useRapportino, useTransizione } from './rapportino'
 import { useFoto } from './useFoto'
+import { RiquadroSubappalto } from '../subappalti/RiquadroSubappalto'
 import { RiquadroMezzi } from './RiquadroMezzi'
 import { cancellabile, modificabile } from './regole'
 import { StatoRapportino } from './stato'
@@ -256,6 +257,10 @@ export function RapportinoPage() {
               perche' chi valida deve vedere le due cose insieme: le ore
               si pagano, i lavori extra si fatturano. */}
           <Economia cantiereId={r.cantiere_id} giorno={r.data} />
+
+          {/* I subappalti della giornata, in sola lettura: spariscono
+              quando non ce ne sono. */}
+          <RiquadroSubappalto rapportinoId={r.id} inAttesa={[]} onCambia={() => {}} modificabile={false} />
 
           <GalleriaFoto rapportinoId={r.id} />
 

@@ -2747,6 +2747,62 @@ export type Database = {
           },
         ]
       }
+      rapportino_subappalti: {
+        Row: {
+          cantiere_id: string
+          created_at: string
+          data: string
+          fornitore_id: string
+          id: string
+          lavorazione: string
+          note: string | null
+          ore: number | null
+          org_id: string
+          persone: number | null
+          rapportino_id: string
+          scritto_da: string | null
+          updated_at: string
+        }
+        Insert: {
+          cantiere_id: string
+          created_at?: string
+          data: string
+          fornitore_id: string
+          id?: string
+          lavorazione: string
+          note?: string | null
+          ore?: number | null
+          org_id: string
+          persone?: number | null
+          rapportino_id: string
+          scritto_da?: string | null
+          updated_at?: string
+        }
+        Update: {
+          cantiere_id?: string
+          created_at?: string
+          data?: string
+          fornitore_id?: string
+          id?: string
+          lavorazione?: string
+          note?: string | null
+          ore?: number | null
+          org_id?: string
+          persone?: number | null
+          rapportino_id?: string
+          scritto_da?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rapportino_subappalti_cantiere_id_fkey"
+            columns: ["cantiere_id"]
+            isOneToOne: false
+            referencedRelation: "cantieri"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rapportino_ore: {
         Row: {
           created_at: string
@@ -3356,6 +3412,10 @@ export type Database = {
       }
     }
     Functions: {
+      imprese_subappalto: {
+        Args: { p_org: string; p_tutte?: boolean }
+        Returns: { attivo: boolean; id: string; ragione_sociale: string }[]
+      }
       invia_paghe: {
         Args: { p_anno: number; p_mese: number; p_org: string; p_righe: Json }
         Returns: string
