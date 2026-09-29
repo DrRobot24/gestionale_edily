@@ -4,6 +4,8 @@ import { Avviso, Badge, Card, cn } from '../../ui'
 import { dataEstesa, numero } from '../../lib/formato'
 import { useOreGriglia, lavorate, type OreGiorno } from '../ore/useOrePeriodo'
 import { useRapportini } from '../rapportini/useRapportini'
+import { oreContratto, useOrari } from '../anagrafiche/dipendenti'
+import { eFineSettimana } from '../../lib/giorni'
 import { StatoRapportino } from '../rapportini/stato'
 
 /* ══════════════════════════════════════════════════════════════════
@@ -222,26 +224,69 @@ export function AssenzeDelGiorno({ giorno }: { giorno: string }) {
       </div>
       <ul className="divide-y-2 divide-black">
         {particolari.map((o) => (
-          <CasoParticolare key={o.dipendente_id} riga={o} />
+          <CasoParticolare key={o.dipendente_id} riga={o} giorno={giorno} />
         ))}
       </ul>
     </Card>
   )
 }
 
-/** Una persona e il motivo per cui la sua giornata non e' normale.
- *  Si dice il motivo, non le ore lavorate: quelle stanno nei rapportini. */
-function CasoParticolare({ riga: o }: { riga: OreGiorno }) {
+/**
+ * Una persona e il motivo per cui la sua giornata non e' normale.
+ *
+ * ANCHE I NUMERI, dal 2026-09-29: «voglio dare informazione al titolare
+ * della quantita' di ore mancanti o eccedenti le 8 regolari, o del
+ * motivo dell'assenza e del permesso, a livello numerico e non solo
+ * testuale» (utente). Sotto il nome una riga di cifre: quante ore ha
+ * lavorato su quante ne prevede la sua giornata piena, e la differenza
+ * — in meno o in piu' — e quante ore di assenza ha dichiarato.
+ *
+ * La giornata piena e' quella DI QUELLA PERSONA (8, o meno per un
+ * part-time); di sabato e domenica zero, perche' i festivi non si
+ * pretendono. La differenza e' sulle ore LAVORATE, come il giallo del
+ * foglio presenze: e' la stessa domanda, «quanto manca o avanza».
+ */
+function CasoParticolare({ riga: o, giorno }: { riga: OreGiorno; giorno: string }) {
+  // La cache degli orari e' una sola per tutta l'app.
+  const { data: orari } = useOrari()
   const assenza = Number(o.ore_assenza)
   const motivo = o.tipo_assenza ?? o.giustificazione?.motivo ?? 'assente'
-  const tutto = lavorate(o) === 0
+  const lav = lavorate(o)
+  const tutto = lav === 0
   const nota = o.nota_assenza ?? o.giustificazione?.descrizione
+  const piena = eFineSettimana(giorno) ? 0 : oreContratto(orari, o.dipendente_id, giorno)
+  const scarto = Math.round((lav - piena) * 100) / 100
 
   return (
     <li className="flex items-start justify-between gap-3 px-4 py-2.5">
       <div className="min-w-0">
         <p className="text-sm font-bold text-black">{o.nominativo}</p>
         {nota && <p className="text-xs font-semibold text-gray-600">{nota}</p>}
+        {/* I NUMERI DELLA GIORNATA: lavorate su dovute, lo scarto, e le
+            ore di assenza. Lo scarto a zero non si scrive: non c'e'
+            niente da dire. */}
+        <p className="numerico mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-bold text-gray-700">
+          <span>
+            {numero(lav)} h lavorate
+            {piena > 0 && <span className="text-gray-500"> su {numero(piena)}</span>}
+          </span>
+          {scarto !== 0 && (
+            <span
+              className={cn(
+                'rounded-md border-2 border-black px-1.5 py-px text-[11px] font-black',
+                scarto < 0 ? 'bg-rose-200 text-black' : 'bg-lime-200 text-black',
+              )}
+              title={scarto < 0 ? 'Ore mancanti alla giornata piena' : 'Ore oltre la giornata piena'}
+            >
+              {scarto < 0 ? `mancano ${numero(-scarto)} h` : `+${numero(scarto)} h in più`}
+            </span>
+          )}
+          {assenza > 0 && (
+            <span className="text-gray-600">
+              {o.tipo_assenza ? o.tipo_assenza.toLowerCase() : 'assenza'} {numero(assenza)} h
+            </span>
+          )}
+        </p>
       </div>
       <span
         className={cn(
@@ -250,7 +295,7 @@ function CasoParticolare({ riga: o }: { riga: OreGiorno }) {
         )}
       >
         {motivo}
-        {assenza > 0 && !tutto && (
+        {assenza > 0 && (
           <>
             {' · '}
             <span className="numerico">{numero(assenza)} h</span>
