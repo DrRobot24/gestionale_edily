@@ -23,7 +23,6 @@ export function RapportinoPage() {
   const elimina = useEliminaRapportino()
 
   const puoValidare = usePermission('rapportini.validate')
-  const puoRiaprire = usePermission('rapportini.reopen')
   const tieneIContabili = usePermission('economics.write')
 
   /**
@@ -168,7 +167,7 @@ export function RapportinoPage() {
 
           A sinistra cio' che il titolare deve leggere per decidere: le
           ore riga per riga e le foto. A destra, stretto e in alto, cio'
-          con cui decide — valida, respingi, riapri — che cosi' resta
+          con cui decide — valida o respingi — che cosi' resta
           davanti agli occhi mentre scorre le ore, invece di stare in
           fondo alla pagina dopo una tabella lunga.
 
@@ -397,25 +396,14 @@ export function RapportinoPage() {
                   </>
                 )}
 
-                {/* riapertura: da validato si torna in BOZZA, non in respinto
-                    — verificato, validato → respinto il trigger lo rifiuta. */}
-                {puoRiaprire && r.stato === 'validato' && (
-                  <Button
-                    disabled={transizione.isPending}
-                    onClick={() => {
-                      if (!confirm('Riaprire il rapportino? Torna compilabile e la giornata andrà rimandata.')) return
-                      transizione.mutate({
-                        id: r.id,
-                        stato: 'bozza',
-                        validato_at: null,
-                        validato_da: null,
-                        inviato_at: null,
-                      })
-                    }}
-                  >
-                    Riapri
-                  </Button>
-                )}
+                {/* NIENTE «RIAPRI», dal 2026-10-02: validare e' definitivo.
+                    «Una volta che il titolare preme valida non si puo'
+                    tornare piu' indietro: non puo' piu' dire di modificare
+                    il foglio della giornata al tecnico, perche' glielo ha
+                    gia' validato» (utente). Cio' che va corretto si dice
+                    PRIMA, respingendo col motivo. Il database permette
+                    ancora validato → bozza a chi ha `rapportini.reopen`:
+                    la regola e' di questo frontend, vedi STATO_LAVORI. */}
 
                 {puoContabilizzare && r.stato === 'validato' && (
                   <Button
@@ -500,11 +488,11 @@ function Spiegazione({
     testo = 'È sul tavolo del titolare. Finché non lo valida o lo respinge, non si tocca più.'
   else if (inAttesa && !puoValidare)
     testo = 'In attesa di validazione. Serve il permesso rapportini.validate per intervenire.'
-  else if (stato === 'validato' && !puoValidare)
-    testo = 'Validato. Da qui in poi lo muove solo chi si occupa della contabilità.'
+  else if (stato === 'validato' && !puoValidare && mio)
+    testo = 'Validato dal titolare: è definitivo, non torna più indietro.'
   else if (stato === 'validato' && !puoContabilizzare)
     testo =
-      'Validato. Ora tocca all’amministrazione portarlo nei conti: chi approva un rapportino non lo registra anche in contabilità.'
+      'Validato: è definitivo, non torna più al tecnico. Va in archivio quando il titolare firma il Riepilogo economico del mese.'
   else if (stato === 'contabilizzato')
     testo = 'Contabilizzato: è entrato nei costi del cantiere.'
 

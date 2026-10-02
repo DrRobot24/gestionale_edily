@@ -17,6 +17,11 @@ import type { RapportinoStato } from './regole'
      inviato  → bozza      (l'invio non si ritira: si fa respingere)
      validato → respinto   (da validato si torna solo in bozza)
 
+   E quel che il database ammette ma il gestionale NON offre piu', dal
+   2026-10-02: validato → bozza («riapri»). Validare e' definitivo —
+   cio' che va corretto si dice prima, respingendo. Contabilizzato →
+   validato resta, ma solo con la riapertura del Riepilogo economico.
+
    Chi puo' cosa lo controlla il trigger, non solo la RLS: un tecnico che
    prova a validarsi il proprio rapportino riceve
    "Permesso rapportini.validate mancante".
