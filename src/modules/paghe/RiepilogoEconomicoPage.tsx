@@ -653,8 +653,8 @@ function Movimenti({
               tipo === 'acconto'
                 ? 'Acconto del 15, in contanti…'
                 : tipo === 'rimborso'
-                  ? 'Gasolio anticipato, materiale comprato…'
-                  : 'Arretrato di agosto, multa, anticipo spese…'
+                  ? 'Gasolio anticipato, conguaglio ISTAT di settembre…'
+                  : 'Arretrato di agosto, conguaglio di settembre, multa…'
             }
             value={motivo}
             onChange={(e) => setMotivo(e.target.value)}
