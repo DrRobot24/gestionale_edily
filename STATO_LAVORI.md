@@ -12,6 +12,16 @@
 Questa è la prima cosa da leggere aprendo il progetto, e vale sia per una chat
 nuova sia per chi ci torna dopo giorni.
 
+**Novità del 2 ottobre 2026 (sera) — VALIDARE È DEFINITIVO, E I TICKET.**
+- **⚠️ DA ESEGUIRE: [`ticket.sql`](supabase/schema/ticket.sql).** Provato su PGlite **con la RLS attiva** e quattro utenze finte (titolare, due tecnici, amministrazione), anche rilanciato. Finché non gira, la pagina Ticket dice che non sono attivi e il resto del programma non se ne accorge.
+- **Tolto «Riapri» dal rapportino validato** (commit `69ab395`). L'utente: «una volta che il titolare preme valida non si può tornare più indietro: non può più dire di modificare il foglio della giornata al tecnico, perché glielo ha già validato». Ciò che va corretto si dice prima: respingendo col motivo, o con un ticket. **Solo nel gestionale** (deciso con l'utente): il database ammette ancora `validato → bozza` con `rapportini.reopen`, perché il trigger è condiviso con wbs-office. Da archiviato si torna a validato solo riaprendo il Riepilogo economico.
+- **Ticket** («serve una strada per far comunicare il titolare con il tecnico… ehi ricordati di aggiungere il sale», utente). Deciso con l'utente: ticket e non chat; **titolare e tecnico a vicenda** (chi valida scrive a chi compila e viceversa, Stefania no); **cantiere e giorno facoltativi**; **solo dentro il programma**, niente email. Tabelle `ticket` e `ticket_messaggi`, funzioni `ticket_persone` (a chi posso scrivere, coi nomi) e `apri_ticket` (ticket + primo messaggio insieme). Lo vedono solo i due che si scrivono; non si cancella niente; l'oggetto non si riscrive; aperto → fatto e ritorno. «Letto» con l'ora del database.
+  - Pagina **Ticket** (`/ticket`, in menu sotto la Home, con **pallino rosa** di ciò che chiede qualcosa), scheda `/ticket/:id` con i messaggi e la risposta: aprirla segna letto.
+  - In **home** in cima, sotto «Rimasto indietro», solo i ticket da leggere o da fare (`TicketInHome`); sparisce se non ce ne sono.
+  - Sul **rapportino**, al titolare: **«Scrivi al tecnico»**, che apre il ticket già con chi l'ha scritto, il cantiere e il giorno.
+  - Nella **scheda del cantiere**: i suoi ticket aperti e «Nuovo ticket» già col cantiere e il giorno guardato.
+  - Difetto trovato provando e chiuso: il numero (#1, #2…) si calcolava sui soli ticket visibili a chi apre, e due ticket prendevano lo stesso numero. Ora il trigger è `security definer`.
+
 **Novità del 2 ottobre 2026 (pomeriggio) — MEZZI E ATTREZZATURE: CONSEGNE E CARBURANTE.**
 - **[`parco-consegne-carburante.sql`](supabase/schema/parco-consegne-carburante.sql) ESEGUITO il 2 ottobre**, verificato: 2 policy, 1 trigger, 2 indici delle consegne aperte, 3 colonne carburante. Provato prima su PGlite. (Senza, la lettura delle spese fallirebbe: chiede le colonne nuove.)
 - **A chi è consegnato** («dall'anagrafica ovviamente devo prendere il dato», utente): tabella `parco_consegne` — cosa, persona da `dipendenti`, dal, al, note. Riquadro **Consegna** in cima alla scheda (`RiquadroConsegne`, `consegneParco.ts`): «Ce l'ha Rossi Mario dal…» oppure «In sede», coi pulsanti «Consegna a…» (persone in servizio) e «Restituito»; sotto lo storico. **Una persona alla volta**: la seconda consegna aperta il database la rifiuta. Colonna **«Ce l'ha»** nell'elenco di mezzi e attrezzature. Cancellare cosa o persona con consegne non si può (`restrict`): si archivia.
@@ -150,7 +160,8 @@ SQL in sospeso**. Le date di inizio dei cantieri e delle assegnazioni di Zito
    Vercel il valore è ancora `true` e i clienti trovano il cartello. Il `.env`
    non è versionato, quindi chi apre il progetto su un'altra macchina parte da
    `.env.example`. Vedi la sezione dedicata qui sotto.
-1. **Niente SQL in sospeso** dal 2 ottobre, quando sono girati
+1. **Un SQL in sospeso: [`ticket.sql`](supabase/schema/ticket.sql)** (2 ottobre, sera).
+   Lo stesso giorno sono girati
    [`parco-consegne-carburante.sql`](supabase/schema/parco-consegne-carburante.sql),
    [`festivita.sql`](supabase/schema/festivita.sql) e
    [`assenze-pagate.sql`](supabase/schema/assenze-pagate.sql) (resta da
@@ -310,6 +321,8 @@ cartello. L'aggancio sta in [`src/App.tsx`](src/App.tsx), sopra `RequireAuth`.
 | Festività nazionali e patrono — calendari, card, invio, tariffa | ✅ 2026-10-02 |
 | Impostazioni del titolare — quali assenze si pagano | ✅ 2026-10-02 |
 | Mezzi e attrezzature — consegne, scheda carburante, spese | ✅ 2026-10-02 |
+| Ticket titolare ↔ tecnico | ✅ 2026-10-02, SQL da eseguire |
+| Validazione definitiva (niente «Riapri» nel gestionale) | ✅ 2026-10-02 |
 | Cantieri — elenco, scheda, creazione, modifica | ✅ |
 | Cantieri — assegnazione della squadra | ✅ |
 | Cantieri — scheda di riepilogo, tappa prima del rapportino | ✅ |
@@ -374,6 +387,7 @@ di sola lettura e dice riga per riga cosa è FATTO e cosa è DA FARE.
 | [`ore-pagate.sql`](supabase/schema/ore-pagate.sql) | ✅ eseguito il 2026-09-29, verificato: 2 policy, 1 trigger, colonna `paghe_righe.ore_pagate`. Sulle giornate **gialle** del foglio presenze il titolare decide **quante ore pagare** (fra le lavorate e la giornata piena: 6→8, o 10→9). Tabella `ore_pagate`, una riga per persona e giorno, con le ore lavorate al momento della decisione: se la giornata cambia dopo, la decisione è «da rivedere» e si pagano le lavorate. **Le ore validate dei rapportini non si toccano** — è il flusso primario dal campo alla scrivania (utente); la decisione cambia solo il maturato del Riepilogo economico. Scrive `rapportini.validate`, legge anche `paghe.read`; bloccata dalla RLS quando il foglio definitivo del mese è inviato. Aggiunge `paghe_righe.ore_pagate` e **ridefinisce `invia_paghe`** con quella colonna: se si rilancia `riepilogo-economico.sql`, rilanciare dopo anche questo |
 | [`documenti-parco.sql`](supabase/schema/documenti-parco.sql) | ✅ eseguito il 2026-09-29, verificato: sei valori, `mezzo` e `attrezzatura` in fondo. Aggiunge `mezzo` e `attrezzatura` all'enum `ambito_documento`: stesso modulo, bucket e policy dei documenti di cantieri e clienti; li vede chi ha `anagrafiche.write`. Provato su PGlite: la verifica legge `pg_enum` perché `enum_range` nella stessa esecuzione fallisce con «unsafe use of new value». I documenti con scadenza compaiono in «In scadenza» in home |
 | [`parco-schede-spese.sql`](supabase/schema/parco-schede-spese.sql) | ✅ eseguito il 2026-09-29, verificato: 10 colonne su `mezzi`, 4 su `attrezzature`, 2 policy, 1 trigger. Provato prima su PGlite, anche rilanciato; rifiuta spese su mezzi di altre aziende, categorie fuori elenco, e la cancellazione di un mezzo con spese). Il frontend lo presuppone: su un database senza questo file salvare una scheda mezzo o attrezzatura fallisce. Colonne: marca, modello, telaio, prima immatricolazione, data acquisto, compagnia assicuratrice, n. polizza, costo annuo assicurazione, scadenza bollo, note (mezzi); compagnia, polizza, costo, scadenza assicurazione (attrezzature). Tabella `parco_spese` (mezzo **o** attrezzatura, data, categoria chiusa, importo, fornitore e n. documento facoltativi per l’abbinamento futuro alle fatture), `on delete restrict`, su `anagrafiche.write` |
+| [`ticket.sql`](supabase/schema/ticket.sql) | ⚠️ **DA ESEGUIRE** (scritto il 2026-10-02). Provato su PGlite con RLS attiva: il tecnico scrive solo al titolare e viceversa, a Stefania e a se stessi no, Stefania e l'altro tecnico non vedono né scrivono, messaggio vuoto rifiutato, oggetto non riscrivibile, letto solo per sé, numeri progressivi anche quando chi apre vede solo i suoi. Crea `ticket` (3 policy, trigger `ticket_nasce` security definer e `ticket_cambia`), `ticket_messaggi` (2 policy, trigger `ticket_messaggio_nasce` e `ticket_messaggio_scritto`), le funzioni `ticket_persone(org)` (security definer: membri attivi coi nomi da `profiles`, e se chi chiama gli può scrivere secondo `role_permissions`) e `apri_ticket(...)`. In fondo: 3, 2, 4 trigger, 2 funzioni |
 | [`parco-consegne-carburante.sql`](supabase/schema/parco-consegne-carburante.sql) | ✅ eseguito il 2026-10-02, verificato: 2 policy, 1 trigger, 2 indici, 3 colonne. Provato prima su PGlite, anche rilanciato: una sola consegna aperta per cosa, restituzione non prima della consegna, persona di un'altra azienda rifiutata (consegne e rifornimenti), litri su una manutenzione rifiutati, mezzo con consegne non cancellabile. Crea `parco_consegne` (2 policy su `anagrafiche.write`, trigger `parco_consegne_controlla`, indici unici parziali `parco_consegne_mezzo_aperta` / `_attrezzatura_aperta`); aggiunge a `parco_spese` `litri`, `contatore`, `dipendente_id` e il vincolo `parco_spese_litri_carburante`; **ridefinisce `parco_spese_controlla`** (copiata da `parco-schede-spese.sql`, più la persona). In fondo: 2 policy, 1 trigger, 2 indici, 3 colonne |
 | [`festivita.sql`](supabase/schema/festivita.sql) | ✅ eseguito il 2026-10-02: le quattro date di prova giuste; **la riga di Santa Lucia da verificare** (vedi «Come ripartire»). Provato su PGlite: Pasqua dal 2024 al 2035, Pasquetta e Immacolata non lavorabili, patrono col suo nome, `13-01` rifiutato; `invia_foglio_giornata` di sabato manda le bozze senza altri controlli, di giovedì li fa. Crea `azienda_calendario` (patrono `MM-GG` e nome del santo; legge `app.is_member`, scrive `anagrafiche.write`; trigger `azienda_calendario_tocca`), `app.pasqua`, `app.festivita(org, giorno)`, `app.giorno_lavorabile(org, giorno)`, e **ridefinisce `invia_foglio_giornata`** (copiata da `orario-contrattuale.sql`, passi 1–4 solo nei giorni lavorabili). Inserisce il **patrono di Edily, Santa Lucia (`12-13`)**. In fondo: 2 policy, 1 trigger, 3 funzioni, quattro date di prova da guardare a occhio, e la riga di Edily con Santa Lucia festa il 13/12/2027 |
 | [`assenze-pagate.sql`](supabase/schema/assenze-pagate.sql) | ✅ eseguito il 2026-10-02, verificato: la riga di Edily con il solo `globale_ferie` acceso. Provato su PGlite, anche rilanciato. Tabella `assenze_pagate`, una riga per impresa: otto booleani `globale_*` / `giornaliera_*` per ferie, permessi, malattia, infortunio (partenza: solo `globale_ferie`). Legge `paghe.read` o `org.manage`, scrive `org.manage`; trigger `assenze_pagate_tocca`. Inserisce la riga di Edily coi valori di partenza (non tocca una riga già scelta). In fondo: 2 policy, 1 trigger, la riga di Edily |
@@ -410,6 +424,10 @@ contiene e quello che il repository crede continua a crescere.
 ---
 
 ## La macchina a stati dei rapportini
+
+> **Dal 2026-10-02 il gestionale non offre più `validato → bozza` («Riapri»):
+> validare è definitivo.** Il database lo ammette ancora (trigger condiviso con
+> wbs-office). Per dirsi le cose ci sono i ticket.
 
 Mappata provando **ogni** transizione contro il database. Il controllo è di un
 trigger (errori `P0001`), non solo della RLS.

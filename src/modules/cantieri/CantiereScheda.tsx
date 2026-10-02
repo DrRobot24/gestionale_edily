@@ -19,6 +19,7 @@ import { useCantiere } from './cantieri'
 import { RiquadroClienti } from './RiquadroClienti'
 import { useClientiCantiere } from './clientiCantiere'
 import { RiquadroNoteContabili } from './RiquadroNoteContabili'
+import { RiquadroTicketCantiere } from '../ticket/RiquadroTicketCantiere'
 import { StatoCantiere } from './stato'
 
 /* ══════════════════════════════════════════════════════════════════
@@ -219,6 +220,12 @@ export function CantiereScheda() {
               la domanda che ci si fa aprendo la pagina. Il passato
               viene dopo il presente. */}
           <RiquadroNoteContabili cantiereId={id!} puoScrivere={puoCompilare || eIlTitolare} />
+
+          {/* I ticket di questo cantiere (2026-10-02), per chi valida e
+              chi compila: ognuno vede quelli che ha scritto o ricevuto. */}
+          {(puoCompilare || eIlTitolare) && (
+            <RiquadroTicketCantiere cantiereId={id!} giorno={giorno} />
+          )}
 
           <CalendarioCantiere
             righe={rapportini ?? []}

@@ -16,6 +16,7 @@ import { RiepilogoDelMese } from '../paghe/RiepilogoDelMese'
 import { useMioDipendente } from '../anagrafiche/dipendenti'
 import { PresenzeDelGiorno } from './PresenzeDelGiorno'
 import { InScadenza } from './InScadenza'
+import { TicketInHome } from '../ticket/TicketInHome'
 import { oggi } from '../rapportini/campiRapportino'
 import { useSearchParams } from 'react-router'
 import { useDataInIndirizzo } from './useDataInIndirizzo'
@@ -172,6 +173,11 @@ export function Dashboard() {
           Sparisce del tutto quando non c'e' niente: nessun riquadro
           verde «sei in pari». */}
       {puoCompilare && <RimastoIndietro />}
+
+      {/* I TICKET che chiedono qualcosa a chi guarda (2026-10-02): una
+          risposta da leggere, una cosa da fare. Per chi valida e chi
+          compila; sparisce quando non c'e' niente. */}
+      <TicketInHome />
 
       {error && (
         <Avviso tono="errore">Non riesco a leggere i rapportini: {error.message}</Avviso>

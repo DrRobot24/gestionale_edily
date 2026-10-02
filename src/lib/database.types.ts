@@ -3389,6 +3389,121 @@ export type Database = {
           },
         ]
       }
+      /* Scritte a mano: arrivano con `ticket.sql` (2026-10-02). */
+      ticket: {
+        Row: {
+          a_user: string
+          cantiere_id: string | null
+          created_at: string
+          da_user: string
+          fatto_at: string | null
+          fatto_da: string | null
+          giorno: string | null
+          id: string
+          letto_da_destinatario_at: string | null
+          letto_da_mittente_at: string | null
+          numero: number
+          oggetto: string
+          org_id: string
+          stato: string
+          ultimo_autore: string | null
+          ultimo_messaggio_at: string
+        }
+        Insert: {
+          a_user: string
+          cantiere_id?: string | null
+          created_at?: string
+          da_user?: string
+          fatto_at?: string | null
+          fatto_da?: string | null
+          giorno?: string | null
+          id?: string
+          letto_da_destinatario_at?: string | null
+          letto_da_mittente_at?: string | null
+          numero?: number
+          oggetto: string
+          org_id: string
+          stato?: string
+          ultimo_autore?: string | null
+          ultimo_messaggio_at?: string
+        }
+        Update: {
+          a_user?: string
+          cantiere_id?: string | null
+          created_at?: string
+          da_user?: string
+          fatto_at?: string | null
+          fatto_da?: string | null
+          giorno?: string | null
+          id?: string
+          letto_da_destinatario_at?: string | null
+          letto_da_mittente_at?: string | null
+          numero?: number
+          oggetto?: string
+          org_id?: string
+          stato?: string
+          ultimo_autore?: string | null
+          ultimo_messaggio_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_cantiere_id_fkey"
+            columns: ["cantiere_id"]
+            isOneToOne: false
+            referencedRelation: "cantieri"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ticket_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ticket_messaggi: {
+        Row: {
+          autore: string
+          created_at: string
+          id: string
+          org_id: string
+          testo: string
+          ticket_id: string
+        }
+        Insert: {
+          autore?: string
+          created_at?: string
+          id?: string
+          org_id: string
+          testo: string
+          ticket_id: string
+        }
+        Update: {
+          autore?: string
+          created_at?: string
+          id?: string
+          org_id?: string
+          testo?: string
+          ticket_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_messaggi_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ticket_messaggi_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "ticket"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       v_avanzamento_wbs: {
@@ -3733,6 +3848,22 @@ export type Database = {
           updated_at: string
           user_id: string
         }[]
+      }
+      /* Scritte a mano: arrivano con `ticket.sql` (2026-10-02). */
+      apri_ticket: {
+        Args: {
+          p_a_user: string
+          p_cantiere?: string | null
+          p_giorno?: string | null
+          p_oggetto: string
+          p_org: string
+          p_testo: string
+        }
+        Returns: string
+      }
+      ticket_persone: {
+        Args: { p_org: string }
+        Returns: { destinatario: boolean; nome: string; user_id: string }[]
       }
       invia_foglio_giornata: {
         Args: { p_giorno: string; p_org: string }

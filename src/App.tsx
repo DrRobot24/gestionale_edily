@@ -6,6 +6,7 @@ import { LoginPage } from './modules/auth/LoginPage'
 import { MuroWip } from './modules/wip/MuroWip'
 import { Dashboard } from './modules/home/Dashboard'
 import { useOreDaLeggere } from './modules/ore/useOreDaLeggere'
+import { useTicketDaVedere } from './modules/ticket/ticket'
 import { useMioDipendente } from './modules/anagrafiche/dipendenti'
 import type { Permission } from './modules/auth/session'
 import { env } from './lib/env'
@@ -53,6 +54,8 @@ const DipendenteForm = pigra(() => import('./modules/anagrafiche/DipendenteForm'
 const EconomiaRisorsaPage = pigra(() => import('./modules/anagrafiche/EconomiaRisorsaPage'), 'EconomiaRisorsaPage')
 const FestivitaPage = pigra(() => import('./modules/calendario/FestivitaPage'), 'FestivitaPage')
 const ImpostazioniPage = pigra(() => import('./modules/impostazioni/ImpostazioniPage'), 'ImpostazioniPage')
+const TicketPage = pigra(() => import('./modules/ticket/TicketPage'), 'TicketPage')
+const TicketScheda = pigra(() => import('./modules/ticket/TicketScheda'), 'TicketScheda')
 
 /**
  * Una sola lista per il menu E per le rotte.
@@ -154,6 +157,17 @@ const VOCI: Voce[] = [
      nuova, bella e originale: l'emoticon di una casetta» (utente), per
      tutti. La parola resta come nome accessibile. */
   { to: '/', etichetta: 'Home', icona: '🏠', elemento: <Dashboard /> },
+
+  /* TICKET, dal 2026-10-02: il titolare e il tecnico si scrivono — «ehi
+     ricordati di aggiungere il sale» (utente). Chi valida e chi compila;
+     Stefania no. Subito sotto la home, col pallino di cio' che chiede
+     qualcosa: e' posta, si guarda spesso. */
+  {
+    to: '/ticket',
+    etichetta: 'Ticket',
+    perm: ['rapportini.create', 'rapportini.validate'],
+    elemento: <TicketPage />,
+  },
 
   /* Le tre anagrafiche in testa, nell'ordine dell'importanza dichiarata
      dall'utente: e' anche l'ordine obbligato di inserimento, perche' un
@@ -398,7 +412,7 @@ const VOCI: Voce[] = [
    non vede nessuna voce non mostra nemmeno il titolo.
    ══════════════════════════════════════════════════════════════════ */
 const GRUPPI: { titolo: string | null; voci: string[] }[] = [
-  { titolo: null, voci: ['/'] },
+  { titolo: null, voci: ['/', '/ticket'] },
   {
     titolo: 'Anagrafiche',
     voci: ['/anagrafiche/clienti', '/anagrafiche/fornitori', '/anagrafiche/operai'],
@@ -485,6 +499,10 @@ export default function App() {
               element={proteggi('rapportini.create', <NuovoRapportino />)}
             />
             <Route path="rapportini/:id" element={<RapportinoPage />} />
+            <Route
+              path="ticket/:id"
+              element={proteggi(['rapportini.create', 'rapportini.validate'], <TicketScheda />)}
+            />
             <Route
               path="rapportini/:id/modifica"
               element={proteggi('rapportini.create', <ModificaRapportino />)}
@@ -866,6 +884,21 @@ function NomeVoce({ voce }: { voce: Voce }) {
 
 function Pallino({ voce }: { voce: string }) {
   const { data } = useOreDaLeggere()
+  const ticket = useTicketDaVedere()
+
+  /* I ticket che chiedono qualcosa a chi guarda: da leggere o da fare.
+     Rosa e non verde: e' qualcuno che aspetta una risposta. */
+  if (voce === '/ticket') {
+    if (ticket === 0) return null
+    return (
+      <span
+        className="inline-flex min-w-5 items-center justify-center rounded-full border-2 border-black bg-rose-300 px-1.5 text-[10px] font-extrabold text-black"
+        title={ticket === 1 ? '1 ticket chiede qualcosa a te' : `${ticket} ticket chiedono qualcosa a te`}
+      >
+        {ticket}
+      </span>
+    )
+  }
 
   if (voce !== '/ore') return null
   if (!data || data.giornate === 0) return null

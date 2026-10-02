@@ -405,6 +405,21 @@ export function RapportinoPage() {
                     ancora validato → bozza a chi ha `rapportini.reopen`:
                     la regola e' di questo frontend, vedi STATO_LAVORI. */}
 
+                {/* SCRIVI AL TECNICO (2026-10-02): il ticket, gia' col
+                    cantiere, il giorno e chi ha scritto la scheda. E' la
+                    strada per dire le cose senza riaprire niente. */}
+                {puoValidare && r.compilato_da !== app?.userId && (
+                  <Button
+                    onClick={() =>
+                      navigate(
+                        `/ticket?nuovo=1&a=${r.compilato_da}&cantiere=${r.cantiere_id}&giorno=${r.data}`,
+                      )
+                    }
+                  >
+                    Scrivi al tecnico
+                  </Button>
+                )}
+
                 {puoContabilizzare && r.stato === 'validato' && (
                   <Button
                     disabled={transizione.isPending}
