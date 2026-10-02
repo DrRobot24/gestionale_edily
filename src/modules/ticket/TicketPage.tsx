@@ -21,8 +21,9 @@ import { RigaTicket } from './RigaTicket'
    la pagina e' per cio' che e' ancora in ballo.
 
    Il modulo si apre anche gia' compilato dall'indirizzo
-   (`?nuovo=1&a=…&cantiere=…&giorno=…`): e' cosi' che ci arrivano il
-   rapportino («Scrivi al tecnico») e la scheda del cantiere.
+   (`?nuovo=1&a=…&oggetto=…&cantiere=…&giorno=…`): e' cosi' che ci
+   arrivano il rapportino («Scrivi al tecnico»), la scheda del cantiere e
+   il Riepilogo economico («Scrivi al titolare / all'amministrazione»).
    ══════════════════════════════════════════════════════════════════ */
 
 export function TicketPage() {
@@ -54,8 +55,9 @@ export function TicketPage() {
         <div>
           <h1 className="text-2xl font-extrabold text-black">Ticket</h1>
           <p className="text-sm font-semibold text-gray-600">
-            Le cose da dirsi fra titolare e tecnico: «ricordati di…», «mi serve…». Un ticket resta
-            aperto finché qualcuno lo segna fatto.
+            Le cose da dirsi fra titolare, tecnico e amministrazione: «ricordati di…», «mi
+            serve…», «nel riepilogo non torna…». Un ticket resta aperto finché qualcuno lo segna
+            fatto.
           </p>
         </div>
         {!nuovo && !data?.mancante && (
@@ -77,6 +79,7 @@ export function TicketPage() {
           key={params.toString()}
           iniziali={{
             a: params.get('a') ?? '',
+            oggetto: params.get('oggetto') ?? '',
             cantiere: params.get('cantiere') ?? '',
             giorno: params.get('giorno') ?? '',
           }}
@@ -145,7 +148,7 @@ function ModuloNuovo({
   iniziali,
   onChiudi,
 }: {
-  iniziali: { a: string; cantiere: string; giorno: string }
+  iniziali: { a: string; oggetto: string; cantiere: string; giorno: string }
   onChiudi: () => void
 }) {
   const navigate = useNavigate()
@@ -161,7 +164,7 @@ function ModuloNuovo({
      si sceglie da se': una tendina con una voce sola e' un clic in piu'. */
   const [a, setA] = useState(iniziali.a)
   const scelto = a || (destinatari.length === 1 ? destinatari[0][0] : '')
-  const [oggetto, setOggetto] = useState('')
+  const [oggetto, setOggetto] = useState(iniziali.oggetto)
   const [testo, setTesto] = useState('')
   const [cantiere, setCantiere] = useState(iniziali.cantiere)
   const [giorno, setGiorno] = useState(iniziali.giorno)

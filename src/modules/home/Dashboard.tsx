@@ -175,8 +175,8 @@ export function Dashboard() {
       {puoCompilare && <RimastoIndietro />}
 
       {/* I TICKET che chiedono qualcosa a chi guarda (2026-10-02): una
-          risposta da leggere, una cosa da fare. Per chi valida e chi
-          compila; sparisce quando non c'e' niente. */}
+          risposta da leggere, una cosa da fare. Per chi valida, chi
+          compila e chi fa le paghe; sparisce quando non c'e' niente. */}
       <TicketInHome />
 
       {error && (

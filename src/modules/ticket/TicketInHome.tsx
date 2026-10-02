@@ -5,7 +5,8 @@ import { RigaTicket } from './RigaTicket'
 import { daFare, daLeggere, usePuoTicket, useTicketMiei, useTicketPersone } from './ticket'
 
 /* ══════════════════════════════════════════════════════════════════
-   I TICKET IN HOME, in cima, per chi valida e per chi compila.
+   I TICKET IN HOME, in cima, per chi valida, chi compila e chi fa le
+   paghe.
 
    Solo quelli che chiedono qualcosa a chi guarda — una risposta da
    leggere, una cosa da fare — e il riquadro sparisce quando non ce ne

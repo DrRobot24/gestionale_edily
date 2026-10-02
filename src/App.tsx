@@ -159,13 +159,14 @@ const VOCI: Voce[] = [
   { to: '/', etichetta: 'Home', icona: '🏠', elemento: <Dashboard /> },
 
   /* TICKET, dal 2026-10-02: il titolare e il tecnico si scrivono — «ehi
-     ricordati di aggiungere il sale» (utente). Chi valida e chi compila;
-     Stefania no. Subito sotto la home, col pallino di cio' che chiede
-     qualcosa: e' posta, si guarda spesso. */
+     ricordati di aggiungere il sale» (utente). E lo stesso giorno anche il
+     titolare e l'amministrazione, sul Riepilogo economico: da quando la
+     firma e' definitiva, le cose si dicono prima. Subito sotto la home,
+     col pallino di cio' che chiede qualcosa: e' posta, si guarda spesso. */
   {
     to: '/ticket',
     etichetta: 'Ticket',
-    perm: ['rapportini.create', 'rapportini.validate'],
+    perm: ['rapportini.create', 'rapportini.validate', 'paghe.read'],
     elemento: <TicketPage />,
   },
 
@@ -501,7 +502,10 @@ export default function App() {
             <Route path="rapportini/:id" element={<RapportinoPage />} />
             <Route
               path="ticket/:id"
-              element={proteggi(['rapportini.create', 'rapportini.validate'], <TicketScheda />)}
+              element={proteggi(
+                ['rapportini.create', 'rapportini.validate', 'paghe.read'],
+                <TicketScheda />,
+              )}
             />
             <Route
               path="rapportini/:id/modifica"

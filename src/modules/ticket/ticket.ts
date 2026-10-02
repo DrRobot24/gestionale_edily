@@ -13,8 +13,10 @@ import { useSession } from '../auth/SessionProvider'
 
    Un ticket: oggetto, primo messaggio, risposte; cantiere e giorno
    facoltativi; aperto finche' qualcuno lo segna fatto. Lo vedono solo i
-   due che si scrivono — chi valida e chi compila, a vicenda. Le regole
-   stanno nel database, `supabase/schema/ticket.sql`.
+   due che si scrivono — chi valida e chi compila, a vicenda; e dallo
+   stesso giorno chi valida e chi fa le paghe, perche' il Riepilogo
+   firmato non si riapre piu' e le cose vanno dette prima. Le regole
+   stanno nel database, `ticket.sql` e `ticket-amministrazione.sql`.
 
    «DA LEGGERE» e «DA FARE» sono le due cose che la home e il menu
    chiedono: l'ultimo messaggio e' dell'altro e non l'ho ancora aperto;
@@ -67,10 +69,11 @@ function spiega(e: { code?: string; message: string }): Error {
   return new Error(e.message)
 }
 
-/** Chi puo' usare i ticket: chi valida e chi compila. */
+/** Chi puo' usare i ticket: chi valida, chi compila, chi fa le paghe.
+ *  A chi puo' scrivere ciascuno lo dice `ticket_persone`. */
 export function usePuoTicket(): boolean {
   const { can } = useSession()
-  return can('rapportini.validate') || can('rapportini.create')
+  return can('rapportini.validate') || can('rapportini.create') || can('paghe.read')
 }
 
 /** L'ultimo messaggio e' dell'altro, e io non l'ho ancora letto. */

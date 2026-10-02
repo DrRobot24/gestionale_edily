@@ -1,4 +1,5 @@
 import { Fragment, useState } from 'react'
+import { useNavigate } from 'react-router'
 import { data as fmtData, euro, numero } from '../../lib/formato'
 import { Avviso, Badge, Button, Campo, CampoSelect, Card, Cifra, RigaTotale, Table, Vuoto, cn } from '../../ui'
 import { useSession } from '../auth/SessionProvider'
@@ -24,7 +25,6 @@ import {
   useInviaPaghe,
   useMesePaghe,
   useMovimenti,
-  useRiapriPaghe,
   useRighePaghe,
   type Movimento,
   type RigaPaghe,
@@ -56,7 +56,7 @@ import {
    `riepilogo-economico.sql`. Qui conta una cosa: CHI VALIDA NON ELABORA.
    Il titolare ha tutti i permessi, `paghe.read` compreso: i comandi per
    scrivere e inviare li ha chi fa le paghe e non valida; quelli per
-   firmare, respingere e riaprire chi valida.
+   firmare e respingere chi valida. Firmato non si riapre (2026-10-02).
    ══════════════════════════════════════════════════════════════════ */
 
 const TIPI: Record<TipoMovimento, { etichetta: string; segno: 1 | -1 }> = {
@@ -487,6 +487,7 @@ export function RiepilogoEconomicoPage() {
         puoElaborare={puoElaborare}
         puoFirmare={puoFirmare}
         puoInviare={!carico && righe.length > 0 && problemi.length === 0}
+        inviatoDa={meseQ.data?.inviato_da ?? null}
       />
     </div>
   )
@@ -681,6 +682,7 @@ function Comandi({
   puoElaborare,
   puoFirmare,
   puoInviare,
+  inviatoDa,
 }: {
   anno: number
   mese: number
@@ -689,13 +691,29 @@ function Comandi({
   puoElaborare: boolean
   puoFirmare: boolean
   puoInviare: boolean
+  inviatoDa: string | null
 }) {
+  const navigate = useNavigate()
   const invia = useInviaPaghe(anno, mese)
   const decidi = useDecidiPaghe(anno, mese)
-  const riapri = useRiapriPaghe(anno, mese)
-  const [chiedo, setChiedo] = useState<'respingi' | 'riapri' | null>(null)
+  const [chiedo, setChiedo] = useState(false)
   const [motivo, setMotivo] = useState('')
-  const errore = (invia.error ?? decidi.error ?? riapri.error) as Error | null
+  const errore = (invia.error ?? decidi.error) as Error | null
+
+  /* IL TICKET SUL MESE (2026-10-02): «per evitare di respingere il
+     foglio delle paghe a Stefania e poi lei lo rimanda, e via cosi'
+     all'infinito» (utente). Ci si scrive PRIMA, e la firma e'
+     definitiva. Il titolare scrive a chi ha inviato il foglio, se c'e';
+     l'amministrazione al titolare (se e' uno solo, si sceglie da se'). */
+  const nomeMese = new Date(anno, mese - 1, 1).toLocaleDateString('it-IT', { month: 'long' })
+  const scrivi = () => {
+    const p = new URLSearchParams({ nuovo: '1', oggetto: `Riepilogo di ${nomeMese} ${anno}` })
+    if (puoFirmare && inviatoDa) p.set('a', inviatoDa)
+    navigate(`/ticket?${p.toString()}`)
+  }
+  const bottoneTicket = (puoFirmare || puoElaborare) && stato !== 'validato' && (
+    <Button onClick={scrivi}>{puoFirmare ? 'Scrivi all’amministrazione' : 'Scrivi al titolare'}</Button>
+  )
 
   return (
     <Card className="grid gap-3 p-4 print:hidden">
@@ -716,17 +734,23 @@ function Comandi({
             >
               {invia.isPending ? 'Invio…' : 'Invia il foglio definitivo'}
             </Button>
+            {bottoneTicket}
             <span className="text-xs font-semibold text-gray-600">
               Si invia quando tutto coincide: mese finito, giornate tutte validate, ogni persona con
-              la sua paga.
+              la sua paga. Un dubbio? Scrivilo al titolare prima di inviare: una volta validato non
+              si riapre.
             </span>
           </>
         )}
         {stato === 'bozza' && puoFirmare && (
-          <span className="text-sm font-semibold text-gray-600">
-            Lo stai vedendo dal vivo. Quando l&rsquo;amministrazione ha messo acconti, rimborsi e
-            trattenute ti manda il foglio definitivo da validare.
-          </span>
+          <>
+            {bottoneTicket}
+            <span className="text-sm font-semibold text-gray-600">
+              Lo stai vedendo dal vivo. Quando l&rsquo;amministrazione ha messo acconti, rimborsi e
+              trattenute ti manda il foglio definitivo da validare. Se qualcosa non torna,
+              scriviglielo adesso: dopo la tua firma è definitivo.
+            </span>
+          </>
         )}
 
         {stato === 'inviato' && puoFirmare && !chiedo && (
@@ -737,7 +761,7 @@ function Comandi({
               onClick={() => {
                 if (
                   confirm(
-                    'Validare il foglio definitivo?\n\nVa in archivio: i rapportini del mese diventano archiviati, e si può stampare il PDF per i bonifici.',
+                    'Validare il foglio definitivo?\n\nÈ DEFINITIVO: va in archivio e non si riapre più. I rapportini del mese diventano archiviati, e si può stampare il PDF per i bonifici.',
                   )
                 )
                   decidi.mutate({ valida: true })
@@ -745,15 +769,19 @@ function Comandi({
             >
               {decidi.isPending ? 'Firmo…' : 'Valida'}
             </Button>
-            <Button variante="danger" onClick={() => setChiedo('respingi')}>
+            <Button variante="danger" onClick={() => setChiedo(true)}>
               Rimanda indietro
             </Button>
+            {bottoneTicket}
           </>
         )}
         {stato === 'inviato' && puoElaborare && (
-          <span className="text-sm font-semibold text-gray-600">
-            Inviato: aspetta la firma del titolare.
-          </span>
+          <>
+            {bottoneTicket}
+            <span className="text-sm font-semibold text-gray-600">
+              Inviato: aspetta la firma del titolare.
+            </span>
+          </>
         )}
 
         {stato === 'validato' && (
@@ -764,9 +792,13 @@ function Comandi({
             <Button variante="primario" onClick={() => window.print()}>
               Stampa PDF
             </Button>
-            {puoFirmare && !chiedo && (
-              <Button onClick={() => setChiedo('riapri')}>Riapri per modifiche</Button>
-            )}
+            {/* NIENTE «RIAPRI PER MODIFICHE» dal 2026-10-02: «quando il
+                titolare valida non si torna piu' indietro e tutto va in
+                archivio, quindi fa storico» (utente). Il database non lo
+                permette piu' (`ticket-amministrazione.sql`). */}
+            <span className="text-xs font-semibold text-gray-600">
+              Validato: è in archivio, e non si riapre.
+            </span>
           </>
         )}
       </div>
@@ -774,7 +806,7 @@ function Comandi({
       {chiedo && (
         <div className="grid gap-2 rounded-xl border-2 border-black bg-rose-50 p-3">
           <Campo
-            etichetta={chiedo === 'respingi' ? 'Cosa va corretto?' : 'Perché lo riapri?'}
+            etichetta="Cosa va corretto?"
             value={motivo}
             onChange={(e) => setMotivo(e.target.value)}
             placeholder="Lo legge l’amministrazione per sapere cosa sistemare"
@@ -783,21 +815,22 @@ function Comandi({
             <Button
               variante="danger"
               dimensione="sm"
-              disabled={!motivo.trim() || decidi.isPending || riapri.isPending}
-              onClick={() => {
-                const dopo = {
-                  onSuccess: () => {
-                    setChiedo(null)
-                    setMotivo('')
+              disabled={!motivo.trim() || decidi.isPending}
+              onClick={() =>
+                decidi.mutate(
+                  { valida: false, motivo: motivo.trim() },
+                  {
+                    onSuccess: () => {
+                      setChiedo(false)
+                      setMotivo('')
+                    },
                   },
-                }
-                if (chiedo === 'respingi') decidi.mutate({ valida: false, motivo: motivo.trim() }, dopo)
-                else riapri.mutate(motivo.trim(), dopo)
-              }}
+                )
+              }
             >
-              {chiedo === 'respingi' ? 'Rimanda indietro' : 'Riapri'}
+              Rimanda indietro
             </Button>
-            <Button dimensione="sm" onClick={() => setChiedo(null)}>
+            <Button dimensione="sm" onClick={() => setChiedo(false)}>
               Annulla
             </Button>
           </div>

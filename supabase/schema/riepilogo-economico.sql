@@ -397,6 +397,8 @@ revoke all on function public.decidi_paghe(uuid, integer, integer, boolean, text
 revoke all on function public.riapri_paghe(uuid, integer, integer, text) from public, anon;
 grant execute on function public.invia_paghe(uuid, integer, integer, jsonb) to authenticated;
 grant execute on function public.decidi_paghe(uuid, integer, integer, boolean, text) to authenticated;
+-- ⚠️ Dal 2026-10-02 il riepilogo firmato e' definitivo: `ticket-amministrazione.sql`
+-- toglie questo permesso. Se si rilancia questo file, dopo va rilanciato quello.
 grant execute on function public.riapri_paghe(uuid, integer, integer, text) to authenticated;
 
 

@@ -13,7 +13,9 @@
 --     sotto; resta APERTO finche' qualcuno lo segna FATTO (e si puo'
 --     riaprire).
 --   * TITOLARE E TECNICO, A VICENDA: chi valida scrive a chi compila e
---     viceversa. Stefania no (non ha ne' l'uno ne' l'altro permesso).
+--     viceversa. Dallo stesso giorno anche TITOLARE E AMMINISTRAZIONE
+--     (`ticket-amministrazione.sql`, che ha aggiornato anche questo file:
+--     `ticket_persone` e la policy di inserimento sono gia' quelle nuove).
 --   * CANTIERE E GIORNO FACOLTATIVI: «ricordati il sale a Monterosa,
 --     il 2 ottobre». Nella scheda del cantiere si vedono i suoi.
 --   * SOLO DENTRO IL PROGRAMMA: in cima alla home e un pallino nel
@@ -50,25 +52,37 @@ set search_path = public, pg_temp
 as $$
   with io as (
     select app.has_perm(p_org, 'rapportini.validate') as valida,
-           app.has_perm(p_org, 'rapportini.create')   as compila
+           app.has_perm(p_org, 'rapportini.create')   as compila,
+           app.has_perm(p_org, 'paghe.read')
+             and not app.has_perm(p_org, 'rapportini.validate') as paghe
+  ),
+  membri as (
+    select
+      m.user_id,
+      coalesce(nullif(btrim(p.full_name), ''), p.email, 'Utente senza nome') as nome,
+      exists (select 1 from public.role_permissions rp
+              where rp.ruolo = m.ruolo and rp.permission = 'rapportini.validate') as valida,
+      exists (select 1 from public.role_permissions rp
+              where rp.ruolo = m.ruolo and rp.permission = 'rapportini.create') as compila,
+      exists (select 1 from public.role_permissions rp
+              where rp.ruolo = m.ruolo and rp.permission = 'paghe.read') as legge_paghe
+    from public.memberships m
+    left join public.profiles p on p.id = m.user_id
+    where m.org_id = p_org
+      and m.attivo
+      and app.is_member(p_org)
   )
   select
-    m.user_id,
-    coalesce(nullif(btrim(p.full_name), ''), p.email, 'Utente senza nome') as nome,
-    m.user_id <> auth.uid() and (
-      ((select valida from io) and exists (
-        select 1 from public.role_permissions rp
-        where rp.ruolo = m.ruolo and rp.permission = 'rapportini.create'))
+    x.user_id,
+    x.nome,
+    x.user_id <> auth.uid() and (
+      -- Io valido: scrivo a chi compila e a chi fa le paghe.
+      ((select valida from io) and (x.compila or (x.legge_paghe and not x.valida)))
       or
-      ((select compila from io) and exists (
-        select 1 from public.role_permissions rp
-        where rp.ruolo = m.ruolo and rp.permission = 'rapportini.validate'))
+      -- Io compilo o faccio le paghe: scrivo a chi valida.
+      (((select compila from io) or (select paghe from io)) and x.valida)
     ) as destinatario
-  from public.memberships m
-  left join public.profiles p on p.id = m.user_id
-  where m.org_id = p_org
-    and m.attivo
-    and app.is_member(p_org);
+  from membri x;
 $$;
 
 revoke all on function public.ticket_persone(uuid) from public, anon;
@@ -238,7 +252,11 @@ drop policy if exists ticket_insert on public.ticket;
 create policy ticket_insert on public.ticket
   for insert with check (
     app.is_member(org_id)
-    and (app.has_perm(org_id, 'rapportini.validate') or app.has_perm(org_id, 'rapportini.create'))
+    and (
+      app.has_perm(org_id, 'rapportini.validate')
+      or app.has_perm(org_id, 'rapportini.create')
+      or app.has_perm(org_id, 'paghe.read')
+    )
   );
 
 drop policy if exists ticket_update on public.ticket;

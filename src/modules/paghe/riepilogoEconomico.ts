@@ -16,7 +16,8 @@ import { useSession } from '../auth/SessionProvider'
                indietro col motivo
      validato  archiviato: fotografato, i rapportini del mese passano a
                «contabilizzato», e si stampa il PDF per i bonifici.
-               Solo il titolare lo riapre, col motivo.
+               Definitivo: dal 2026-10-02 non si riapre piu'
+               (`ticket-amministrazione.sql`).
 
    Finche' e' in bozza i numeri si calcolano dal vivo. Da inviato in poi
    si leggono dalla FOTOGRAFIA (`paghe_righe`): il titolare firma quello
@@ -30,6 +31,8 @@ export type MesePaghe = {
   id: string
   stato: StatoPaghe
   inviato_at: string | null
+  /** Chi l'ha inviato: a chi il titolare scrive il ticket. */
+  inviato_da: string | null
   validato_at: string | null
   motivo: string | null
 }
@@ -86,7 +89,7 @@ export function useMesePaghe(anno: number, mese: number) {
     queryFn: async (): Promise<MesePaghe | null> => {
       const { data, error } = await supabase
         .from('paghe_mesi')
-        .select('id, stato, inviato_at, validato_at, motivo')
+        .select('id, stato, inviato_at, inviato_da, validato_at, motivo')
         .eq('org_id', org!.id)
         .eq('anno', anno)
         .eq('mese', mese)
@@ -231,22 +234,10 @@ export function useDecidiPaghe(anno: number, mese: number) {
   })
 }
 
-export function useRiapriPaghe(anno: number, mese: number) {
-  const { org } = useSession()
-  const invalida = useInvalidaPaghe()
-  return useMutation({
-    mutationFn: async (motivo: string) => {
-      const { error } = await supabase.rpc('riapri_paghe', {
-        p_org: org!.id,
-        p_anno: anno,
-        p_mese: mese,
-        p_motivo: motivo,
-      })
-      if (error) throw error
-    },
-    onSuccess: invalida,
-  })
-}
+/* `useRiapriPaghe` NON C'E' PIU' dal 2026-10-02: il riepilogo firmato e'
+   definitivo, e `ticket-amministrazione.sql` toglie a tutti il permesso
+   di eseguire `riapri_paghe`. Cio' che va detto si dice prima, coi
+   ticket fra titolare e amministrazione. */
 
 /** I riepiloghi che aspettano la firma del titolare, per la sua home. */
 export function useRiepiloghiDaFirmare(abilitato: boolean) {
