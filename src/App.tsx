@@ -51,6 +51,8 @@ const RiepilogoEconomicoPage = pigra(() => import('./modules/paghe/RiepilogoEcon
 const OrePeriodoPage = pigra(() => import('./modules/ore/OrePeriodoPage'), 'OrePeriodoPage')
 const DipendenteForm = pigra(() => import('./modules/anagrafiche/DipendenteForm'), 'DipendenteForm')
 const EconomiaRisorsaPage = pigra(() => import('./modules/anagrafiche/EconomiaRisorsaPage'), 'EconomiaRisorsaPage')
+const FestivitaPage = pigra(() => import('./modules/calendario/FestivitaPage'), 'FestivitaPage')
+const ImpostazioniPage = pigra(() => import('./modules/impostazioni/ImpostazioniPage'), 'ImpostazioniPage')
 
 /**
  * Una sola lista per il menu E per le rotte.
@@ -269,6 +271,26 @@ const VOCI: Voce[] = [
     perm: 'paghe.read',
     elemento: <RiepilogoEconomicoPage />,
   },
+  /* FESTIVITA', dal 2026-10-02: il santo patrono dell'impresa e l'elenco
+     delle feste dell'anno. Il patrono lo scrive chi tiene le anagrafiche
+     (deciso con l'utente), quindi Stefania e il titolare. Sta sotto
+     «Azienda», con le Impostazioni: e' una regola dell'impresa, non un
+     registro. */
+  {
+    to: '/festivita',
+    etichetta: 'Festività',
+    perm: 'anagrafiche.write',
+    elemento: <FestivitaPage />,
+  },
+  /* IMPOSTAZIONI, dal 2026-10-02: il pannello del titolare — «un piccolo
+     pannello di controllo, ovviamente solo per il titolare» (utente).
+     `org.manage` ce l'ha solo `owner`. Per ora: quali assenze si pagano. */
+  {
+    to: '/impostazioni',
+    etichetta: 'Impostazioni',
+    perm: 'org.manage',
+    elemento: <ImpostazioniPage />,
+  },
 
 
   /* Magazzino sotto `anagrafiche.read`, che ce l'hanno tutti tranne chi
@@ -370,6 +392,7 @@ const VOCI: Voce[] = [
      Cantieri           il lavoro sul campo e i suoi documenti
      Mezzi e materiali  con cosa si lavora
      Ore e paghe        cosa diventa busta paga
+     Azienda            le regole dell'impresa: festivita', impostazioni
 
    Il titolo segue le voci, non il ruolo: un gruppo di cui chi guarda
    non vede nessuna voce non mostra nemmeno il titolo.
@@ -386,6 +409,7 @@ const GRUPPI: { titolo: string | null; voci: string[] }[] = [
     voci: ['/anagrafiche/mezzi', '/anagrafiche/attrezzature', '/magazzino'],
   },
   { titolo: 'Ore e paghe', voci: ['/mie-ore', '/ore', '/riepilogo-economico'] },
+  { titolo: 'Azienda', voci: ['/festivita', '/impostazioni'] },
 ]
 
 /** Le voci visibili, nell'ordine dei gruppi, ciascuna col titolo del

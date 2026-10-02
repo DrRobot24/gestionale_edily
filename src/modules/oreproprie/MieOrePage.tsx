@@ -4,7 +4,7 @@ import { Avviso, Badge, Button, Campo, CampoArea, CampoSelect, Card, Percorso, T
 import { oreContratto, useMioDipendente, useOrari } from '../anagrafiche/dipendenti'
 import { ASSENZE, oggi, versoHome } from '../rapportini/campiRapportino'
 import { data as fmtData, giornoPiu } from '../../lib/formato'
-import { eFineSettimana, nomeNonFeriale } from '../../lib/giorni'
+import { useCalendario } from '../calendario/calendario'
 import {
   modificabile,
   totaleOre,
@@ -169,7 +169,8 @@ function FormGiornata({
      ⚠️ Vale solo per una giornata NUOVA. Se la riga esiste gia' — e
      quindi qualcuno ha davvero scritto quelle ore — si legge il suo
      valore e non si azzera niente. */
-  const festivo = eFineSettimana(giorno)
+  const cal = useCalendario()
+  const festivo = cal.nonLavorativo(giorno)
   const [ordinarie, setOrdinarie] = useState(
     String(giornata?.ore_ordinarie ?? (festivo ? 0 : piena)),
   )
@@ -266,7 +267,7 @@ function FormGiornata({
               festivo sarebbe una lezione, non un aiuto. */}
           {festivo && !futuro && !giornata && (
             <Avviso tono="info">
-              È {nomeNonFeriale(giorno)}: di norma non si lavora, e infatti le ore partono
+              È {festivo}: di norma non si lavora, e infatti le ore partono
               da zero. Se hai lavorato davvero, scrivile pure e invia come sempre.
             </Avviso>
           )}

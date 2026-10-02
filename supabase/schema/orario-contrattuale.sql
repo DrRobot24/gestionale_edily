@@ -421,6 +421,10 @@ $fn$;
 -- Stessa funzione di `assenze.sql`, due cambi: il controllo delle ore
 -- usa `app.ore_contratto` invece dell'8, e «nessuno dimenticato» guarda
 -- la messa in servizio invece dell'assunzione.
+--
+-- ⚠️ SUPERATA da `festivita.sql` (2026-10-02), che e' la versione in
+-- vigore: nei giorni non lavorativi manda solo cio' che e' scritto. Se
+-- si rilancia questo file, dopo va rilanciato `festivita.sql`.
 
 create or replace function public.invia_foglio_giornata(p_org uuid, p_giorno date)
 returns integer

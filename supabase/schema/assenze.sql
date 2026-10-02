@@ -373,6 +373,10 @@ alter table public.rapportino_ore
 -- Da qui in avanti e' QUESTO il file che definisce la funzione.
 -- Rilanciare `nessuno-dimenticato.sql` toglierebbe le assenze
 -- dall'invio.
+--
+-- ⚠️ SUPERATA due volte: da `orario-contrattuale.sql` (2026-09-25) e
+-- poi da `festivita.sql` (2026-10-02), che e' la versione in vigore.
+-- Se si rilancia questo file, dopo va rilanciato `festivita.sql`.
 -- =====================================================================
 create or replace function public.invia_foglio_giornata(p_org uuid, p_giorno date)
 returns integer

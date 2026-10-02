@@ -9,6 +9,7 @@ import {
   useOrari,
   useStipendi,
 } from './dipendenti'
+import { useCalendario } from '../calendario/calendario'
 import {
   limitiMese,
   pagaEquivalente,
@@ -204,8 +205,8 @@ function NuovoRegime({
       </div>
       <p className="text-xs font-semibold text-gray-700">
         {tipo === 'paga'
-          ? 'Un importo al mese. Il programma ne ricava la tariffa oraria — importo ÷ giorni feriali del mese (senza sabati, domeniche e festività) ÷ ore della giornata piena — e il mese vale quella tariffa per le ore validate dal titolare, più ferie e permessi.'
-          : 'Una tariffa oraria: il mese vale le ore fatte davvero a quella tariffa. Lo straordinario costa uguale.'}
+          ? 'Un importo al mese. Il programma ne ricava la tariffa oraria — importo ÷ giorni feriali del mese (senza sabati, domeniche e festività) ÷ ore della giornata piena — e il mese vale quella tariffa per le ore validate dal titolare, più le assenze che l’impresa paga (Impostazioni del titolare).'
+          : 'Una tariffa oraria: il mese vale le ore fatte davvero a quella tariffa, più le assenze che l’impresa paga (Impostazioni del titolare). Lo straordinario costa uguale.'}
       </p>
 
       <div className="grid gap-3 sm:grid-cols-2">
@@ -252,6 +253,7 @@ function NuovoRegime({
  *  lavorabili del calendario. */
 function TariffeCalcolate({ dipendenteId, storico }: { dipendenteId: string; storico: Regime[] }) {
   const { data: orari } = useOrari()
+  const { patrono } = useCalendario()
   const oggi = new Date().toLocaleDateString('sv-SE')
   const [a, m] = oggi.split('-').map(Number)
   const mesi = [0, 1, 2].map((indietro) =>
@@ -266,11 +268,16 @@ function TariffeCalcolate({ dipendenteId, storico }: { dipendenteId: string; sto
       <p className="text-[11px] font-semibold text-gray-600">
         Paga globale ÷ giorni feriali del mese (senza sabati, domeniche e festività) ÷ ore
         della giornata piena. Il mese vale questa tariffa per le ore validate dal titolare, più
-        ferie e permessi.
+        le assenze che l&rsquo;impresa paga.
       </p>
       <ul className="grid gap-1">
         {mesi.map((mese) => {
-          const t = tariffaDelMese(storico, mese, oreContratto(orari, dipendenteId, limitiMese(mese).al))
+          const t = tariffaDelMese(
+            storico,
+            mese,
+            oreContratto(orari, dipendenteId, limitiMese(mese).al),
+            patrono,
+          )
           const nome = new Date(`${mese}T00:00:00`).toLocaleDateString('it-IT', {
             month: 'long',
             year: 'numeric',
@@ -308,6 +315,7 @@ function TariffeCalcolate({ dipendenteId, storico }: { dipendenteId: string; sto
 /** Il mese corrente e i due prima: tariffa × giorni feriali × ore. */
 function PagheEquivalenti({ dipendenteId, euroOra }: { dipendenteId: string; euroOra: number }) {
   const { data: orari } = useOrari()
+  const { patrono } = useCalendario()
   const oggi = new Date().toLocaleDateString('sv-SE')
   const [a, m] = oggi.split('-').map(Number)
   const mesi = [0, 1, 2].map((indietro) =>
@@ -329,6 +337,7 @@ function PagheEquivalenti({ dipendenteId, euroOra }: { dipendenteId: string; eur
             euroOra,
             mese,
             oreContratto(orari, dipendenteId, limitiMese(mese).al),
+            patrono,
           )
           const nome = new Date(`${mese}T00:00:00`).toLocaleDateString('it-IT', {
             month: 'long',

@@ -2,7 +2,7 @@ import { createContext, useContext, useState } from 'react'
 import { Avviso, Badge, Button, Card, Table, Vuoto, cn } from '../../ui'
 import { dataEstesa } from '../../lib/formato'
 import { oreContratto, useOrari } from '../anagrafiche/dipendenti'
-import { eFineSettimana, nomeNonFeriale } from '../../lib/giorni'
+import { useCalendario } from '../calendario/calendario'
 import { useSession } from '../auth/SessionProvider'
 import { DecisioneOrePagate } from './DecisioneOrePagate'
 import { chiaveGiorno, orePagateDelGiorno, useOrePagate, type OrePagate } from './orePagate'
@@ -322,6 +322,7 @@ function Griglia({
   onApri: (chi: string, giorno: string | null) => void
 }) {
   const oggi = iso(new Date())
+  const cal = useCalendario()
 
   return (
     /* `table-fixed` E' LA CORREZIONE VERA, non una rifinitura.
@@ -379,12 +380,12 @@ function Griglia({
                    sotto sono centrate — e si legge come un errore di
                    impaginazione. Stessa trappola di `align-middle`. */
                 'border-l-2 border-gray-300 !text-center',
-                /* Sabato e domenica in grigio: si riconoscono a colpo
+                /* Sabato, domenica e festivi in grigio: si riconoscono a colpo
                    d'occhio invece di far contare le colonne, e il
                    grigio dice «qui normalmente non si lavora» senza
                    dire «errore», che sarebbe il rosso. Stessa scelta
                    dei calendari in home. */
-                eFineSettimana(g) && 'bg-gray-200 text-gray-500',
+                !cal.lavorabile(g) && 'bg-gray-200 text-gray-500',
                 // Oggi si accende: su un periodo in corso dice a che
                 // punto si e', e quali colonne sono ancora da riempire.
                 // Vince sul grigio: un sabato che e' oggi resta oggi.
@@ -492,6 +493,7 @@ function RigaPersona({
   /* Il verde e' la giornata piena DI QUESTA PERSONA (2026-09-25): 8, o
      meno per un part-time. La cache e' una sola per tutta la griglia. */
   const { data: orari } = useOrari()
+  const cal = useCalendario()
 
   /* Le celle ferme hanno un fondo PIENO: trasparenti, i numeri che ci
      scorrono sotto si leggerebbero attraverso il nome. Ripetono a mano
@@ -576,6 +578,7 @@ function RigaPersona({
             key={g}
             dipendenteId={riga.dipendente_id}
             giorno={g}
+            nonLavorativo={cal.nonLavorativo(g)}
             piena={oreContratto(orari, riga.dipendente_id, g)}
             casella={riga.giorni.get(g)}
             aperta={aperta?.giorno === g}
@@ -651,6 +654,7 @@ function RigaPersona({
 function Cella({
   dipendenteId,
   giorno,
+  nonLavorativo,
   piena,
   casella,
   aperta,
@@ -660,17 +664,21 @@ function Cella({
   /** Serve solo a riconoscere sabato e domenica: una cella vuota non
    *  sa che giorno e', perche' `casella` li' non c'e'. */
   giorno: string
+  /** Sabato, domenica o il nome della festa (`useCalendario`); null nei
+   *  giorni lavorabili. Arriva dalla riga e non da un hook qui: le celle
+   *  sono centinaia. */
+  nonLavorativo: string | null
   /** Le ore di una giornata piena per questa persona quel giorno. */
   piena: number
   casella: OreGiorno | undefined
   aperta: boolean
   onApri: () => void
 }) {
-  /* Il fondo grigio del fine settimana. Sta sulla CELLA e non solo
+  /* Il fondo grigio dei giorni non lavorativi. Sta sulla CELLA e non solo
      sull'intestazione: una colonna riconoscibile in testa e bianca per
      venti righe non si distingue piu' gia' dalla terza riga, che e'
      dove si guarda davvero. */
-  const nonFeriale = eFineSettimana(giorno)
+  const nonFeriale = nonLavorativo !== null
   const { mappa } = useContext(Decisioni)
 
   if (!casella) {
@@ -696,7 +704,7 @@ function Cella({
           —
         </span>
         <span className="sr-only">
-          {nonFeriale ? `Nessuna ora — ${nomeNonFeriale(giorno)}` : 'Nessuna ora'}
+          {nonFeriale ? `Nessuna ora — ${nonLavorativo}` : 'Nessuna ora'}
         </span>
       </td>
     )
@@ -1175,6 +1183,7 @@ function Giornata({
 }) {
   const { mappa, puoDecidere } = useContext(Decisioni)
   const { data: orari } = useOrari()
+  const cal = useCalendario()
 
   if (!casella) {
     return (
@@ -1195,7 +1204,7 @@ function Giornata({
      giornata piena, lavorate. Sulle verdi non c'e' niente da decidere,
      sulle rosse niente da pagare. */
   const lav = lavorate(casella)
-  const nonFeriale = eFineSettimana(giorno)
+  const nonFeriale = !cal.lavorabile(giorno)
   const piena = oreContratto(orari, dipendenteId, giorno)
   const gialla = semaforo(lav, nonFeriale, piena) === 'giallo'
   const decisione = mappa?.get(chiaveGiorno(dipendenteId, giorno))

@@ -3,7 +3,15 @@ import { data as fmtData, euro, numero } from '../../lib/formato'
 import { Avviso, Badge, Button, Campo, CampoSelect, Card, Cifra, RigaTotale, Table, Vuoto, cn } from '../../ui'
 import { useSession } from '../auth/SessionProvider'
 import { oreContratto, useDipendenti, useOrari, useStipendi } from '../anagrafiche/dipendenti'
-import { limitiMese, rigaDelMese, storicoRegimi } from '../anagrafiche/retribuzione'
+import { useCalendario } from '../calendario/calendario'
+import { useAssenzePagate } from '../impostazioni/assenzePagate'
+import {
+  MOTIVI_PAGABILI,
+  limitiMese,
+  rigaDelMese,
+  storicoRegimi,
+  type MotivoPagabile,
+} from '../anagrafiche/retribuzione'
 import { mostraIban, useIban } from '../anagrafiche/iban'
 import { useDataInIndirizzo } from '../home/useDataInIndirizzo'
 import { useGiornateInSospeso, useOreGriglia } from '../ore/useOrePeriodo'
@@ -92,6 +100,8 @@ export function RiepilogoEconomicoPage() {
   // Dove va il bonifico: letto dal vivo, anche su un mese archiviato.
   const { data: ibans } = useIban({ abilitato: true })
   const { data: orari } = useOrari()
+  const { patrono } = useCalendario()
+  const { data: assenzePagate } = useAssenzePagate()
   const ore = useOreGriglia({ passo: 'mese', dal, al }, !fotografato)
   const sospeso = useGiornateInSospeso({ passo: 'mese', dal, al })
   const movimenti = useMovimenti(anno, mese)
@@ -144,8 +154,12 @@ export function RiepilogoEconomicoPage() {
           ore.data,
           d.id,
           dal,
-          oreContratto(orari, d.id, al),
-          decisioni.data,
+          {
+            oreGiorno: oreContratto(orari, d.id, al),
+            decisioni: decisioni.data,
+            patrono,
+            assenzePagate,
+          },
         )
         const suoi = (movimenti.data ?? []).filter((m) => m.dipendente_id === d.id)
         const somma = (t: TipoMovimento) =>
@@ -278,6 +292,18 @@ export function RiepilogoEconomicoPage() {
         <Avviso tono="info" className="print:hidden">
           Non si può ancora inviare: {problemi.join('; ')}.
         </Avviso>
+      )}
+
+      {/* Quali assenze entrano nel maturato, detto sopra i numeri: senza,
+          chi vede le ferie pagate e i permessi no non sa da dove viene.
+          Solo dal vivo: un mese fotografato e' stato calcolato con le
+          regole di allora, che potrebbero non essere queste. */}
+      {!fotografato && assenzePagate && (
+        <p className="text-xs font-semibold text-gray-600 print:hidden">
+          <RegolaAssenze titolo="Paga globale" motivi={assenzePagate.calcolata} /> ·{' '}
+          <RegolaAssenze titolo="Paga giornaliera" motivi={assenzePagate.manuale} />. Le decide il
+          titolare dalle Impostazioni.
+        </p>
       )}
 
       {carico ? (
@@ -467,6 +493,23 @@ export function RiepilogoEconomicoPage() {
 }
 
 /* ── lo stato del mese, in una fascia ─────────────────────────────── */
+
+/** «Paga globale: si pagano ferie», oppure «nessuna assenza pagata». */
+function RegolaAssenze({
+  titolo,
+  motivi,
+}: {
+  titolo: string
+  motivi: Record<MotivoPagabile, boolean>
+}) {
+  const accesi = MOTIVI_PAGABILI.filter((m) => motivi[m])
+  return (
+    <>
+      <span className="font-extrabold text-black">{titolo}:</span>{' '}
+      {accesi.length === 0 ? 'nessuna assenza pagata' : `si pagano ${accesi.join(', ')}`}
+    </>
+  )
+}
 
 function StatoMese({
   stato,

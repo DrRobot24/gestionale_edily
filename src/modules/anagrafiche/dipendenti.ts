@@ -324,7 +324,7 @@ export function useEliminaDipendente() {
       if (error) {
         if (error.code === '23503') {
           throw new Error(
-            'Questo dipendente ha già delle ore registrate sui rapportini, quindi non può essere eliminato senza perderne la storia. Archivialo invece: sparisce dagli elenchi ma i documenti restano corretti.',
+            'Questo dipendente ha già delle ore registrate sui rapportini, o mezzi e attrezzature che gli sono stati consegnati, quindi non può essere eliminato senza perderne la storia. Archivialo invece: sparisce dagli elenchi ma i documenti restano corretti.',
           )
         }
         throw error

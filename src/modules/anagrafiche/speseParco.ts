@@ -48,6 +48,12 @@ export type Spesa = {
   fornitore_id: string | null
   numero_documento: string | null
   fornitore: { ragione_sociale: string } | null
+  /* Il carburante, dal 2026-10-02 (`parco-consegne-carburante.sql`):
+     litri, km o ore al contatore, chi ha fatto rifornimento. */
+  litri: number | null
+  contatore: number | null
+  dipendente_id: string | null
+  dipendente: { cognome: string; nome: string } | null
 }
 
 export type DatiSpesa = {
@@ -57,6 +63,9 @@ export type DatiSpesa = {
   importo: number
   fornitore_id: string | null
   numero_documento: string | null
+  litri?: number | null
+  contatore?: number | null
+  dipendente_id?: string | null
 }
 
 /** La colonna che punta alla cosa: una per tipo. */
@@ -75,7 +84,8 @@ export function useSpeseParco(tipo: TipoParco, id: string | undefined, abilitato
       const { data, error } = await supabase
         .from('parco_spese')
         .select(
-          'id, data, categoria, descrizione, importo, fornitore_id, numero_documento, fornitore:fornitori(ragione_sociale)',
+          'id, data, categoria, descrizione, importo, fornitore_id, numero_documento, fornitore:fornitori(ragione_sociale), ' +
+            'litri, contatore, dipendente_id, dipendente:dipendenti(cognome, nome)',
         )
         .eq('org_id', org!.id)
         .eq(COLONNA[tipo], id!)

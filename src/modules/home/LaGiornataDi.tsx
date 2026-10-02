@@ -5,7 +5,7 @@ import { dataEstesa, numero } from '../../lib/formato'
 import { useOreGriglia, lavorate, type OreGiorno } from '../ore/useOrePeriodo'
 import { useRapportini } from '../rapportini/useRapportini'
 import { oreContratto, useOrari } from '../anagrafiche/dipendenti'
-import { eFineSettimana } from '../../lib/giorni'
+import { useCalendario } from '../calendario/calendario'
 import { StatoRapportino } from '../rapportini/stato'
 
 /* ══════════════════════════════════════════════════════════════════
@@ -242,19 +242,20 @@ export function AssenzeDelGiorno({ giorno }: { giorno: string }) {
  * — in meno o in piu' — e quante ore di assenza ha dichiarato.
  *
  * La giornata piena e' quella DI QUELLA PERSONA (8, o meno per un
- * part-time); di sabato e domenica zero, perche' i festivi non si
+ * part-time); di sabato, domenica e nei festivi zero, perche' non si
  * pretendono. La differenza e' sulle ore LAVORATE, come il giallo del
  * foglio presenze: e' la stessa domanda, «quanto manca o avanza».
  */
 function CasoParticolare({ riga: o, giorno }: { riga: OreGiorno; giorno: string }) {
   // La cache degli orari e' una sola per tutta l'app.
   const { data: orari } = useOrari()
+  const cal = useCalendario()
   const assenza = Number(o.ore_assenza)
   const motivo = o.tipo_assenza ?? o.giustificazione?.motivo ?? 'assente'
   const lav = lavorate(o)
   const tutto = lav === 0
   const nota = o.nota_assenza ?? o.giustificazione?.descrizione
-  const piena = eFineSettimana(giorno) ? 0 : oreContratto(orari, o.dipendente_id, giorno)
+  const piena = cal.lavorabile(giorno) ? oreContratto(orari, o.dipendente_id, giorno) : 0
   const scarto = Math.round((lav - piena) * 100) / 100
 
   return (

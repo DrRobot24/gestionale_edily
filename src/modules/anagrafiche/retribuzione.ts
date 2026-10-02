@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
 import { useSession } from '../auth/SessionProvider'
-import { eLavorabile } from '../../lib/giorni'
+import { eLavorabile, type Patrono } from '../../lib/giorni'
 import type { OreGiorno } from '../ore/useOrePeriodo'
 import { chiaveGiorno, orePagateDelGiorno, type OrePagate } from '../ore/orePagate'
 import type { Stipendio } from './dipendenti'
@@ -140,15 +140,15 @@ export type TariffaDelMese =
   | { origine: 'manca' }
 
 /** I giorni lavorabili del mese che contiene `giorno`: dal lunedi' al
- *  venerdi', sul calendario. */
-export function giorniLavorabili(giorno: string): number {
+ *  venerdi', senza le festivita' e senza il patrono dell'impresa. */
+export function giorniLavorabili(giorno: string, patrono?: Patrono | null): number {
   const { dal, al } = limitiMese(giorno)
   let n = 0
   const d = new Date(`${dal}T00:00:00`)
   for (;;) {
     const iso = d.toLocaleDateString('sv-SE')
     if (iso > al) break
-    if (eLavorabile(iso)) n += 1
+    if (eLavorabile(iso, patrono)) n += 1
     d.setDate(d.getDate() + 1)
   }
   return n
@@ -166,6 +166,8 @@ export function tariffaDelMese(
   giorno: string,
   /** La giornata piena da contratto: 8, o meno per un part-time. */
   oreGiorno: number = 8,
+  /** Il patrono dell'impresa (`useCalendario`): e' un giorno in meno. */
+  patrono?: Patrono | null,
 ): TariffaDelMese {
   const oggi = new Date().toLocaleDateString('sv-SE')
   const { al } = limitiMese(giorno)
@@ -175,7 +177,7 @@ export function tariffaDelMese(
   if (!regime) return { origine: 'manca' }
   if (regime.tipo === 'tariffa') return { origine: 'manuale', euroOra: regime.importo }
 
-  const giorni = giorniLavorabili(giorno)
+  const giorni = giorniLavorabili(giorno, patrono)
   return {
     origine: 'calcolata',
     euroOra: regime.importo / (giorni * oreGiorno),
@@ -195,8 +197,13 @@ export function tariffaDelMese(
  * tariffa × ore validate. Serve a mettere accanto due persone a regimi
  * diversi, ed e' la domanda che fanno i clienti.
  */
-export function pagaEquivalente(euroOra: number, giorno: string, oreGiorno: number = 8) {
-  const giorni = giorniLavorabili(giorno)
+export function pagaEquivalente(
+  euroOra: number,
+  giorno: string,
+  oreGiorno: number = 8,
+  patrono?: Patrono | null,
+) {
+  const giorni = giorniLavorabili(giorno, patrono)
   return { giorni, oreGiorno, euro: Math.round(euroOra * giorni * oreGiorno * 100) / 100 }
 }
 
@@ -248,6 +255,22 @@ export function categoriaAssenza(tipo: string | null): 'ferie' | 'permessi' | 'a
   return 'altre'
 }
 
+/** I motivi che il titolare puo' decidere di pagare (pagina Impostazioni,
+ *  `assenze-pagate.sql`). Congedo e «altro» non ci sono: non si pagano. */
+export const MOTIVI_PAGABILI = ['ferie', 'permessi', 'malattia', 'infortunio'] as const
+export type MotivoPagabile = (typeof MOTIVI_PAGABILI)[number]
+
+/** Il motivo di un'assenza fra quelli pagabili, o null. Stessa lettura
+ *  per radice di `categoriaAssenza`. */
+export function motivoPagabile(tipo: string | null): MotivoPagabile | null {
+  const t = (tipo ?? '').trim().toLowerCase()
+  if (t.startsWith('feri')) return 'ferie'
+  if (t.startsWith('perm')) return 'permessi'
+  if (t.startsWith('malat')) return 'malattia'
+  if (t.startsWith('infort')) return 'infortunio'
+  return null
+}
+
 export type RigaEconomica = {
   giorni: number
   ore_lavorate: number
@@ -259,28 +282,35 @@ export type RigaEconomica = {
   da_rivedere: number
   ore_ferie: number
   ore_permessi: number
+  /** Tutto cio' che non e' ferie o permesso: malattia e infortunio
+   *  compresi. E' il mucchio che va nella fotografia del mese. */
   ore_altre: number
+  /** Le parti di `ore_altre` che il titolare puo' decidere di pagare. */
+  ore_malattia: number
+  ore_infortunio: number
   tariffa: TariffaDelMese
   /** Quanto ha maturato nel mese, prima di acconti e trattenute. */
   maturato: number
 }
 
 /**
- * QUALI ASSENZE SI PAGANO, per regime. Dal 2026-09-28.
+ * QUALI ASSENZE SI PAGANO, per regime: la tariffa `calcolata` e' la paga
+ * globale, la `manuale` la giornaliera.
  *
- * Paga globale: ferie e permessi SI' — chiesto dall'utente lo stesso
- * giorno («aggiungi tutto»), da confermare coi clienti alla riunione.
- * Paga giornaliera: nessuna, come deciso il 2026-09-25 («le ore di ferie
- * e permesso a tariffa non si pagano»).
- * Malattia, infortunio e altro («altre») per ora in nessuno dei due: la
- * malattia la copre in parte l'INPS, e va deciso a parte.
+ * Dal 2026-09-28 era una lista fissa qui (globale: ferie e permessi;
+ * giornaliera: niente). Dal 2026-10-02 la decide il TITOLARE dalla
+ * pagina Impostazioni (`assenze-pagate.sql`), col regolamento di Edily:
+ * «le ferie l'azienda intende pagarle, i permessi no; malattia e
+ * infortuni sono a discrezione della direzione».
  *
- * STA QUI APPOSTA, in una riga: se alla riunione si decide diverso, si
- * cambia questa lista e basta — Riepilogo e scheda seguono da soli.
+ * Questi sono i valori di partenza, gli stessi del database: valgono
+ * finche' la riga non c'e' o non si e' ancora letta.
  */
-export const ASSENZE_PAGATE: Record<'calcolata' | 'manuale', ('ferie' | 'permessi' | 'altre')[]> = {
-  calcolata: ['ferie', 'permessi'],
-  manuale: [],
+export type AssenzePagate = Record<'calcolata' | 'manuale', Record<MotivoPagabile, boolean>>
+
+export const ASSENZE_PAGATE_PREDEFINITE: AssenzePagate = {
+  calcolata: { ferie: true, permessi: false, malattia: false, infortunio: false },
+  manuale: { ferie: false, permessi: false, malattia: false, infortunio: false },
 }
 
 /**
@@ -288,7 +318,7 @@ export const ASSENZE_PAGATE: Record<'calcolata' | 'manuale', ('ferie' | 'permess
  *
  * IL MATURATO E' TARIFFA × ORE, dal 2026-09-28 anche a paga globale
  * (vedi in cima): le ore lavorate e validate, piu' le assenze che quel
- * regime paga (`ASSENZE_PAGATE`). Cambia solo da dove viene la tariffa:
+ * regime paga (`AssenzePagate`). Cambia solo da dove viene la tariffa:
  * calcolata dalla paga globale, o scritta a mano per la giornaliera.
  *
  * DAL 2026-09-29 LE ORE SONO QUELLE PAGATE: dove il titolare ha deciso
@@ -301,8 +331,21 @@ export function rigaDelMese(
   righe: OreGiorno[] | undefined,
   dipendenteId: string,
   giorno: string,
-  oreGiorno: number = 8,
-  decisioni?: Map<string, OrePagate>,
+  {
+    oreGiorno = 8,
+    decisioni,
+    patrono,
+    assenzePagate = ASSENZE_PAGATE_PREDEFINITE,
+  }: {
+    /** La giornata piena da contratto: 8, o meno per un part-time. */
+    oreGiorno?: number
+    /** Le ore pagate decise dal titolare sulle giornate gialle. */
+    decisioni?: Map<string, OrePagate>
+    /** Il patrono dell'impresa: un giorno lavorabile in meno. */
+    patrono?: Patrono | null
+    /** Quali assenze si pagano, dalla pagina Impostazioni. */
+    assenzePagate?: AssenzePagate
+  } = {},
 ): RigaEconomica {
   const { dal, al } = limitiMese(giorno)
   const giorniLavorati = new Set<string>()
@@ -315,6 +358,8 @@ export function rigaDelMese(
     ore_ferie: 0,
     ore_permessi: 0,
     ore_altre: 0,
+    ore_malattia: 0,
+    ore_infortunio: 0,
     tariffa: { origine: 'manca' },
     maturato: 0,
   }
@@ -329,13 +374,18 @@ export function rigaDelMese(
     r.ore_pagate += pagate.ore
     if (pagate.daRivedere) r.da_rivedere += 1
     const ass = Number(o.ore_assenza)
-    if (ass > 0) r[`ore_${categoriaAssenza(o.tipo_assenza)}`] += ass
+    if (ass > 0) {
+      r[`ore_${categoriaAssenza(o.tipo_assenza)}`] += ass
+      const motivo = motivoPagabile(o.tipo_assenza)
+      if (motivo === 'malattia' || motivo === 'infortunio') r[`ore_${motivo}`] += ass
+    }
   }
   r.giorni = giorniLavorati.size
-  r.tariffa = tariffaDelMese(storico, giorno, oreGiorno)
+  r.tariffa = tariffaDelMese(storico, giorno, oreGiorno, patrono)
 
   if (r.tariffa.origine !== 'manca') {
-    const pagate = ASSENZE_PAGATE[r.tariffa.origine].reduce((s, c) => s + r[`ore_${c}`], 0)
+    const regola = assenzePagate[r.tariffa.origine]
+    const pagate = MOTIVI_PAGABILI.filter((m) => regola[m]).reduce((s, m) => s + r[`ore_${m}`], 0)
     r.maturato = r.tariffa.euroOra * (r.ore_pagate + pagate)
   }
 

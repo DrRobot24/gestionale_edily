@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router'
 import { Button, Card, cn } from '../../ui'
+import { useCalendario } from '../calendario/calendario'
 import {
-  daIso,
   funzioneMancante,
   inGriglia,
   lavorate,
@@ -31,11 +31,13 @@ import {
    IL TONO E' NEUTRO, sempre. Una persona senza ore quel giorno non e'
    un errore di nessuno finche' la giornata non e' firmata tutta: le sue
    ore possono essere ancora per strada. Quindi niente rosso, e sabato e
-   domenica non si chiede niente — si mostra solo chi ha lavorato.
+   domenica e nei festivi non si chiede niente — si mostra solo chi ha
+   lavorato.
    ══════════════════════════════════════════════════════════════════ */
 
 export function PresenzeDelGiorno({ giorno }: { giorno: string }) {
   const navigate = useNavigate()
+  const cal = useCalendario()
   const periodo: Periodo = { passo: 'settimana', dal: giorno, al: giorno }
 
   const griglia = useOreGriglia(periodo)
@@ -45,7 +47,7 @@ export function PresenzeDelGiorno({ giorno }: { giorno: string }) {
   // Lo schema non eseguito si tace in home, come in `OreArrivate`.
   if (errore && funzioneMancante(errore)) return null
 
-  const festivo = [0, 6].includes(daIso(giorno).getDay())
+  const festivo = !cal.lavorabile(giorno)
   const persone = inGriglia(griglia.data ?? []).map((r) => ({
     ...r,
     casella: r.giorni.get(giorno),

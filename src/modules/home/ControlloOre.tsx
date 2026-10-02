@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router'
 import { Avviso, Button, Campo, CampoSelect, Card, cn } from '../../ui'
 import { numero } from '../../lib/formato'
 import { oreContratto, useOrari } from '../anagrafiche/dipendenti'
+import { useCalendario } from '../calendario/calendario'
 import {
   MOTIVI,
   MOTIVI_DI,
@@ -47,6 +48,7 @@ export function ControlloOre({ giorno }: { giorno: string }) {
   const { data: suRapportini } = useOreSuRapportini(giorno)
   // Chi e' part-time: il metro e' il suo contratto, non 8 per tutti.
   const { data: orari } = useOrari()
+  const cal = useCalendario()
 
   /* Il file dello schema non e' stato eseguito: e' una cosa da fare, non
      un guasto, e va detta con quel tono. Senza questo ramo la home si
@@ -81,8 +83,12 @@ export function ControlloOre({ giorno }: { giorno: string }) {
 
   if (!data) return null
 
+  /* Nei giorni non lavorativi non c'e' una giornata piena da misurare:
+     ogni ora e' in piu', e quante pagarne lo decide il titolare nel
+     foglio presenze. Il database all'invio fa lo stesso (`festivita.sql`),
+     e questo riquadro anticipa lui: qui resta solo il totale. */
   const anomalie: { persona: OrePersona; anomalia: Anomalia }[] = []
-  for (const persona of data) {
+  for (const persona of cal.lavorabile(giorno) ? data : []) {
     const anomalia = anomaliaDi(persona, oreContratto(orari, persona.dipendente_id, giorno))
     if (anomalia) anomalie.push({ persona, anomalia })
   }

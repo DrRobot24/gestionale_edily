@@ -1,6 +1,6 @@
 # Stato lavori — Gestionale Edily
 
-> Aggiornato al **25 settembre 2026**.
+> Aggiornato al **2 ottobre 2026**.
 > Questo file raccoglie fatti **verificati contro il database reale**, non dedotti
 > dallo schema. Dove c'è scritto "verificato" vuol dire che è stato provato con
 > una query e ne è stato osservato l'esito.
@@ -11,6 +11,22 @@
 
 Questa è la prima cosa da leggere aprendo il progetto, e vale sia per una chat
 nuova sia per chi ci torna dopo giorni.
+
+**Novità del 2 ottobre 2026 (pomeriggio) — MEZZI E ATTREZZATURE: CONSEGNE E CARBURANTE.**
+- **[`parco-consegne-carburante.sql`](supabase/schema/parco-consegne-carburante.sql) ESEGUITO il 2 ottobre**, verificato: 2 policy, 1 trigger, 2 indici delle consegne aperte, 3 colonne carburante. Provato prima su PGlite. (Senza, la lettura delle spese fallirebbe: chiede le colonne nuove.)
+- **A chi è consegnato** («dall'anagrafica ovviamente devo prendere il dato», utente): tabella `parco_consegne` — cosa, persona da `dipendenti`, dal, al, note. Riquadro **Consegna** in cima alla scheda (`RiquadroConsegne`, `consegneParco.ts`): «Ce l'ha Rossi Mario dal…» oppure «In sede», coi pulsanti «Consegna a…» (persone in servizio) e «Restituito»; sotto lo storico. **Una persona alla volta**: la seconda consegna aperta il database la rifiuta. Colonna **«Ce l'ha»** nell'elenco di mezzi e attrezzature. Cancellare cosa o persona con consegne non si può (`restrict`): si archivia.
+- **Scheda carburante** (`RiquadroCarburante`): i rifornimenti sono spese di categoria `carburante` nella stessa `parco_spese`, con tre colonne nuove — `litri` (solo sul carburante, vincolo), `contatore` (km per i mezzi, ore di lavoro per le attrezzature), `dipendente_id` (chi ha fatto rifornimento; parte da chi ha il mezzo in consegna). Calcola €/l, km (o ore) fra un rifornimento e il precedente e il consumo (km/l, o l/h); rifiuta un contatore più basso del rifornimento prima. Il carburante **esce dal riquadro Spese**: ogni euro contato una volta.
+- **Già fatto prima — le spese di manutenzione:** riquadro **Spese** sulla scheda dal 29/09 (commit `de57833`, `parco-schede-spese.sql` eseguito): manutenzione/tagliando, riparazione, pneumatici, revisione, verifica periodica, assicurazione, bollo, noleggio, altro; con fornitore e n. documento per l'abbinamento alle fatture.
+- Consegne e carburante le vede e scrive solo chi ha `anagrafiche.write` (Stefania, Giuseppe), come le spese. Non ancora sulla scheda della persona («cosa ha in consegna»): da chiedere se serve.
+
+**Novità del 2 ottobre 2026 — FESTIVITÀ, PATRONO E ASSENZE PAGATE.**
+- **SQL ESEGUITI il 2 ottobre: [`festivita.sql`](supabase/schema/festivita.sql) e [`assenze-pagate.sql`](supabase/schema/assenze-pagate.sql)**, entrambi provati prima su PGlite. Verificati: le quattro date di prova di `festivita.sql` (Pasquetta e Immacolata non lavorabili, giovedì 1/10 sì, sabato 3/10 no) e la riga di Edily in `assenze_pagate` (solo `globale_ferie` acceso). **Da verificare ancora: la riga di Santa Lucia** in `azienda_calendario` — l'esito incollato era la penultima query del file, non l'ultima, quindi è possibile che sia stata eseguita una copia senza il blocco del patrono. Se manca, si rilancia `festivita.sql` (si può).
+- **Festivi ovunque**: calendari (tecnico, titolare, cantiere), card della home, foglio presenze, «Le mie ore», «Chi c'era», la giornata di una persona trattano Natale, Pasquetta & co. come una domenica. Le regole in `lib/giorni.ts` (`eLavorabile`, `nonLavorativo`, `ultimoLavorabile`), legate al patrono da `useCalendario` (`modules/calendario/`). Sulle caselle dei calendari il nome della festa compare al passaggio del mouse.
+- **Patrono, una data per impresa** (deciso con l'utente): tabella `azienda_calendario`, la scrive `anagrafiche.write`, la legge chiunque sia dell'impresa. Pagina **Festività** (`/festivita`, gruppo «Azienda») con il patrono e l'elenco delle feste dell'anno. Entra anche nella **tariffa** della paga globale (un giorno lavorabile in meno). **Il patrono di Edily è Santa Lucia, 13 dicembre** (Siracusa, dall'utente): lo inserisce `festivita.sql` stesso, e vale contabilmente come le altre feste (fuori dall'attesa, fuori dai giorni della tariffa, ore di quel giorno gialle per il titolare). **Confermato dall'utente lo stesso giorno: il patrono lo tiene Stefania**, non va nel pannello Impostazioni del titolare.
+- **Il festivo lavorato si manda** (deciso con l'utente: «solo ciò che è scritto»). Prima un sabato lavorato restava in bozza per sempre: la home non mostrava il pulsante, e `invia_foglio_giornata` pretendeva tutti i cantieri, tutti gli operai collocati e le 8 ore. Ora nei giorni non lavorativi la home mostra solo i cantieri con una scheda, col pulsante; il database salta i passi 1–4 (cantieri, ore di chi compila, operai dimenticati, ore da contratto) e tiene le respinte. Le ore le giudica il titolare nelle celle gialle. Niente «Assenti» di festa. La regola SQL è `app.giorno_lavorabile` / `app.festivita`, gemelle di quelle TS: **se cambia l'elenco delle feste, va cambiato in tutti e due i posti.**
+- **Quali assenze si pagano: interruttori del titolare** (pagina **Impostazioni**, `/impostazioni`, gruppo «Azienda», cancello `org.manage` = solo `owner`; tabella `assenze_pagate`, la scrive `org.manage`, la legge `paghe.read`). Regolamento di Edily detto dall'utente: «le ferie l'azienda intende pagarle, i permessi no; malattia e infortuni sono a discrezione della direzione». Un interruttore per motivo (ferie, permessi, malattia, infortunio) e per regime: partenza **globale = solo ferie, giornaliera = niente** (la giornaliera tiene la decisione del 25/09 «a tariffa ferie e permessi non si pagano»: **da confermare col titolare**, che può accenderle da sé). Sostituisce la lista fissa `ASSENZE_PAGATE`, che a globale pagava anche i permessi. Congedo e «altro» mai. Il Riepilogo economico, dal vivo, dice sopra la tabella quali assenze sta pagando. Le ore non cambiano: cambia solo il maturato.
+- **Già fatto prima, verificato oggi:** «se il titolare vuole pagare 7 ore come 8» è la decisione sulle celle gialle del foglio presenze (`ore_pagate`, `ore-pagate.sql`, commit `d0446fc` del 29/09). Le ore validate restano archivio, il Riepilogo paga le decise. Si può decidere finché il mese del Riepilogo è in bozza; dopo l'invio di Stefania il titolare rimanda indietro e decide.
+- `assenze.sql` e `orario-contrattuale.sql` hanno ora l'avviso: la loro `invia_foglio_giornata` è superata, e se si rilanciano va rilanciato dopo `festivita.sql`.
 
 **Novità del 29 settembre 2026 (sera) — sidebar e parco.**
 - **Sidebar a fisarmonica** (`Menu` in `App.tsx`): oltre 7 voci i gruppi si chiudono, resta aperto quello della pagina in cui si è; il pallino delle ore sale sul titolo chiuso. Il tecnico (6 voci) le vede tutte aperte. Testata compatta: il nome dell’azienda sotto quello del programma, il selettore solo con più aziende.
@@ -26,7 +42,8 @@ nuova sia per chi ci torna dopo giorni.
   il mese vale **tariffa × ore validate**, non più la paga intera. A paga
   globale si pagano anche **ferie e permessi** (a giornaliera no; malattia in
   nessuno): regola in `ASSENZE_PAGATE` di `retribuzione.ts`, **da confermare
-  coi clienti alla riunione**. Con la paga giornaliera la scheda mostra la
+  coi clienti alla riunione** (*decisa il 2 ottobre: ferie sì, permessi no,
+  con gli interruttori del titolare in Impostazioni — vedi sopra*). Con la paga giornaliera la scheda mostra la
   **paga mensile equivalente** (tariffa × feriali × ore), solo come confronto.
 - **`supabase/schema/rapportino-mezzi-attrezzature.sql` ESEGUITO** il 28/09.
   Box «Mezzi e attrezzature» nel rapportino (`RiquadroMezzi`).
@@ -61,8 +78,9 @@ nuova sia per chi ci torna dopo giorni.
 - Home di Stefania: frecce nella fascia, «Chi c'era» nel giorno, stato del
   Riepilogo economico.
 
-**⭐ PROSSIMA SESSIONE — IL CALENDARIO DELLE FESTIVITÀ** (per la tariffa è
-fatto il 28/09; restano calendari, card e invio). Chiesto dall'utente
+**✅ FATTO IL 2 OTTOBRE — IL CALENDARIO DELLE FESTIVITÀ** (vedi le novità in
+cima; la prossima sessione si sceglie con l'utente). Il testo qui sotto è
+la richiesta com'era, tenuta per la storia. Chiesto dall'utente
 la sera del 25 e rimandato di proposito. Oggi «giorno lavorabile» vuol dire
 lunedì–venerdì (`eFeriale` in `src/lib/giorni.ts`, che documenta già il
 limite): i festivi infrasettimanali — 1/1, 6/1, Pasquetta (mobile), 25/4, 1/5,
@@ -132,7 +150,11 @@ SQL in sospeso**. Le date di inizio dei cantieri e delle assegnazioni di Zito
    Vercel il valore è ancora `true` e i clienti trovano il cartello. Il `.env`
    non è versionato, quindi chi apre il progetto su un'altra macchina parte da
    `.env.example`. Vedi la sezione dedicata qui sotto.
-1. **Niente SQL in sospeso.** Tutti i file di `supabase/schema/` sono stati
+1. **Niente SQL in sospeso** dal 2 ottobre, quando sono girati
+   [`parco-consegne-carburante.sql`](supabase/schema/parco-consegne-carburante.sql),
+   [`festivita.sql`](supabase/schema/festivita.sql) e
+   [`assenze-pagate.sql`](supabase/schema/assenze-pagate.sql) (resta da
+   verificare la riga di Santa Lucia, vedi le novità). Prima tutti i file di `supabase/schema/` erano stati
    eseguiti, compreso
    [`invio-controllo-ore.sql`](supabase/schema/invio-controllo-ore.sql), girato
    l'11 settembre 2026 e verificato: entrambe le funzioni esistono, e
@@ -284,7 +306,10 @@ cartello. L'aggancio sta in [`src/App.tsx`](src/App.tsx), sopra `RequireAuth`.
 |---|---|
 | Login, sessione, tre livelli di permesso | ✅ |
 | Punto di vista **amministrazione** — anagrafiche complete | ✅ provato in ufficio il 2026-09-15 |
-| Vista delle **ore per persona** per le paghe | ❌ da costruire, è il prossimo pezzo |
+| Vista delle **ore per persona** per le paghe | ✅ `/ore`, il foglio presenze |
+| Festività nazionali e patrono — calendari, card, invio, tariffa | ✅ 2026-10-02 |
+| Impostazioni del titolare — quali assenze si pagano | ✅ 2026-10-02 |
+| Mezzi e attrezzature — consegne, scheda carburante, spese | ✅ 2026-10-02 |
 | Cantieri — elenco, scheda, creazione, modifica | ✅ |
 | Cantieri — assegnazione della squadra | ✅ |
 | Cantieri — scheda di riepilogo, tappa prima del rapportino | ✅ |
@@ -298,8 +323,8 @@ cartello. L'aggancio sta in [`src/App.tsx`](src/App.tsx), sopra `RequireAuth`.
 | Fornitori — elenco, scheda, CRUD | ✅ |
 | Rapportini — note al titolare | ✅ |
 | Rapportini — foto di cantiere | ✅ verificato sul database il 2026-09-10 |
-| Rapportini — subappalto | ❌ segnaposto, specifiche da definire |
-| Documenti (storage), Subappalti | ❌ voci di menu, pagine da costruire |
+| Rapportini — subappalto | ✅ 2026-09-29, sezione del rapportino |
+| Subappalti — pagina | ✅ 2026-09-29 |
 | Magazzino — giacenze, carichi e scarichi | ✅ |
 | Materiali dentro il rapportino, mezzi | ❌ da fare |
 | Economia — costi, ricavi, margini | ❌ da fare |
@@ -349,6 +374,9 @@ di sola lettura e dice riga per riga cosa è FATTO e cosa è DA FARE.
 | [`ore-pagate.sql`](supabase/schema/ore-pagate.sql) | ✅ eseguito il 2026-09-29, verificato: 2 policy, 1 trigger, colonna `paghe_righe.ore_pagate`. Sulle giornate **gialle** del foglio presenze il titolare decide **quante ore pagare** (fra le lavorate e la giornata piena: 6→8, o 10→9). Tabella `ore_pagate`, una riga per persona e giorno, con le ore lavorate al momento della decisione: se la giornata cambia dopo, la decisione è «da rivedere» e si pagano le lavorate. **Le ore validate dei rapportini non si toccano** — è il flusso primario dal campo alla scrivania (utente); la decisione cambia solo il maturato del Riepilogo economico. Scrive `rapportini.validate`, legge anche `paghe.read`; bloccata dalla RLS quando il foglio definitivo del mese è inviato. Aggiunge `paghe_righe.ore_pagate` e **ridefinisce `invia_paghe`** con quella colonna: se si rilancia `riepilogo-economico.sql`, rilanciare dopo anche questo |
 | [`documenti-parco.sql`](supabase/schema/documenti-parco.sql) | ✅ eseguito il 2026-09-29, verificato: sei valori, `mezzo` e `attrezzatura` in fondo. Aggiunge `mezzo` e `attrezzatura` all'enum `ambito_documento`: stesso modulo, bucket e policy dei documenti di cantieri e clienti; li vede chi ha `anagrafiche.write`. Provato su PGlite: la verifica legge `pg_enum` perché `enum_range` nella stessa esecuzione fallisce con «unsafe use of new value». I documenti con scadenza compaiono in «In scadenza» in home |
 | [`parco-schede-spese.sql`](supabase/schema/parco-schede-spese.sql) | ✅ eseguito il 2026-09-29, verificato: 10 colonne su `mezzi`, 4 su `attrezzature`, 2 policy, 1 trigger. Provato prima su PGlite, anche rilanciato; rifiuta spese su mezzi di altre aziende, categorie fuori elenco, e la cancellazione di un mezzo con spese). Il frontend lo presuppone: su un database senza questo file salvare una scheda mezzo o attrezzatura fallisce. Colonne: marca, modello, telaio, prima immatricolazione, data acquisto, compagnia assicuratrice, n. polizza, costo annuo assicurazione, scadenza bollo, note (mezzi); compagnia, polizza, costo, scadenza assicurazione (attrezzature). Tabella `parco_spese` (mezzo **o** attrezzatura, data, categoria chiusa, importo, fornitore e n. documento facoltativi per l’abbinamento futuro alle fatture), `on delete restrict`, su `anagrafiche.write` |
+| [`parco-consegne-carburante.sql`](supabase/schema/parco-consegne-carburante.sql) | ✅ eseguito il 2026-10-02, verificato: 2 policy, 1 trigger, 2 indici, 3 colonne. Provato prima su PGlite, anche rilanciato: una sola consegna aperta per cosa, restituzione non prima della consegna, persona di un'altra azienda rifiutata (consegne e rifornimenti), litri su una manutenzione rifiutati, mezzo con consegne non cancellabile. Crea `parco_consegne` (2 policy su `anagrafiche.write`, trigger `parco_consegne_controlla`, indici unici parziali `parco_consegne_mezzo_aperta` / `_attrezzatura_aperta`); aggiunge a `parco_spese` `litri`, `contatore`, `dipendente_id` e il vincolo `parco_spese_litri_carburante`; **ridefinisce `parco_spese_controlla`** (copiata da `parco-schede-spese.sql`, più la persona). In fondo: 2 policy, 1 trigger, 2 indici, 3 colonne |
+| [`festivita.sql`](supabase/schema/festivita.sql) | ✅ eseguito il 2026-10-02: le quattro date di prova giuste; **la riga di Santa Lucia da verificare** (vedi «Come ripartire»). Provato su PGlite: Pasqua dal 2024 al 2035, Pasquetta e Immacolata non lavorabili, patrono col suo nome, `13-01` rifiutato; `invia_foglio_giornata` di sabato manda le bozze senza altri controlli, di giovedì li fa. Crea `azienda_calendario` (patrono `MM-GG` e nome del santo; legge `app.is_member`, scrive `anagrafiche.write`; trigger `azienda_calendario_tocca`), `app.pasqua`, `app.festivita(org, giorno)`, `app.giorno_lavorabile(org, giorno)`, e **ridefinisce `invia_foglio_giornata`** (copiata da `orario-contrattuale.sql`, passi 1–4 solo nei giorni lavorabili). Inserisce il **patrono di Edily, Santa Lucia (`12-13`)**. In fondo: 2 policy, 1 trigger, 3 funzioni, quattro date di prova da guardare a occhio, e la riga di Edily con Santa Lucia festa il 13/12/2027 |
+| [`assenze-pagate.sql`](supabase/schema/assenze-pagate.sql) | ✅ eseguito il 2026-10-02, verificato: la riga di Edily con il solo `globale_ferie` acceso. Provato su PGlite, anche rilanciato. Tabella `assenze_pagate`, una riga per impresa: otto booleani `globale_*` / `giornaliera_*` per ferie, permessi, malattia, infortunio (partenza: solo `globale_ferie`). Legge `paghe.read` o `org.manage`, scrive `org.manage`; trigger `assenze_pagate_tocca`. Inserisce la riga di Edily coi valori di partenza (non tocca una riga già scelta). In fondo: 2 policy, 1 trigger, la riga di Edily |
 | [`subappalti.sql`](supabase/schema/subappalti.sql) | ✅ eseguito il 2026-09-29, verificato: 4 policy, 1 trigger, la funzione `imprese_subappalto`. Provato su PGlite, anche rilanciato. Tabella `rapportino_subappalti` (legata al rapportino; cantiere e data ricopiati dal trigger): impresa = fornitore di tipo «Subappalto» (deciso con l'utente: dai fornitori, non a mano), lavorazione obbligatoria, persone, ore, note. Persone e ore sono **dell'impresa esterna**, non entrano nelle paghe. Policy come i lavori extra (tecnico sui cantieri suoi, titolare ovunque; cancella il tecnico solo ciò che ha scritto). Funzione `imprese_subappalto(org, tutte)`: nome e id delle imprese per la tendina, così il tecnico non legge l'anagrafica fornitori. Pagina `/subappalti` per tecnico e titolare (`rapportini.create` o `rapportini.validate`), con la logica di Lavori extra più il filtro per impresa. Tipi fornitore aggiunti nel modulo: Subappalto, Nolo a freddo, Nolo a caldo (al posto di «Noleggio mezzi») |
 | [`note-contabili-contabilizzata.sql`](supabase/schema/note-contabili-contabilizzata.sql) | ✅ eseguito il 2026-09-25, verificato: `contabilizzata_da` uuid e `contabilizzata_il` timestamptz, entrambe nullable. Aggiunge a `note_contabili` `contabilizzata_il` (timestamptz, NULL = non ancora) e `contabilizzata_da`: il flag «contabilizzato» dei Lavori extra. Nessuna policy nuova, scrive chi può già correggere la nota (tecnico sui suoi cantieri, titolare ovunque). La lettura ripiega da sola se la colonna manca (42703): utile su un database dove il file non fosse ancora girato |
 | [`cliente-cognome-nome.sql`](supabase/schema/cliente-cognome-nome.sql) | ✅ eseguito il 2026-09-24, verificato: 5 privati con cognome e nome, `ragione_sociale` riscritta «Cognome Nome», 5 aziende con le due colonne vuote. Aggiunge `clienti.cognome` e `clienti.nome` (nullable, solo per i privati) e ha sistemato i cinque privati esistenti uno per uno; `ragione_sociale` resta e vale «Cognome Nome» |

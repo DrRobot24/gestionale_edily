@@ -112,6 +112,10 @@ comment on table public.parco_spese is
 -- Mezzo, attrezzatura e fornitore devono essere della stessa azienda
 -- della spesa: senza, conoscendo un id, si attaccherebbe una spesa alla
 -- cosa di un'altra impresa.
+--
+-- ⚠️ SUPERATA da `parco-consegne-carburante.sql` (2026-10-02), che
+-- aggiunge il controllo su chi ha fatto rifornimento: se si rilancia
+-- questo file, dopo va rilanciato quello.
 
 create or replace function public.parco_spese_controlla()
 returns trigger

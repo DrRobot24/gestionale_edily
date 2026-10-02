@@ -1,8 +1,8 @@
 import { useDataInIndirizzo } from './useDataInIndirizzo'
 import { Avviso, Badge, Card, cn } from '../../ui'
-import { eFineSettimana } from '../../lib/giorni'
 import { dataEstesa, griglieDelMese, giornoPiu, meseEAnno, numero } from '../../lib/formato'
 import { oggi } from '../rapportini/campiRapportino'
+import { useCalendario } from '../calendario/calendario'
 import {
   cantieriAttesi,
   oreDelTecnico,
@@ -234,6 +234,7 @@ function CalendarioTecnico({
 }) {
   const suoi = raggruppaPerGiorno(rapportini, tecnico)
   const sueOre = oreDelTecnico(ore, tecnico)
+  const cal = useCalendario()
 
   const celle = griglieDelMese(mese)
   const adesso = oggi()
@@ -253,7 +254,7 @@ function CalendarioTecnico({
         rapportini: suoi.get(c) ?? [],
         cantieriAttesi: cantieriAttesi(attese, tecnico.userId, c),
         ore: sueOre.get(c) ?? null,
-        nonFeriale: eFineSettimana(c),
+        nonFeriale: !cal.lavorabile(c),
         passata: c < adesso,
         assente: assenti.has(`${tecnico.dipendenteId}|${c}`),
       }) === 'rosso'
@@ -308,7 +309,7 @@ function CalendarioTecnico({
           if (!cella) return <span key={`vuota-${k}`} />
 
           const futuro = cella > adesso
-          const nonFeriale = eFineSettimana(cella)
+          const nonFeriale = !cal.lavorabile(cella)
           const stato = statoGiornataTecnico({
             rapportini: suoi.get(cella) ?? [],
             cantieriAttesi: cantieriAttesi(attese, tecnico.userId, cella),
@@ -326,7 +327,7 @@ function CalendarioTecnico({
               disabled={futuro}
               onClick={() => onApriGiorno(cella)}
               aria-current={scelto ? 'date' : undefined}
-              title={descrizione(stato)}
+              title={[cal.festivita(cella), descrizione(stato)].filter(Boolean).join(' — ')}
               className={cn(
                 'relative aspect-square rounded-lg border-2 text-xs font-bold',
                 stato === 'vuota'

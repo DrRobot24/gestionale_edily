@@ -318,7 +318,7 @@ export function useEliminaParco(tipo: TipoParco) {
       if (error) {
         if (error.code === '23503') {
           throw new Error(
-            'È già stato usato in qualche rapportino o ha delle spese segnate: eliminarlo le lascerebbe senza. Archivialo invece — sparisce dalla tendina ma lo storico resta.',
+            'È già stato usato in qualche rapportino, ha delle spese o delle consegne segnate: eliminarlo le lascerebbe senza. Archivialo invece — sparisce dalla tendina ma lo storico resta.',
           )
         }
         throw error

@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { Card, cn } from '../../ui'
-import { eFineSettimana } from '../../lib/giorni'
 import { griglieDelMese, giornoPiu, meseEAnno, numero } from '../../lib/formato'
 import { oggi } from '../rapportini/campiRapportino'
+import { useCalendario } from '../calendario/calendario'
 import type { RapportinoCantiere } from '../rapportini/useRapportini'
 
 /* ══════════════════════════════════════════════════════════════════
@@ -80,6 +80,7 @@ export function CalendarioCantiere({
 }) {
   const navigate = useNavigate()
   const [mese, setMese] = useState(giorno)
+  const cal = useCalendario()
 
   const perGiorno = new Map<string, RapportinoCantiere>()
   for (const r of righe) perGiorno.set(r.data, r)
@@ -168,18 +169,20 @@ export function CalendarioCantiere({
             const stato = statoDi(r)
             const scelto = cella === giorno
             const futuro = cella > adesso
-            /* Sabato e domenica: non sono giornate da compilare, e si
+            /* Sabato, domenica e festivi: non sono giornate da compilare, e si
                riconoscono a colpo d'occhio invece di far contare le
                colonne. Il grigio dice «non ti riguarda», non «errore»
                — quello sarebbe il rosso. */
-            const nonFeriale = eFineSettimana(cella)
+            const nonFeriale = !cal.lavorabile(cella)
 
             return (
               <button
                 key={cella}
                 type="button"
                 disabled={futuro}
-                title={cella === adesso ? `Oggi — ${titolo(stato)}` : titolo(stato)}
+                title={[cella === adesso ? 'Oggi' : null, cal.festivita(cella), titolo(stato)]
+                  .filter(Boolean)
+                  .join(' — ')}
                 /* Con la scheda si va a leggerla; senza, si porta la
                    fascia in cima su quel giorno — che e' il posto da cui
                    si compila. */

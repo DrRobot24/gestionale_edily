@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router'
 import { supabase } from '../../lib/supabase'
 import { Avviso, Button, Card, cn } from '../../ui'
 import { dataEstesa } from '../../lib/formato'
-import { nomeNonFeriale, ultimoFeriale } from '../../lib/giorni'
+import { useCalendario } from '../calendario/calendario'
 import { useSession } from '../auth/SessionProvider'
 import { useCantieri } from '../cantieri/useCantieri'
 import { useRapportini, type Rapportino } from '../rapportini/useRapportini'
@@ -87,8 +87,8 @@ export function CantieriDelGiorno({
   onCambiaGiorno,
 }: {
   giorno: string
-  /** Serve al pulsante del weekend, che riporta all'ultimo giorno
-   *  feriale. Facoltativa: senza, il pulsante non compare. */
+  /** Serve al pulsante dei giorni non lavorativi, che riporta all'ultimo
+   *  giorno lavorativo. Facoltativa: senza, il pulsante non compare. */
   onCambiaGiorno?: (giorno: string) => void
 }) {
   const navigate = useNavigate()
@@ -128,6 +128,9 @@ export function CantieriDelGiorno({
   const { data: cantieri, isPending: caricoCantieri, error: erroreCantieri } = useCantieri()
   const { data: rapportini, isPending: caricoRapportini } = useRapportini()
   const { data: consegne, isPending: caricoConsegne } = useConsegneDelMese(giorno)
+  const cal = useCalendario()
+  /** Sabato, domenica o il nome della festa; null nei giorni lavorabili. */
+  const nonLavorativo = cal.nonLavorativo(giorno)
 
   /* Le ore di chi compila. Un tecnico che gira i cantieri lavora come
      tutti, e una giornata in cui l'unica persona certa di esserci stata
@@ -152,81 +155,18 @@ export function CantieriDelGiorno({
   const { data: miaGiornata, isSuccess: oreLette } = useGiornataPersonale(giorno)
   /* Una riga da zero ore non conta come compilata: e' il caso di chi
      apre il foglio, non scrive niente e lo salva. Il database fa lo
-     stesso conto. */
-  const mancanoLeMieOre =
-    Boolean(mio) && oreLette && !(miaGiornata && totaleOre(miaGiornata) > 0)
+     stesso conto.
+
+     Nei giorni non lavorativi non si pretendono: chi manda le schede di
+     una domenica puo' non esserci stato, e il database fa lo stesso. */
+  const scritteLeMieOre = Boolean(miaGiornata && totaleOre(miaGiornata) > 0)
+  const mancanoLeMieOre = !nonLavorativo && Boolean(mio) && oreLette && !scritteLeMieOre
 
   if (caricoCantieri || caricoRapportini || caricoConsegne) {
     return <p className="text-sm font-bold text-gray-600">Carico la giornata…</p>
   }
   if (erroreCantieri) {
     return <Avviso tono="errore">Non riesco a leggere i cantieri: {erroreCantieri.message}</Avviso>
-  }
-
-  /* SABATO E DOMENICA NON SI COMPILA. Chiesto dall'utente il
-     2026-09-21: «le giornate si svolgono solo ed esclusivamente nei
-     giorni feriali quindi LUN - VEN. Lascia i giorni prefestivi (SAB) e
-     festivi (DOM) esenti».
-
-     Il controllo sta PRIMA di tutto il resto: senza, il sabato la home
-     mostrerebbe sette card rosse da compilare e il pulsante d'invio,
-     cioe' chiederebbe un lavoro che non esiste. E chiedere ogni sabato
-     una cosa che non si deve fare insegna a ignorare quella zona della
-     schermata anche nei giorni in cui chiede sul serio.
-
-     Non e' un divieto, e' un'assenza di richiesta: le frecce nella
-     fascia restano e chi ha davvero lavorato di sabato passa dalla
-     scheda del cantiere, dove il rapportino si compila come sempre. */
-  const nonFeriale = nomeNonFeriale(giorno)
-  if (nonFeriale) {
-    return (
-      <Card className="bg-gray-50 p-5">
-        <p className="text-sm font-extrabold text-black">
-          {nonFeriale === 'domenica' ? 'Domenica' : 'Sabato'}: niente da compilare.
-        </p>
-        <p className="mt-1 text-xs font-semibold text-gray-600">
-          Le giornate si registrano dal lunedì al venerdì. Se si è lavorato lo stesso,
-          il rapportino si compila dalla scheda del cantiere.
-        </p>
-        <div className="mt-3">
-          <Button
-            dimensione="sm"
-            variante="secondario"
-            onClick={() => onCambiaGiorno?.(ultimoFeriale(giorno))}
-          >
-            Vai all&rsquo;ultimo giorno feriale
-          </Button>
-        </div>
-      </Card>
-    )
-  }
-
-  /* I cantieri che quel giorno chiedevano la scheda A TE: attivi, e
-     assegnati a te in quella data dal titolare — anche con
-     un'assegnazione retroattiva — e gia' aperti. Stessa regola del
-     calendario (`cantiereAtteso`, 2026-09-23). Prima qui c'erano gli
-     attivi di oggi, e sfogliando all'indietro si vedevano card che il
-     calendario non pretendeva. */
-  /* RETE DI SICUREZZA: se di chi compila non si legge NESSUNA
-     assegnazione — la RLS non gliele mostra, o nessuno gliele ha mai
-     registrate — si torna agli attivi che vede. Una home senza card
-     bloccherebbe il lavoro del giorno, ed e' peggio di una card in
-     piu'. */
-  const mieAttese = (consegne?.attese ?? []).filter((a) => a.userId === app?.userId)
-  const attivi = (cantieri ?? []).filter(
-    (c) =>
-      c.stato === 'attivo' &&
-      (mieAttese.length === 0 || cantiereAtteso(mieAttese, app?.userId ?? '', c.id, giorno)),
-  )
-
-  if (attivi.length === 0) {
-    return (
-      <Avviso tono="info">
-        {giorno === oggi()
-          ? 'Nessun cantiere attivo assegnato a te: oggi non c’è niente da compilare.'
-          : `Il ${dataEstesa(giorno)} non avevi cantieri assegnati: non c’è niente da compilare.`}
-      </Avviso>
-    )
   }
 
   // Il rapportino del GIORNO GUARDATO per quel cantiere. Se per errore
@@ -244,6 +184,82 @@ export function CantieriDelGiorno({
     if (r.data !== giorno || !r.cantiere_id) continue
     const presente = diOggi.get(r.cantiere_id)
     if (!presente || ordine[r.stato] > ordine[presente.stato]) diOggi.set(r.cantiere_id, r)
+  }
+
+  /* SABATO, DOMENICA E FESTIVI NON SI COMPILA. Chiesto dall'utente il
+     2026-09-21: «le giornate si svolgono solo ed esclusivamente nei
+     giorni feriali quindi LUN - VEN. Lascia i giorni prefestivi (SAB) e
+     festivi (DOM) esenti». I festivi infrasettimanali e il patrono si
+     sono aggiunti il 2026-10-02.
+
+     Il controllo sta PRIMA delle card: senza, il sabato la home
+     mostrerebbe sette card rosse da compilare e il pulsante d'invio,
+     cioe' chiederebbe un lavoro che non esiste. E chiedere ogni sabato
+     una cosa che non si deve fare insegna a ignorare quella zona della
+     schermata anche nei giorni in cui chiede sul serio.
+
+     Non e' un divieto, e' un'assenza di richiesta: chi ha davvero
+     lavorato passa dalla scheda del cantiere, dove il rapportino si
+     compila come sempre. E DAL 2026-10-02 LO PUO' ANCHE MANDARE: prima
+     la scheda restava in bozza per sempre, perche' il pulsante d'invio
+     stava solo qui e qui non c'era. Se quel giorno c'e' almeno una
+     scheda, la home mostra quelle — e solo quelle — col pulsante, e il
+     database (`festivita.sql`) non pretende gli altri cantieri, gli
+     assenti ne' le otto ore. Deciso con l'utente: «solo cio' che e'
+     scritto». */
+  if (nonLavorativo && diOggi.size === 0) {
+    return (
+      <Card className="bg-gray-50 p-5">
+        <p className="text-sm font-extrabold text-black">
+          {maiuscola(nonLavorativo)}: niente da compilare.
+        </p>
+        <p className="mt-1 text-xs font-semibold text-gray-600">
+          Le giornate si registrano nei giorni lavorativi. Se si è lavorato lo stesso, il
+          rapportino si compila dalla scheda del cantiere, e poi si invia da qui.
+        </p>
+        <div className="mt-3">
+          <Button
+            dimensione="sm"
+            variante="secondario"
+            onClick={() => onCambiaGiorno?.(cal.ultimoLavorabile(giorno))}
+          >
+            Vai all&rsquo;ultimo giorno lavorativo
+          </Button>
+        </div>
+      </Card>
+    )
+  }
+
+  /* I cantieri che quel giorno chiedevano la scheda A TE: attivi, e
+     assegnati a te in quella data dal titolare — anche con
+     un'assegnazione retroattiva — e gia' aperti. Stessa regola del
+     calendario (`cantiereAtteso`, 2026-09-23). Prima qui c'erano gli
+     attivi di oggi, e sfogliando all'indietro si vedevano card che il
+     calendario non pretendeva. */
+  /* RETE DI SICUREZZA: se di chi compila non si legge NESSUNA
+     assegnazione — la RLS non gliele mostra, o nessuno gliele ha mai
+     registrate — si torna agli attivi che vede. Una home senza card
+     bloccherebbe il lavoro del giorno, ed e' peggio di una card in
+     piu'. */
+  /* Nei giorni non lavorativi niente e' atteso: le card sono i cantieri
+     che una scheda ce l'hanno gia'. */
+  const mieAttese = (consegne?.attese ?? []).filter((a) => a.userId === app?.userId)
+  const attivi = nonLavorativo
+    ? (cantieri ?? []).filter((c) => diOggi.has(c.id))
+    : (cantieri ?? []).filter(
+        (c) =>
+          c.stato === 'attivo' &&
+          (mieAttese.length === 0 || cantiereAtteso(mieAttese, app?.userId ?? '', c.id, giorno)),
+      )
+
+  if (attivi.length === 0) {
+    return (
+      <Avviso tono="info">
+        {giorno === oggi()
+          ? 'Nessun cantiere attivo assegnato a te: oggi non c’è niente da compilare.'
+          : `Il ${dataEstesa(giorno)} non avevi cantieri assegnati: non c’è niente da compilare.`}
+      </Avviso>
+    )
   }
 
   const schede = attivi.map((c) => {
@@ -303,6 +319,11 @@ export function CantieriDelGiorno({
               ? 'Mancano le tue ore: dichiara quante ne hai lavorate in questa giornata.'
               : riepilogo(schede.length, compilate, daSpedire)}
           </p>
+          {nonLavorativo && (
+            <p className="text-xs font-semibold text-gray-600">
+              {maiuscola(nonLavorativo)}: si manda solo ciò che è scritto.
+            </p>
+          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
@@ -355,7 +376,10 @@ export function CantieriDelGiorno({
             rapportinoId: s.rapportino?.id ?? null,
           }))}
           mieOre={miaGiornata}
-          conScheda={Boolean(mio)}
+          /* Di festa «Le tue ore» si mostrano solo se scritte: non
+             sono dovute, e «Non le hai ancora scritte» in rosso
+             direbbe il contrario. */
+          conScheda={Boolean(mio) && (!nonLavorativo || scritteLeMieOre)}
           puoInviare={puoInviare}
           perche={perche}
           inCorso={invia.isPending}
@@ -390,13 +414,16 @@ export function CantieriDelGiorno({
 
       {/* Chi non c'era: dopo le card. Si blocca appena il titolare ha
           firmato una scheda del giorno, come nel database
-          (`app.giornata_validata`). */}
-      <AssentiDelGiorno
-        giorno={giorno}
-        bloccata={schede.some(
-          (s) => s.rapportino?.stato === 'validato' || s.rapportino?.stato === 'contabilizzato',
-        )}
-      />
+          (`app.giornata_validata`). Di festa non c'e': assente da
+          cosa, se nessuno doveva esserci? */}
+      {!nonLavorativo && (
+        <AssentiDelGiorno
+          giorno={giorno}
+          bloccata={schede.some(
+            (s) => s.rapportino?.stato === 'validato' || s.rapportino?.stato === 'contabilizzato',
+          )}
+        />
+      )}
       </>
       )}
     </div>
@@ -513,4 +540,9 @@ function SchedaCantiere({
       </div>
     </button>
   )
+}
+
+/** «domenica» → «Domenica»: il nome del giorno in testa alla frase. */
+function maiuscola(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1)
 }

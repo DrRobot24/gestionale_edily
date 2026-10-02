@@ -1,8 +1,8 @@
 import { Card, cn } from '../../ui'
-import { eFineSettimana } from '../../lib/giorni'
 import { griglieDelMese, giornoPiu, meseEAnno } from '../../lib/formato'
 import { useSession } from '../auth/SessionProvider'
 import { useMioDipendente } from '../anagrafiche/dipendenti'
+import { useCalendario } from '../calendario/calendario'
 import { oggi } from '../rapportini/campiRapportino'
 import { ASPETTO_GIORNATA, statoGiornataTecnico, type StatoGiornata } from './statoGiornata'
 import {
@@ -76,6 +76,7 @@ export function CalendarioGiornate({
   const { app } = useSession()
   const { data: mio } = useMioDipendente()
   const { data: consegne } = useConsegneDelMese(giorno)
+  const cal = useCalendario()
 
   const io = { userId: app?.userId ?? '', dipendenteId: mio?.id ?? '', nominativo: '' }
   const perGiorno = raggruppaPerGiorno(consegne?.rapportini ?? [], io)
@@ -138,18 +139,18 @@ export function CalendarioGiornate({
                 rapportini: perGiorno.get(cella) ?? [],
                 cantieriAttesi: cantieriAttesi(attese, io.userId, cella),
                 ore: mieOre.get(cella) ?? null,
-                nonFeriale: eFineSettimana(cella),
+                nonFeriale: !cal.lavorabile(cella),
                 passata: cella < adesso,
                 assente: assenti.has(`${io.dipendenteId}|${cella}`),
               })
             : 'vuota'
           const scelto = cella === giorno
           const futuro = cella > adesso
-          /* Sabato e domenica non sono giornate da compilare: si
+          /* Sabato, domenica e festivi non sono giornate da compilare: si
              riconoscono a colpo d'occhio invece di far contare le
              colonne. Il grigio dice «non ti riguarda» senza dire
              «errore», che sarebbe il rosso. */
-          const nonFeriale = eFineSettimana(cella)
+          const nonFeriale = !cal.lavorabile(cella)
 
           return (
             <button
@@ -158,7 +159,7 @@ export function CalendarioGiornate({
               disabled={futuro}
               onClick={() => onScegli(cella)}
               aria-current={scelto ? 'date' : undefined}
-              title={descrizione(stato)}
+              title={[cal.festivita(cella), descrizione(stato)].filter(Boolean).join(' — ')}
               className={cn(
                 'relative aspect-square rounded-lg border-2 text-xs font-bold',
                 stato === 'vuota'

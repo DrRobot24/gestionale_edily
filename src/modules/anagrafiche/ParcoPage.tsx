@@ -4,6 +4,7 @@ import { Avviso, Badge, Button, Table, Vuoto, cn } from '../../ui'
 import { data as fmtData } from '../../lib/formato'
 import { usePermission } from '../auth/usePermission'
 import { PARCO, scadenzaVicina, useParco, type TipoParco } from './parco'
+import { nominativo, useConsegneAperte } from './consegneParco'
 
 /** L'elenco dei mezzi o delle attrezzature. Vedi `parco.ts`. */
 export function ParcoPage({ tipo }: { tipo: TipoParco }) {
@@ -13,6 +14,8 @@ export function ParcoPage({ tipo }: { tipo: TipoParco }) {
   const conf = PARCO[tipo]
 
   const { data: voci, isPending, error } = useParco(tipo, { soloAttivi: !conArchiviati })
+  // Chi ha cosa adesso: le consegne le legge chi tiene i registri.
+  const { data: consegnati } = useConsegneAperte(tipo, puoScrivere)
 
   if (isPending) return <p className="text-sm font-bold text-gray-600">Carico {conf.titolo.toLowerCase()}…</p>
   if (error) return <Avviso tono="errore">Non riesco a leggere {conf.titolo.toLowerCase()}: {error.message}</Avviso>
@@ -60,6 +63,7 @@ export function ParcoPage({ tipo }: { tipo: TipoParco }) {
                 <th key={c.nome}>{c.etichetta}</th>
               ))}
               <th>Proprietà</th>
+              {puoScrivere && <th>Ce l&rsquo;ha</th>}
               <th>Scadenze</th>
               <th />
             </tr>
@@ -78,6 +82,20 @@ export function ParcoPage({ tipo }: { tipo: TipoParco }) {
                   </td>
                 ))}
                 <td className="text-gray-600">{v.proprieta === 'noleggio' ? 'Noleggio' : 'Propria'}</td>
+                {puoScrivere && (
+                  <td>
+                    {consegnati?.get(v.id) ? (
+                      <span className="font-bold text-black">
+                        {nominativo(consegnati.get(v.id)!.dipendente)}
+                        <span className="numerico block text-[10px] font-semibold text-gray-500">
+                          dal {fmtData(consegnati.get(v.id)!.consegnato_il)}
+                        </span>
+                      </span>
+                    ) : (
+                      <span className="text-gray-400">in sede</span>
+                    )}
+                  </td>
+                )}
                 <td>
                   <Scadenze voce={v} campi={conf.scadenze} />
                 </td>

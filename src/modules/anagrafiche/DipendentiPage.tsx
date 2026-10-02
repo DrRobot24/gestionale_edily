@@ -13,6 +13,7 @@ import {
   useStipendi,
   type TipoRisorsa,
 } from './dipendenti'
+import { useCalendario } from '../calendario/calendario'
 import { statoScadenza, giorniA } from './documentiPersonali'
 import { aperto, useContratti, type Contratto } from './contratti'
 
@@ -126,6 +127,7 @@ export function DipendentiPage() {
   /* L'orario da contratto di ognuno, per la tariffa di chi e' a paga
      globale: paga ÷ (giorni lavorabili × ore al giorno). */
   const { data: orari } = useOrari()
+  const { patrono } = useCalendario()
   /* I contratti, per la colonna dell'assunzione (2026-09-29). Li legge
      solo chi tiene le anagrafiche; gli altri vedono la copia sulla
      scheda, come prima. */
@@ -207,7 +209,7 @@ export function DipendentiPage() {
             const storico = storicoRegimi(vedePaghe ? stipendi : [], d.dipendente_costi, d.id)
             const regime = regimeVigente(storico, oggi)
             const s = regime?.tipo === 'paga' ? regime : null
-            const t = tariffaDelMese(storico, oggi, oreContratto(orari, d.id, oggi))
+            const t = tariffaDelMese(storico, oggi, oreContratto(orari, d.id, oggi), patrono)
             const tipo = TIPI[d.tipo] ?? TIPI.operaio
             const permesso = d.permesso_soggiorno ? statoScadenza(d.permesso_scadenza) : null
 

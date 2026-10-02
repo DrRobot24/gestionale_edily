@@ -5,6 +5,8 @@ import { usePermission } from '../auth/usePermission'
 import { RiquadroDocumenti } from '../documenti/RiquadroDocumenti'
 import { useFornitori } from './fornitori'
 import { RiquadroSpese } from './RiquadroSpese'
+import { RiquadroConsegne } from './RiquadroConsegne'
+import { RiquadroCarburante } from './RiquadroCarburante'
 import {
   PARCO,
   campiDi,
@@ -210,6 +212,10 @@ export function ParcoForm({ tipo }: { tipo: TipoParco }) {
           lasciar credere che non ci siano: «Crea» porta dritto qui. */}
       {!nuovo && id ? (
         <>
+          {/* A CHI E' CONSEGNATO (2026-10-02), prima di tutto: e' la
+              domanda che si fa piu' spesso su un mezzo. Come le spese,
+              solo a chi tiene i registri (`parco-consegne-carburante.sql`). */}
+          {puoScrivere && <RiquadroConsegne tipo={tipo} voceId={id} />}
           <RiquadroDocumenti
             ambito={tipo === 'mezzi' ? 'mezzo' : 'attrezzatura'}
             riferimentoId={id}
@@ -217,14 +223,17 @@ export function ParcoForm({ tipo }: { tipo: TipoParco }) {
           />
           {/* Le SPESE sono soldi: solo a chi tiene i registri, come la
               policy (`parco-schede-spese.sql`). */}
+          {/* La SCHEDA CARBURANTE (2026-10-02) prima delle altre spese:
+              e' la spesa che torna piu' spesso. */}
+          {puoScrivere && <RiquadroCarburante tipo={tipo} voceId={id} />}
           {puoScrivere && <RiquadroSpese tipo={tipo} voceId={id} />}
         </>
       ) : (
         <Card className="border-dashed bg-amber-50 p-5">
-          <p className="text-sm font-extrabold text-black">Documenti e spese</p>
+          <p className="text-sm font-extrabold text-black">Consegna, documenti, carburante e spese</p>
           <p className="mt-1 text-xs font-semibold text-gray-700">
-            Libretto, certificato di proprietà, polizza, verifiche INAIL (ex ISPESL) e le spese si
-            aggiungono appena {tipo === 'mezzi' ? 'il mezzo è creato' : 'l’attrezzatura è creata'}:
+            A chi è consegnato, libretto, certificato di proprietà, polizza, verifiche INAIL (ex
+            ISPESL), rifornimenti e spese si aggiungono appena {tipo === 'mezzi' ? 'il mezzo è creato' : 'l’attrezzatura è creata'}:
             premi «Crea {conf.singolare}» e la scheda resta aperta, con i riquadri qui sotto.
           </p>
         </Card>

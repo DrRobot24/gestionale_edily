@@ -67,6 +67,90 @@ export type Database = {
           },
         ]
       }
+      /* Scritta a mano: arriva con `assenze-pagate.sql` (2026-10-02). */
+      assenze_pagate: {
+        Row: {
+          aggiornato_da: string | null
+          giornaliera_ferie: boolean
+          giornaliera_infortunio: boolean
+          giornaliera_malattia: boolean
+          giornaliera_permessi: boolean
+          globale_ferie: boolean
+          globale_infortunio: boolean
+          globale_malattia: boolean
+          globale_permessi: boolean
+          org_id: string
+          updated_at: string
+        }
+        Insert: {
+          aggiornato_da?: string | null
+          giornaliera_ferie?: boolean
+          giornaliera_infortunio?: boolean
+          giornaliera_malattia?: boolean
+          giornaliera_permessi?: boolean
+          globale_ferie?: boolean
+          globale_infortunio?: boolean
+          globale_malattia?: boolean
+          globale_permessi?: boolean
+          org_id: string
+          updated_at?: string
+        }
+        Update: {
+          aggiornato_da?: string | null
+          giornaliera_ferie?: boolean
+          giornaliera_infortunio?: boolean
+          giornaliera_malattia?: boolean
+          giornaliera_permessi?: boolean
+          globale_ferie?: boolean
+          globale_infortunio?: boolean
+          globale_malattia?: boolean
+          globale_permessi?: boolean
+          org_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assenze_pagate_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      /* Scritta a mano: arriva con `festivita.sql` (2026-10-02). */
+      azienda_calendario: {
+        Row: {
+          aggiornato_da: string | null
+          org_id: string
+          patrono: string | null
+          patrono_nome: string | null
+          updated_at: string
+        }
+        Insert: {
+          aggiornato_da?: string | null
+          org_id: string
+          patrono?: string | null
+          patrono_nome?: string | null
+          updated_at?: string
+        }
+        Update: {
+          aggiornato_da?: string | null
+          org_id?: string
+          patrono?: string | null
+          patrono_nome?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "azienda_calendario_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       /* Scritte a mano: arrivano con `economia-risorse.sql` (2026-09-23). */
       buste_paga: {
         Row: {
@@ -2276,6 +2360,79 @@ export type Database = {
         }
         Relationships: []
       }
+      /* Scritta a mano: arriva con `parco-consegne-carburante.sql` (2026-10-02),
+         che aggiunge anche litri, contatore e dipendente_id a `parco_spese`. */
+      parco_consegne: {
+        Row: {
+          attrezzatura_id: string | null
+          consegnato_il: string
+          created_at: string
+          creato_da: string | null
+          dipendente_id: string
+          id: string
+          mezzo_id: string | null
+          note: string | null
+          org_id: string
+          restituito_il: string | null
+          updated_at: string
+        }
+        Insert: {
+          attrezzatura_id?: string | null
+          consegnato_il?: string
+          created_at?: string
+          creato_da?: string | null
+          dipendente_id: string
+          id?: string
+          mezzo_id?: string | null
+          note?: string | null
+          org_id: string
+          restituito_il?: string | null
+          updated_at?: string
+        }
+        Update: {
+          attrezzatura_id?: string | null
+          consegnato_il?: string
+          created_at?: string
+          creato_da?: string | null
+          dipendente_id?: string
+          id?: string
+          mezzo_id?: string | null
+          note?: string | null
+          org_id?: string
+          restituito_il?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "parco_consegne_attrezzatura_id_fkey"
+            columns: ["attrezzatura_id"]
+            isOneToOne: false
+            referencedRelation: "attrezzature"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "parco_consegne_dipendente_id_fkey"
+            columns: ["dipendente_id"]
+            isOneToOne: false
+            referencedRelation: "dipendenti"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "parco_consegne_mezzo_id_fkey"
+            columns: ["mezzo_id"]
+            isOneToOne: false
+            referencedRelation: "mezzi"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "parco_consegne_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       parco_spese: {
         Row: {
           attrezzatura_id: string | null
@@ -2283,10 +2440,13 @@ export type Database = {
           created_at: string
           creato_da: string | null
           data: string
+          contatore: number | null
           descrizione: string | null
+          dipendente_id: string | null
           fornitore_id: string | null
           id: string
           importo: number
+          litri: number | null
           mezzo_id: string | null
           numero_documento: string | null
           org_id: string
@@ -2298,10 +2458,13 @@ export type Database = {
           created_at?: string
           creato_da?: string | null
           data?: string
+          contatore?: number | null
           descrizione?: string | null
+          dipendente_id?: string | null
           fornitore_id?: string | null
           id?: string
           importo: number
+          litri?: number | null
           mezzo_id?: string | null
           numero_documento?: string | null
           org_id: string
@@ -2313,10 +2476,13 @@ export type Database = {
           created_at?: string
           creato_da?: string | null
           data?: string
+          contatore?: number | null
           descrizione?: string | null
+          dipendente_id?: string | null
           fornitore_id?: string | null
           id?: string
           importo?: number
+          litri?: number | null
           mezzo_id?: string | null
           numero_documento?: string | null
           org_id?: string
@@ -2328,6 +2494,13 @@ export type Database = {
             columns: ["attrezzatura_id"]
             isOneToOne: false
             referencedRelation: "attrezzature"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "parco_spese_dipendente_id_fkey"
+            columns: ["dipendente_id"]
+            isOneToOne: false
+            referencedRelation: "dipendenti"
             referencedColumns: ["id"]
           },
           {

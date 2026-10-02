@@ -21,6 +21,11 @@ import {
    quest'anno, e quanto da quando c'e'. Sotto, le spese dalla piu'
    recente. Lo stesso gesto del riquadro dei documenti — «+ Aggiungi»
    apre il modulo in alto, «Correggi» lo riapre sulla riga.
+
+   IL CARBURANTE NON STA QUI dal 2026-10-02: ha la sua scheda
+   (`RiquadroCarburante`), coi litri e i chilometri. Stessa tabella,
+   quindi ogni euro e' contato una volta sola; qui si vedono le altre
+   categorie.
    ══════════════════════════════════════════════════════════════════ */
 
 type Valori = {
@@ -36,7 +41,7 @@ const oggi = () => new Date().toLocaleDateString('sv-SE')
 
 const VUOTI = (): Valori => ({
   data: oggi(),
-  categoria: 'carburante',
+  categoria: 'manutenzione',
   importo: '',
   descrizione: '',
   fornitore_id: '',
@@ -54,7 +59,7 @@ export function RiquadroSpese({ tipo, voceId }: { tipo: TipoParco; voceId: strin
   const [valori, setValori] = useState<Valori>(VUOTI)
   const [problema, setProblema] = useState<string | null>(null)
 
-  const righe = spese ?? []
+  const righe = (spese ?? []).filter((s) => s.categoria !== 'carburante')
   const anno = oggi().slice(0, 4)
   const totale = righe.reduce((s, r) => s + Number(r.importo), 0)
   const totaleAnno = righe
@@ -116,7 +121,7 @@ export function RiquadroSpese({ tipo, voceId }: { tipo: TipoParco; voceId: strin
           <h2 className="text-sm font-extrabold uppercase tracking-wide text-black">Spese</h2>
           <p className="text-xs font-semibold text-gray-700">
             {righe.length === 0
-              ? 'Carburante, tagliandi, riparazioni, gomme, assicurazione, bollo.'
+              ? 'Tagliandi, riparazioni, gomme, assicurazione, bollo. Il carburante ha la sua scheda.'
               : `Nel ${anno}: ${euro(totaleAnno)} · in tutto: ${euro(totale)}`}
           </p>
         </div>
@@ -151,7 +156,7 @@ export function RiquadroSpese({ tipo, voceId }: { tipo: TipoParco; voceId: strin
             value={valori.categoria}
             onChange={(e) => cambia('categoria', e.target.value as CategoriaSpesa)}
           >
-            {CATEGORIE_SPESA.map((c) => (
+            {CATEGORIE_SPESA.filter((c) => c.valore !== 'carburante').map((c) => (
               <option key={c.valore} value={c.valore}>
                 {c.etichetta}
               </option>

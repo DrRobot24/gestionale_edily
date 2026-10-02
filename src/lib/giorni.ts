@@ -11,16 +11,9 @@
    che lavora il sabato — se ne correggono due e la terza resta indietro
    senza che nessuno se ne accorga.
 
-   ⚠️ COSA NON COPRE, detto perche' si sappia: i festivi INFRASETTIMANALI
-   (Natale, Ferragosto, il santo patrono). Il 25 dicembre qui risulta un
-   giorno lavorativo come un altro. Farlo per davvero vuol dire una
-   tabella di festivita' con le mobili (Pasquetta) e le locali, ed e'
-   lavoro vero: si fa quando l'utente lo chiede, non per anticipare.
-
-   Nel frattempo il danno e' contenuto: su un festivo infrasettimanale
-   il tecnico semplicemente non compila niente, e la giornata resta
-   bianca nel calendario — che e' gia' il comportamento dei giorni senza
-   schede.
+   I FESTIVI INFRASETTIMANALI (Natale, Ferragosto, il patrono) sono
+   arrivati il 2026-10-02: stanno piu' sotto, e chi chiede «si lavora?»
+   deve usare `eLavorabile` / `nonLavorativo`, non `eFineSettimana`.
    ══════════════════════════════════════════════════════════════════ */
 
 /** Il giorno della settimana di una data `YYYY-MM-DD`, da 0 (domenica)
@@ -54,32 +47,15 @@ export function eFeriale(iso: string): boolean {
   return !eFineSettimana(iso)
 }
 
-/** Come si chiama quel giorno, per dirlo in pagina. */
-export function nomeNonFeriale(iso: string): string | null {
+/** Come si chiama quel giorno, se e' sabato o domenica. */
+function nomeNonFeriale(iso: string): string | null {
   if (eDomenica(iso)) return 'domenica'
   if (eSabato(iso)) return 'sabato'
   return null
 }
 
-/** Il primo giorno feriale a partire da una data, andando indietro.
- *
- *  Serve quando si apre una schermata su un giorno che non si lavora:
- *  invece di mostrare il vuoto, si porta chi guarda all'ultimo giorno
- *  che ha senso guardare. Indietro e non avanti, perche' il lavoro si
- *  registra dopo averlo fatto. */
-export function ultimoFeriale(iso: string): string {
-  const [a, m, g] = iso.split('-').map(Number)
-  const d = new Date(a, m - 1, g)
-  while (d.getDay() === 0 || d.getDay() === 6) {
-    d.setDate(d.getDate() - 1)
-  }
-  const mm = String(d.getMonth() + 1).padStart(2, '0')
-  const gg = String(d.getDate()).padStart(2, '0')
-  return `${d.getFullYear()}-${mm}-${gg}`
-}
-
 /* ══════════════════════════════════════════════════════════════════
-   LE FESTIVITA' NAZIONALI, dal 2026-09-28 — le «rosse di calendario».
+   LE FESTIVITA', dal 2026-09-28 — le «rosse di calendario».
 
    Chieste dall'utente per la tariffa della paga globale: i giorni per
    cui si divide la paga sono i FERIALI del mese, «quindi escludi i
@@ -87,13 +63,21 @@ export function ultimoFeriale(iso: string): string {
 
    Calcolate nel codice e non in una tabella: sono dieci date fisse piu'
    Pasquetta, e Pasqua si ricava con una formula — non c'e' niente da
-   aggiungere a mano ogni anno. Il PATRONO locale non c'e': cambia da
-   comune a comune, e va deciso con l'utente se e quale.
+   aggiungere a mano ogni anno.
 
-   ⚠️ PER ORA LE USA SOLO LA TARIFFA (`giorniLavorabili`). Calendari,
-   card e invio continuano a guardare `eFineSettimana`: un festivo
-   infrasettimanale li' risulta ancora un giorno da compilare.
+   DAL 2026-10-02 valgono OVUNQUE, non solo per la tariffa: calendari,
+   card, foglio presenze e invio trattano un festivo come una domenica.
+   E c'e' il PATRONO, una data per impresa (`azienda_calendario`, deciso
+   con l'utente): le funzioni lo ricevono come argomento, e nelle pagine
+   arriva gia' legato da `useCalendario`.
+
+   ⚠️ LA STESSA REGOLA STA NEL DATABASE, in `app.festivita` di
+   `supabase/schema/festivita.sql`: l'invio della giornata la usa per
+   sapere cosa e' dovuto. Se cambia l'elenco qui, cambia anche li'.
    ══════════════════════════════════════════════════════════════════ */
+
+/** Il patrono dell'impresa: «MM-GG» e, se scritto, il nome del santo. */
+export type Patrono = { giorno: string; nome: string | null }
 
 const FISSE: Record<string, string> = {
   '01-01': 'Capodanno',
@@ -134,16 +118,39 @@ export function pasqua(anno: number): string {
   return isoDi(new Date(anno, mese - 1, giorno))
 }
 
-/** Il nome della festivita' nazionale di quel giorno, o null. */
-export function festivita(iso: string): string | null {
+/** Il nome della festivita' di quel giorno, o null. Stesso ordine di
+ *  `app.festivita`: le fisse, Pasquetta, il patrono. */
+export function festivita(iso: string, patrono?: Patrono | null): string | null {
   const fissa = FISSE[iso.slice(5)]
   if (fissa) return fissa
   const [a, m, g] = pasqua(Number(iso.slice(0, 4))).split('-').map(Number)
-  return iso === isoDi(new Date(a, m - 1, g + 1)) ? 'Lunedì dell’Angelo' : null
+  if (iso === isoDi(new Date(a, m - 1, g + 1))) return 'Lunedì dell’Angelo'
+  if (patrono && iso.slice(5) === patrono.giorno) return patrono.nome?.trim() || 'Santo patrono'
+  return null
 }
 
-/** Da lunedi' a venerdi', e non festivo: il giorno che conta per la
- *  tariffa della paga globale. */
-export function eLavorabile(iso: string): boolean {
-  return eFeriale(iso) && festivita(iso) === null
+/** Da lunedi' a venerdi', e non festivo: il giorno in cui si aspetta il
+ *  lavoro, e quello che conta per la tariffa della paga globale. */
+export function eLavorabile(iso: string, patrono?: Patrono | null): boolean {
+  return eFeriale(iso) && festivita(iso, patrono) === null
+}
+
+/** Perche' quel giorno non si lavora, per dirlo in pagina: il nome della
+ *  festa, oppure «sabato» o «domenica». null se si lavora. La festa
+ *  vince sulla domenica: «Ognissanti» dice di piu'. */
+export function nonLavorativo(iso: string, patrono?: Patrono | null): string | null {
+  return festivita(iso, patrono) ?? nomeNonFeriale(iso)
+}
+
+/** L'ultimo giorno lavorabile a partire da una data, andando indietro.
+ *
+ *  Serve quando si apre una schermata su un giorno che non si lavora:
+ *  invece di mostrare il vuoto, si porta chi guarda all'ultimo giorno
+ *  che ha senso guardare. Indietro e non avanti, perche' il lavoro si
+ *  registra dopo averlo fatto. */
+export function ultimoLavorabile(iso: string, patrono?: Patrono | null): string {
+  const [a, m, g] = iso.split('-').map(Number)
+  const d = new Date(a, m - 1, g)
+  while (!eLavorabile(isoDi(d), patrono)) d.setDate(d.getDate() - 1)
+  return isoDi(d)
 }

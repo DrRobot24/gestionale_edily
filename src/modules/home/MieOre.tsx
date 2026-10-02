@@ -3,6 +3,7 @@ import { Button, Card } from '../../ui'
 import { numero } from '../../lib/formato'
 import { oreContratto, useMioDipendente, useOrari } from '../anagrafiche/dipendenti'
 import { useGiornataPersonale } from '../oreproprie/orePersonali'
+import { useCalendario } from '../calendario/calendario'
 
 /* ══════════════════════════════════════════════════════════════════
    Le ore di chi sta compilando.
@@ -44,6 +45,7 @@ export function MieOre({ giorno }: { giorno: string }) {
   const { data: mio, isPending: caricoMio } = useMioDipendente()
   const { data: giornata, isPending: caricoOre } = useGiornataPersonale(giorno)
   const { data: orari } = useOrari()
+  const cal = useCalendario()
 
   if (caricoMio) {
     return (
@@ -84,7 +86,10 @@ export function MieOre({ giorno }: { giorno: string }) {
   const assenza = Number(giornata?.ore_assenza ?? 0)
   const coperte = ordinarie + assenza
   // La giornata piena del SUO contratto: 8, o meno se e' part-time.
-  const piena = oreContratto(orari, mio.id, giorno)
+  /* Di sabato, domenica e nei festivi la giornata piena e' zero: non
+     si pretende niente, e chi ha lavorato le scrive lo stesso. */
+  const festa = cal.nonLavorativo(giorno)
+  const piena = festa ? 0 : oreContratto(orari, mio.id, giorno)
   const mancano = Math.max(0, piena - coperte)
 
   /* UNA RIGA, dal 2026-09-24, come «Ore della giornata»: titolo e
@@ -104,7 +109,11 @@ export function MieOre({ giorno }: { giorno: string }) {
             {caricoOre
               ? 'Carico…'
               : `${assenza > 0 ? `${numero(assenza)} h coperte da un motivo · ` : ''}${
-                  mancano > 0 ? `ne mancano ${numero(mancano)} alle ${numero(piena)}` : 'giornata completa'
+                  mancano > 0
+                    ? `ne mancano ${numero(mancano)} alle ${numero(piena)}`
+                    : festa && coperte + straordinarie === 0
+                      ? `nessuna dovuta: ${festa}`
+                      : 'giornata completa'
                 }`}
           </p>
         </div>
